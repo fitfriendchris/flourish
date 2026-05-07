@@ -11,8 +11,9 @@
   <meta http-equiv="Expires" content="0">
   <title>Kingdom Excellence</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <style>
 :root{--navy:#1B2B40;--navy-light:#243B55;--gold:#C9A84C;--gold-light:#E8D5A3;--cream:#F5F1EB;--cream-dark:#EBE5DB;--white:#FFFFFF;--text:#1B2B40;--text-secondary:#6B7280;--border:#E5E0D8;--mint:#4ADE80;--mint-light:#DCFCE7;}
 *{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;-webkit-tap-highlight-color:transparent;box-sizing:border-box;margin:0;padding:0;}
 body{background:#9CA3AF;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:1rem;}
@@ -567,6 +568,15 @@ document.getElementById('modal-created').classList.remove('hidden');
 window.onload=function(){
 const saved=localStorage.getItem('ke_user');
 if(saved){hasAccount=true;}
+
+// Register Service Worker for PWA offline support
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('sw.js',{scope:'/flourish/'}).then(reg=>{
+console.log('SW registered:',reg.scope);
+}).catch(err=>{
+console.log('SW registration failed:',err);
+});
+}
 };
 </script>
 </div>
