@@ -50,7 +50,7 @@ body{background:#9CA3AF;display:flex;justify-content:center;align-items:center;m
 .btn-sm-gold{background:var(--gold);color:var(--navy);padding:6px 14px;border-radius:999px;font-weight:600;font-size:12px;border:none;cursor:pointer;}
 .input-field{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--white);font-size:15px;outline:none;transition:border-color .2s;color:var(--text);}
 .input-field:focus{border-color:var(--gold);}
-.modal-overlay{position:fixed;inset:0;background:rgba(27,43,64,.5);backdrop-filter:blur(4px);z-index:200;display:none;align-items:flex-end;justify-content:center;}
+.modal-overlay{position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(27,43,64,.5);backdrop-filter:blur(4px);z-index:200;display:none;align-items:flex-end;justify-content:center;}
 .modal-overlay.show{display:flex;}
 .modal-sheet{background:var(--cream);width:100%;max-width:390px;border-top-left-radius:28px;border-top-right-radius:28px;padding:24px 20px 40px;transform:translateY(100%);transition:transform .35s cubic-bezier(.32,.72,0,1);max-height:85vh;overflow-y:auto;}
 .modal-overlay.show .modal-sheet{transform:translateY(0);}
