@@ -502,7 +502,7 @@ let state={
 // SCREEN ROUTER
 window.goToScreen=function(screenId){
   document.querySelectorAll('.screen').forEach(s=>{s.classList.remove('active');s.style.display='none';});
-  document.querySelectorAll('.nav-tab').forEach(n=>{n.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(n=>{n.classList.remove('active');});
   const target=document.getElementById(screenId);
   if(target){target.classList.add('active');target.style.display='block';}
   const navBtn=document.querySelector('.nav-tab[data-screen="'+screenId+'"]');
