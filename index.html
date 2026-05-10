@@ -207,17 +207,17 @@ No data leaves your device without your consent.
 </div>
 <div class="card-white mb-4">
 <h4 class="font-semibold text-[var(--navy)] mb-2 flex items-center gap-2">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+Today's Lesson
+</h4>
+<p id="dev-lesson" class="text-sm text-[var(--text)] leading-relaxed"></p>
+</div>
+<div class="card-white mb-4">
+<h4 class="font-semibold text-[var(--navy)] mb-2 flex items-center gap-2">
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
 Understanding
 </h4>
 <p id="dev-understanding" class="text-sm text-[var(--text)] leading-relaxed"></p>
-</div>
-<div class="card-white mb-4">
-<h4 class="font-semibold text-[var(--navy)] mb-2 flex items-center gap-2">
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--mint)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-Application
-</h4>
-<p id="dev-application" class="text-sm text-[var(--text)] leading-relaxed"></p>
 </div>
 <div class="card-white mb-4">
 <h4 class="font-semibold text-[var(--navy)] mb-2 flex items-center gap-2">
@@ -226,12 +226,19 @@ Prayer
 </h4>
 <p id="dev-prayer" class="text-sm text-[var(--text)] leading-relaxed italic"></p>
 </div>
-<div class="card-white mb-6">
+<div class="card-white mb-4">
 <h4 class="font-semibold text-[var(--navy)] mb-2 flex items-center gap-2">
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A855F7" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
 Cross-Pillar Connection
 </h4>
 <p id="dev-cross" class="text-sm text-[var(--text)] leading-relaxed"></p>
+</div>
+<div class="card-white mb-6">
+<h4 class="font-semibold text-[var(--navy)] mb-3 flex items-center gap-2">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EAB308" stroke-width="2"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+Reflection Questions
+</h4>
+<ul id="dev-questions" class="space-y-2"></ul>
 </div>
 <button onclick="markComplete()" id="complete-btn" class="btn-gold mb-6">Mark Complete</button>
 </div>
@@ -549,10 +556,21 @@ function loadDevotional(dayNum) {
 
     const track = currentUser?.gender || 'men';
     const trackData = dayData[track] || dayData.men;
+    document.getElementById('dev-lesson').textContent = trackData?.lesson || '';
     document.getElementById('dev-understanding').textContent = trackData?.understanding || '';
-    document.getElementById('dev-application').textContent = trackData?.application || '';
     document.getElementById('dev-prayer').textContent = trackData?.prayer || '';
     document.getElementById('dev-cross').textContent = dayData.cross_pillar || '';
+
+    // Reflection questions
+    const questions = dayData.enrichment?.reflection_questions || [];
+    const qList = document.getElementById('dev-questions');
+    qList.innerHTML = '';
+    questions.forEach((q, i) => {
+      const li = document.createElement('li');
+      li.className = 'text-sm text-[var(--text)] leading-relaxed mb-2 flex gap-2';
+      li.innerHTML = `<span class="shrink-0 w-5 h-5 rounded-full bg-[var(--gold-light)] text-[var(--gold)] flex items-center justify-center text-[10px] font-bold">${i+1}</span><span>${q}</span>`;
+      qList.appendChild(li);
+    });
 
     const isCompleted = userProgress[dayData.day]?.completed;
     const btn = document.getElementById('complete-btn');
