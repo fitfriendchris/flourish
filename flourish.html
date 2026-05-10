@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="A 12-month sanctification engine for men who refuse to drift. Biblical Life Mastery in Health, Wealth, and Relationships.">
+<meta property="og:title" content="Project Flourish — Biblical Life Mastery">
+<meta property="og:description" content="12-month curriculum integrating Scripture, physical stewardship, financial sobriety, and covenant leadership.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://projectflourish.org">
+<meta property="og:image" content="https://projectflourish.org/og-image.png">
+<meta name="theme-color" content="#1a1a3e">
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiUHJvamVjdCBGbG91cmlzaCIsInNob3J0X25hbWUiOiJGbG91cmlzaCIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZmRmYmY3IiwidGhlbWVfY29sb3IiOiIjMWEsMWEzZSJ9">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Crect width='180' height='180' rx='32' fill='%23c5a028'/%3E%3Ctext x='90' y='115' font-size='100' text-anchor='middle' fill='%231a1a3e' font-family='serif'%3EF%3C/text%3E%3C/svg%3E">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
+<title>Project Flourish — Biblical Life Mastery</title>
+<script src="https://cdn.tailwindcss.com" async></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        serif: ['Playfair Display', 'serif'],
+        sans: ['Inter', 'sans-serif'],
+      },
+      colors: {
+        indigo: { 950: '#1a1a3e', 900: '#1e1b4b', 800: '#312e81', 700: '#4338ca' },
+        sand: { 50: '#fdfbf7', 100: '#f7f3eb', 200: '#efeadd', 300: '#e2d9c8' },
+        gold: { 400: '#d4af37', 500: '#c5a028', 600: '#b08d1f' },
+      }
+    }
+  }
+}
+</script>
+<style>
+[data-tab]{display:none}
+[data-tab].active{display:block}
+.tab-btn.active { border-bottom: 2px solid #c5a028; color:#c5a028; font-weight:600; }
+.scrollbar-hide::-webkit-scrollbar{display:none}
+</style>
+</head>
+<body class="bg-sand-50 text-indigo-950 font-sans antialiased selection:bg-gold-400/30">
+
+<!-- Sticky Nav -->
+<nav class="sticky top-0 z-50 bg-indigo-950/95 backdrop-blur border-b border-white/10">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gold-500 flex items-center justify-center text-indigo-950 font-bold text-sm">F</div>
+        <span class="font-serif text-xl font-bold text-white tracking-tight">Project Flourish</span>
+      </div>
+      <div class="hidden md:flex items-center space-x-1">
+        <button onclick="switchTab('hero')" aria-label="Vision tab" class="tab-btn active px-3 py-2 text-sm text-sand-200 hover:text-white transition">Vision</button>
+        <button onclick="switchTab('curriculum')" aria-label="Curriculum tab" class="tab-btn px-3 py-2 text-sm text-sand-200 hover:text-white transition">Curriculum</button>
+        <button onclick="switchTab('devotional')" aria-label="Devotional tab" class="tab-btn px-3 py-2 text-sm text-sand-200 hover:text-white transition">Devotional</button>
+        <button onclick="switchTab('app')" aria-label="Church Hub tab" class="tab-btn px-3 py-2 text-sm text-sand-200 hover:text-white transition">Church Hub</button>
+        <button onclick="switchTab('schema')" aria-label="Schema tab" class="tab-btn px-3 py-2 text-sm text-sand-200 hover:text-white transition">Schema</button>
+        <button onclick="switchTab('integration')" aria-label="Integration tab" class="tab-btn px-3 py-2 text-sm text-sand-200 hover:text-white transition">Integration</button>
+      </div>
+      <button onclick="document.getElementById('mobileMenu').classList.toggle('hidden')" aria-label="Toggle mobile menu" class="md:hidden text-white text-2xl px-2 py-1">&#9776;</button>
+    </div>
+  </div>
+  <div id="mobileMenu" class="hidden md:hidden bg-indigo-900 border-t border-white/10 p-4 space-y-2">
+    <button onclick="switchTab('hero');closeMenu()" aria-label="Vision" class="block w-full text-left text-sand-200 py-2 px-2">Vision</button>
+    <button onclick="switchTab('curriculum');closeMenu()" aria-label="Curriculum" class="block w-full text-left text-sand-200 py-2 px-2">Curriculum</button>
+    <button onclick="switchTab('devotional');closeMenu()" aria-label="Devotional" class="block w-full text-left text-sand-200 py-2 px-2">Devotional</button>
+    <button onclick="switchTab('app');closeMenu()" aria-label="Church Hub" class="block w-full text-left text-sand-200 py-2 px-2">Church Hub</button>
+    <button onclick="switchTab('schema');closeMenu()" aria-label="Schema" class="block w-full text-left text-sand-200 py-2 px-2">Schema</button>
+    <button onclick="switchTab('integration');closeMenu()" aria-label="Integration" class="block w-full text-left text-sand-200 py-2 px-2">Integration</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section id="hero" data-tab class="active">
+  <div class="relative bg-indigo-950 overflow-hidden">
+    <div class="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_50%_50%,#c5a028_0%,transparent_70%)]"></div>
+    <div class="max-w-7xl mx-auto px-4 py-24 lg:py-32 relative">
+      <div class="max-w-3xl">
+        <p class="text-gold-500 font-semibold tracking-widest uppercase text-sm mb-4">Biblical Life Mastery</p>
+        <h1 class="font-serif text-5xl lg:text-7xl font-bold text-white leading-tight mb-6">
+          Discipline. Scripture.<br>
+          <span class="text-gold-400">Kingdom Impact.</span>
+        </h1>
+        <p class="text-lg text-sand-300 leading-relaxed mb-8 max-w-2xl">
+          A 12-month sanctification engine for men who refuse to drift. Three pillars — <strong>Health, Wealth, and Relationships</strong> — integrated with Biblical exegesis, physical stewardship, financial sobriety, and covenant leadership. Supported by a digital church infrastructure that scales kingdom impact.
+        </p>
+        <div class="flex flex-wrap gap-4">
+          <button onclick="switchTab('curriculum')" class="px-6 py-3 bg-gold-500 hover:bg-gold-600 text-indigo-950 font-semibold rounded-lg transition">Explore Curriculum</button>
+          <button onclick="switchTab('app')" class="px-6 py-3 border border-sand-300/30 text-sand-100 hover:bg-white/5 font-semibold rounded-lg transition">See the App</button>
+        </div>
+      </div>
+      <!-- Stats Row -->
+      <div class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 border-t border-white/10 pt-8">
+        <div><p class="text-3xl font-serif font-bold text-gold-400">12</p><p class="text-sand-300 text-sm">Months of Mastery</p></div>
+        <div><p class="text-3xl font-serif font-bold text-gold-400">3</p><p class="text-sand-300 text-sm">Integrated Pillars</p></div>
+        <div><p class="text-3xl font-serif font-bold text-gold-400">18</p><p class="text-sand-300 text-sm">App Screens</p></div>
+        <div><p class="text-3xl font-serif font-bold text-gold-400">E2E</p><p class="text-sand-300 text-sm">Encrypted Counseling</p></div>
+      </div>
+      <!-- Newsletter Signup -->
+      <div class="mt-12 max-w-md">
+        <p class="text-sand-300 text-sm mb-3">Join the waitlist — curriculum launches Q3 2026.</p>
+        <form onsubmit="event.preventDefault(); localStorage.setItem('flourish_email', document.getElementById('nlEmail').value); this.innerHTML='<p class=\'text-gold-400 font-semibold\'>You are on the list. We will reach out at launch.</p>';" class="flex gap-2">
+          <input id="nlEmail" type="email" required placeholder="your@email.com" class="flex-1 px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-sand-400 focus:outline-none focus:border-gold-400" aria-label="Email for waitlist">
+          <button type="submit" class="px-5 py-2 bg-gold-500 hover:bg-gold-600 text-indigo-950 font-semibold rounded-lg transition whitespace-nowrap">Join Waitlist</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Three Pillars Cards -->
+  <div class="max-w-7xl mx-auto px-4 py-20">
+    <h2 class="font-serif text-3xl font-bold text-indigo-950 mb-12 text-center">The Three Pillars of Mastery</h2>
+    <div class="grid md:grid-cols-3 gap-8">
+      <div class="bg-white rounded-2xl p-8 shadow-lg border border-sand-200 hover:shadow-xl transition group">
+        <div class="w-12 h-12 rounded-xl bg-indigo-800 flex items-center justify-center text-gold-400 text-xl font-serif font-bold mb-6">I</div>
+        <h3 class="font-serif text-2xl font-bold text-indigo-950 mb-3">Health</h3>
+        <p class="text-slate-600 mb-4 leading-relaxed">Spiritual, Mental, and Physical. Exegesis over eisegesis. The Armor of God as cognitive framework. Body as temple. Stoicism meets Scripture through Viktor Frankl and C.S. Lewis.</p>
+        <p class="text-sm text-indigo-700 font-semibold">Key Scripture: 1 Cor 6:19-20; Phil 4:7; Eph 6:10-18</p>
+      </div>
+      <div class="bg-white rounded-2xl p-8 shadow-lg border border-sand-200 hover:shadow-xl transition group">
+        <div class="w-12 h-12 rounded-xl bg-indigo-800 flex items-center justify-center text-gold-400 text-xl font-serif font-bold mb-6">II</div>
+        <h3 class="font-serif text-2xl font-bold text-indigo-950 mb-3">Wealth</h3>
+        <p class="text-slate-600 mb-4 leading-relaxed">Stewardship, Generation, Growth. Biblical theology of money vs. consumerism. Earned, portfolio, and passive income. The 4-Week Intensive on income types. Compounding for kingdom expansion.</p>
+        <p class="text-sm text-indigo-700 font-semibold">Key Scripture: Prov 22:7; Matt 6:19-21; 2 Cor 9:6-8</p>
+      </div>
+      <div class="bg-white rounded-2xl p-8 shadow-lg border border-sand-200 hover:shadow-xl transition group">
+        <div class="w-12 h-12 rounded-xl bg-indigo-800 flex items-center justify-center text-gold-400 text-xl font-serif font-bold mb-6">III</div>
+        <h3 class="font-serif text-2xl font-bold text-indigo-950 mb-3">Relationships</h3>
+        <p class="text-slate-600 mb-4 leading-relaxed">Social and Self. Family hierarchy. Biblical friendship. Romantic leadership and covenant partnership. Radical self-reflection, integrity, and personal accountability.</p>
+        <p class="text-sm text-indigo-700 font-semibold">Key Scripture: Eph 5:25-33; Prov 27:17; Ecc 4:9-12</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CURRICULUM -->
+<section id="curriculum" data-tab>
+  <div class="max-w-7xl mx-auto px-4 py-16">
+    <h2 class="font-serif text-4xl font-bold text-indigo-950 mb-2">12-Month Biblical Life Mastery Syllabus</h2>
+    <p class="text-slate-600 mb-12 max-w-3xl">Each month is architected with explicit cross-pillar threading. No domain develops in isolation. Spiritual health is the root system from which all lasting wealth and relational fruit emerge.</p>
+
+    <div class="space-y-6" id="syllabusAccordion">
+      <!-- Month 1 -->
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleMonth('m1')" class="w-full flex items-center justify-between p-6 text-left hover:bg-sand-50 transition">
+          <div class="flex items-center gap-4">
+            <span class="w-10 h-10 rounded-full bg-indigo-800 text-gold-400 font-serif font-bold flex items-center justify-center">1</span>
+            <div>
+              <h3 class="font-serif text-xl font-bold text-indigo-950">The Root System: Spiritual Foundation</h3>
+              <p class="text-sm text-slate-500">Inductive Bible study, exegesis vs. eisegesis, Armor of God framework</p>
+            </div>
+          </div>
+          <svg id="icon-m1" class="w-6 h-6 text-indigo-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="m1" class="hidden px-6 pb-6">
+          <div class="grid md:grid-cols-3 gap-6 border-t border-sand-200 pt-6">
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Spiritual</h4><p class="text-sm text-slate-600">Observation, interpretation, application methodology. Reading the Bible canonically and thematically.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Wealth</h4><p class="text-sm text-slate-600">Misreading scripture = misaligned priorities. Exegesis protects against prosperity-gospel distortions of wealth.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Relationships</h4><p class="text-sm text-slate-600">Scripture literacy anchors all counsel. A man who cannot read the Word cannot lead his family.</p></div>
+          </div>
+          <p class="mt-4 text-sm font-semibold text-gold-600">1 Corinthians 10:31; 2 Timothy 2:15; Ephesians 6:10-18</p>
+        </div>
+      </div>
+
+      <!-- Month 2 -->
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleMonth('m2')" class="w-full flex items-center justify-between p-6 text-left hover:bg-sand-50 transition">
+          <div class="flex items-center gap-4">
+            <span class="w-10 h-10 rounded-full bg-indigo-800 text-gold-400 font-serif font-bold flex items-center justify-center">2</span>
+            <div>
+              <h3 class="font-serif text-xl font-bold text-indigo-950">Mental Fortitude: Renewing the Mind</h3>
+              <p class="text-sm text-slate-500">Stoicism + Scripture, Viktor Frankl's logotherapy, C.S. Lewis worldview formation</p>
+            </div>
+          </div>
+          <svg id="icon-m2" class="w-6 h-6 text-indigo-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="m2" class="hidden px-6 pb-6">
+          <div class="grid md:grid-cols-3 gap-6 border-t border-sand-200 pt-6">
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Mental</h4><p class="text-sm text-slate-600">Solomon meets Epictetus. Emotional regulation from Scripture vs. secular stoicism. Frankl's "why" as Colossians 3:23.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Wealth</h4><p class="text-sm text-slate-600">Fear-driven capital allocation vs. renewing the mind. Romans 12:2 enables rational stewardship over hoarding.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Relationships</h4><p class="text-sm text-slate-600">Emotional regulation is prerequisite for non-reactive leadership in marriage and parenting.</p></div>
+          </div>
+          <p class="mt-4 text-sm font-semibold text-gold-600">Romans 12:2; Philippians 4:7; Colossians 3:23</p>
+        </div>
+      </div>
+
+      <!-- Month 3 -->
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleMonth('m3')" class="w-full flex items-center justify-between p-6 text-left hover:bg-sand-50 transition">
+          <div class="flex items-center gap-4">
+            <span class="w-10 h-10 rounded-full bg-indigo-800 text-gold-400 font-serif font-bold flex items-center justify-center">3</span>
+            <div>
+              <h3 class="font-serif text-xl font-bold text-indigo-950">Temple Building: Physical Stewardship</h3>
+              <p class="text-sm text-slate-500">Body as temple, nutrition, resistance training, sleep architecture, fasting</p>
+            </div>
+          </div>
+          <svg id="icon-m3" class="w-6 h-6 text-indigo-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="m3" class="hidden px-6 pb-6">
+          <div class="grid md:grid-cols-3 gap-6 border-t border-sand-200 pt-6">
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Physical</h4><p class="text-sm text-slate-600">Resistance training, fasting, nutritional discipline, sleep architecture. Not vanity — vocational preparation.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Wealth</h4><p class="text-sm text-slate-600">Physical depletion impairs earning capacity. Elijah fled Jezebel in exhaustion. After restoration, he heard God.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Relationships</h4><p class="text-sm text-slate-600">Self-mastery in the body translates to self-mastery in conflict. Discipline is contagious to a household.</p></div>
+          </div>
+          <p class="mt-4 text-sm font-semibold text-gold-600">1 Corinthians 6:19-20; 1 Kings 19; 1 Timothy 4:8</p>
+        </div>
+      </div>
+
+      <!-- Month 4 -->
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleMonth('m4')" class="w-full flex items-center justify-between p-6 text-left hover:bg-sand-50 transition">
+          <div class="flex items-center gap-4">
+            <span class="w-10 h-10 rounded-full bg-indigo-800 text-gold-400 font-serif font-bold flex items-center justify-center">4</span>
+            <div>
+              <h3 class="font-serif text-xl font-bold text-indigo-950">Debt Elimination: Breaking Chains</h3>
+              <p class="text-sm text-slate-500">Consumer credit theology, the borrower/slave principle, snowball method, covenant financial unity</p>
+            </div>
+          </div>
+          <svg id="icon-m4" class="w-6 h-6 text-indigo-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="m4" class="hidden px-6 pb-6">
+          <div class="grid md:grid-cols-3 gap-6 border-t border-sand-200 pt-6">
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Wealth</h4><p class="text-sm text-slate-600">Proverbs 22:7. Debt elimination as spiritual liberation. Every dollar paid off is a brick in your kingdom wall.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Health</h4><p class="text-sm text-slate-600">Anxiety reduction measurable in cortisol, sleep quality, and blood pressure. Financial peace is physical medicine.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Relationships</h4><p class="text-sm text-slate-600">Debt is the #1 marital conflict driver. Elimination restores trust, communication, and covenant unity.</p></div>
+          </div>
+          <p class="mt-4 text-sm font-semibold text-gold-600">Proverbs 22:7; Romans 13:8; Psalm 37:21</p>
+        </div>
+      </div>
+
+      <!-- Month 5 -->
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleMonth('m5')" class="w-full flex items-center justify-between p-6 text-left hover:bg-sand-50 transition">
+          <div class="flex items-center gap-4">
+            <span class="w-10 h-10 rounded-full bg-indigo-800 text-gold-400 font-serif font-bold flex items-center justify-center">5</span>
+            <div>
+              <h3 class="font-serif text-xl font-bold text-indigo-950">Earned Income Excellence: Work as Worship</h3>
+              <p class="text-sm text-slate-500">Vocational mastery, Colossians 3:23 in the cubicle, career as calling</p>
+            </div>
+          </div>
+          <svg id="icon-m5" class="w-6 h-6 text-indigo-400 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="m5" class="hidden px-6 pb-6">
+          <div class="grid md:grid-cols-3 gap-6 border-t border-sand-200 pt-6">
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Wealth</h4><p class="text-sm text-slate-600">Trading time and expertise for compensation. The starting point, but the foundation. Every job is ministry.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Health</h4><p class="text-sm text-slate-600">Vocational idleness produces depression. Structured daily rhythm anchors mental clarity and spiritual discipline.</p></div>
+            <div><h4 class="font-semibold text-indigo-800 mb-2">Cross-Relationships</h4><p class="text-sm text-slate-600">A man who does not provide loses confidence in the home. 1 Timothy 5:8 frames provision as familial love.</p></div>
+          </div>
+          <p class="mt-4 text-sm font-semibold text-gold-600">Colossians 3:23-24; 1 Timothy 5:8; Ecclesiastes 9:10</p>
+        </div>
+      </div>
+
+      <!-- Months 6-12 (condensed view) -->
+      <div class="grid md:grid-cols-2 gap-6 mt-8">
+        <div class="bg-white rounded-xl p-6 border border-sand-200 shadow-sm">
+          <span class="text-xs font-bold tracking-widest text-gold-600 uppercase">Month 6</span>
+          <h3 class="font-serif text-lg font-bold text-indigo-950 mt-1">Multiple Streams: Portfolio Income</h3>
+          <p class="text-sm text-slate-600 mt-2">Dividends, interest, capital gains. Money working while you sleep. Ecclesiastes 11:1-2.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-sand-200 shadow-sm">
+          <span class="text-xs font-bold tracking-widest text-gold-600 uppercase">Month 7</span>
+          <h3 class="font-serif text-lg font-bold text-indigo-950 mt-1">Generational Allocation: Kingdom Legacy</h3>
+          <p class="text-sm text-slate-600 mt-2">Teaching the next generation. Prov 13:22. Wealth without transmitted values is a curse.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-sand-200 shadow-sm">
+          <span class="text-xs font-bold tracking-widest text-gold-600 uppercase">Month 8</span>
+          <h3 class="font-serif text-lg font-bold text-indigo-950 mt-1">Passive Income: Building Cash Flow</h3>
+          <p class="text-sm text-slate-600 mt-2">Real estate, royalties, digital products, automated businesses. Psalm 128:2.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-sand-200 shadow-sm">
+          <span class="text-xs font-bold tracking-widest text-gold-600 uppercase">Month 9</span>
+          <h3 class="font-serif text-lg font-bold text-indigo-950 mt-1">Compounding: Exponential Kingdom</h3>
+          <p class="text-sm text-slate-600 mt-2">The eighth wonder applied to capital, relationships, and spiritual influence over time.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-sand-200 shadow-sm">
+          <span class="text-xs font-bold tracking-widest text-gold-600 uppercase">Month 10</span>
+          <h3 class="font-serif text-lg font-bold text-indigo-950 mt-1">Covenant Marriage: Romantic Leadership</h3>
+          <p class="text-sm text-slate-600 mt-2">Ephesians 5:25-33. Sacrificial, servant leadership. The single greatest wealth protector.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-sand-200 shadow-sm">
+          <span class="text-xs font-bold tracking-widest text-gold-600 uppercase">Month 11</span>
+          <h3 class="font-serif text-lg font-bold text-indigo-950 mt-1">Crisis Resilience: Faith Over Fear</h3>
+          <p class="text-sm text-slate-600 mt-2">Recession-proof mindset. Shield of faith extinguishes anxiety. Ephesians 6:16.</p>
+        </div>
+        <div class="bg-white rounded-xl p-6 border border-sand-200 shadow-sm md:col-span-2">
+          <span class="text-xs font-bold tracking-widest text-gold-600 uppercase">Month 12</span>
+          <h3 class="font-serif text-lg font-bold text-indigo-950 mt-1">Accountability & Mission: Sending Disciples</h3>
+          <p class="text-sm text-slate-600 mt-2">Radical self-reflection. Integrity audits. Personal accountability structures. Commissioning the next generation of disciplined, Bible-believing men into their spheres.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DEVOTIONAL ENGINE -->
+<section id="devotional" data-tab>
+  <div class="max-w-7xl mx-auto px-4 py-16">
+    <h2 class="font-serif text-4xl font-bold text-indigo-950 mb-2">Daily Devotional Engine</h2>
+    <p class="text-slate-600 mb-12 max-w-3xl">Five-part template delivered every morning at 6:00 AM. Scripture, Deep Dive, Modern Parallel, and three Action Items — one for each pillar.</p>
+
+    <!-- Template -->
+    <div class="bg-indigo-950 rounded-2xl p-8 text-white mb-12">
+      <h3 class="font-serif text-2xl font-bold text-gold-400 mb-6">Devotional Template</h3>
+      <div class="grid md:grid-cols-5 gap-4">
+        <div class="bg-white/10 rounded-lg p-4">
+          <p class="text-gold-400 font-bold text-sm mb-1">01</p>
+          <p class="font-semibold">Scripture</p>
+          <p class="text-sm text-sand-300 mt-1">Central text + reference</p>
+        </div>
+        <div class="bg-white/10 rounded-lg p-4">
+          <p class="text-gold-400 font-bold text-sm mb-1">02</p>
+          <p class="font-semibold">Deep Dive</p>
+          <p class="text-sm text-sand-300 mt-1">Historical, linguistic, theological</p>
+        </div>
+        <div class="bg-white/10 rounded-lg p-4">
+          <p class="text-gold-400 font-bold text-sm mb-1">03</p>
+          <p class="font-semibold">Modern Parallel</p>
+          <p class="text-sm text-sand-300 mt-1">Secular philosopher / psychologist</p>
+        </div>
+        <div class="bg-white/10 rounded-lg p-4 md:col-span-2">
+          <p class="text-gold-400 font-bold text-sm mb-1">04</p>
+          <p class="font-semibold">Life Application</p>
+          <p class="text-sm text-sand-300 mt-1">Action: Health | Action: Wealth | Action: Relationships</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sample Devotionals -->
+    <div class="space-y-8" id="devotionalList">
+      <div class="bg-white rounded-2xl border border-sand-200 shadow-sm overflow-hidden">
+        <div class="bg-indigo-800 px-6 py-4 flex items-center justify-between">
+          <h3 class="font-serif text-xl font-bold text-white">Devotional 01: The Temple Builder</h3>
+          <span class="bg-gold-500 text-indigo-950 text-xs font-bold px-3 py-1 rounded-full">Health Focus</span>
+        </div>
+        <div class="p-6 space-y-6">
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Scripture</h4>
+            <blockquote class="font-serif text-xl text-indigo-950 border-l-4 border-gold-400 pl-4 italic">
+              "Do you not know that your bodies are temples of the Holy Spirit...? Honor God with your bodies." — 1 Corinthians 6:19-20
+            </blockquote>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Deep Dive</h4>
+            <p class="text-slate-700 leading-relaxed">The Greek <em>naos</em> (temple) refers not to the outer courts but the inner sanctuary — the Holy of Holies. Paul asserts the believer's body is the dwelling place of God's Spirit. This is not metaphor. It is an ontological reality that demands physical discipline as an act of worship, not vanity.</p>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Modern Parallel</h4>
+            <p class="text-slate-700 leading-relaxed italic">"Those who have a 'why' to live, can bear with almost any 'how.'" — Viktor Frankl, <em>Man's Search for Meaning</em>. Frankl's logotherapy aligns with 1 Cor 6:19: the body is not the meaning, but the vessel of meaning.</p>
+          </div>
+          <div class="border-t border-sand-200 pt-6">
+            <h4 class="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-4">Life Application</h4>
+            <div class="grid md:grid-cols-3 gap-4">
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Health</p><p class="text-sm text-indigo-950 mt-1">Perform 3 resistance training sessions this week. Log each in the Temple Builder tracker.</p></div>
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Wealth</p><p class="text-sm text-indigo-950 mt-1">Audit gym expense vs. usage. Eliminate unused memberships. Redirect saved funds to a health fund.</p></div>
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Relationships</p><p class="text-sm text-indigo-950 mt-1">Invite your spouse or a brother to one workout this week. Shared discipline bonds.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-sand-200 shadow-sm overflow-hidden">
+        <div class="bg-indigo-800 px-6 py-4 flex items-center justify-between">
+          <h3 class="font-serif text-xl font-bold text-white">Devotional 02: The Faithful Steward</h3>
+          <span class="bg-gold-500 text-indigo-950 text-xs font-bold px-3 py-1 rounded-full">Wealth Focus</span>
+        </div>
+        <div class="p-6 space-y-6">
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Scripture</h4>
+            <blockquote class="font-serif text-xl text-indigo-950 border-l-4 border-gold-400 pl-4 italic">
+              "The rich rule over the poor, and the borrower is slave to the lender." — Proverbs 22:7
+            </blockquote>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Deep Dive</h4>
+            <p class="text-slate-700 leading-relaxed">The Hebrew <em>mas</em> (tax, tribute, slave-labor) is the same root used for conscripted labor. Debt is not merely financial inconvenience — it is a form of spiritual and temporal bondage that strips covenant freedom. Solomon's wisdom here is economic liberation theology before economics existed.</p>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Modern Parallel</h4>
+            <p class="text-slate-700 leading-relaxed italic">"Debt is the slavery of the free." — Publilius Syrus. Nassim Taleb's concept of "skin in the game" amplifies: when you owe, someone else controls your margin of survival.</p>
+          </div>
+          <div class="border-t border-sand-200 pt-6">
+            <h4 class="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-4">Life Application</h4>
+            <div class="grid md:grid-cols-3 gap-4">
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Health</p><p class="text-sm text-indigo-950 mt-1">Track sleep quality for 7 nights. Notice correlation with financial stress. Journal findings.</p></div>
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Wealth</p><p class="text-sm text-indigo-950 mt-1">List all debts smallest to largest. Pay minimums on all except smallest. Attack smallest with all surplus.</p></div>
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Relationships</p><p class="text-sm text-indigo-950 mt-1">If married, have a covenant conversation about financial transparency. Share all account balances tonight.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-sand-200 shadow-sm overflow-hidden">
+        <div class="bg-indigo-800 px-6 py-4 flex items-center justify-between">
+          <h3 class="font-serif text-xl font-bold text-white">Devotional 03: The Iron Sharpen Iron</h3>
+          <span class="bg-gold-500 text-indigo-950 text-xs font-bold px-3 py-1 rounded-full">Relationships Focus</span>
+        </div>
+        <div class="p-6 space-y-6">
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Scripture</h4>
+            <blockquote class="font-serif text-xl text-indigo-950 border-l-4 border-gold-400 pl-4 italic">
+              "As iron sharpens iron, so one person sharpens another." — Proverbs 27:17
+            </blockquote>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Deep Dive</h4>
+            <p class="text-slate-700 leading-relaxed">The Hebrew <em>barzel</em> (iron) evokes forging — heat, pressure, friction. Sharpening is not gentle. It requires proximity, abrasion, and mutual vulnerability. A man without a sharpening brother is a dull blade: capable but ineffective, present but not piercing.</p>
+          </div>
+          <div>
+            <h4 class="text-sm font-bold text-gold-600 uppercase tracking-wider mb-2">Modern Parallel</h4>
+            <p class="text-slate-700 leading-relaxed italic">"Friendship is born at that moment when one person says to another: 'What! You too? I thought I was the only one.'" — C.S. Lewis, <em>The Four Loves</em>. Lewis's philia — friendship love — is the bond between those who see the same truth and sharpen each other toward it.</p>
+          </div>
+          <div class="border-t border-sand-200 pt-6">
+            <h4 class="text-sm font-bold text-indigo-800 uppercase tracking-wider mb-4">Life Application</h4>
+            <div class="grid md:grid-cols-3 gap-4">
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Health</p><p class="text-sm text-indigo-950 mt-1">Schedule one physical activity with a brother this week. Run, lift, hike — shared physical exertion bonds men.</p></div>
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Wealth</p><p class="text-sm text-indigo-950 mt-1">Identify a brother who is ahead of you financially. Ask for a 30-minute coffee. Pay. Listen.</p></div>
+              <div class="bg-sand-100 rounded-lg p-4"><p class="text-xs font-bold text-gold-600 uppercase">Relationships</p><p class="text-sm text-indigo-950 mt-1">Initiate a weekly accountability call with one trusted man. Ask hard questions. Expect hard answers.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHURCH HUB APP -->
+<section id="app" data-tab>
+  <div class="max-w-7xl mx-auto px-4 py-16">
+    <h2 class="font-serif text-4xl font-bold text-indigo-950 mb-2">Church Hub App</h2>
+    <p class="text-slate-600 mb-12 max-w-3xl">Dual-sided platform. Consumer-grade UX for men, enterprise-grade ministry tools for churches. All screens mapped, all flows designed.</p>
+
+    <!-- Screens Grid -->
+    <div class="mb-12">
+      <h3 class="font-serif text-2xl font-bold text-indigo-950 mb-6">18 Core Screens</h3>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <div class="bg-indigo-800 text-white rounded-lg p-3 text-center text-sm font-medium">Splash / Onboarding</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Login / Register</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Church Browser</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Church Detail</div>
+        <div class="bg-indigo-800 text-white rounded-lg p-3 text-center text-sm font-medium">Personal Dashboard</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Messages</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Prayer Wall</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Tithe History</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">QR Scanner</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Event Detail</div>
+        <div class="bg-indigo-800 text-white rounded-lg p-3 text-center text-sm font-medium">Devotional Reader</div>
+        <div class="bg-indigo-800 text-white rounded-lg p-3 text-center text-sm font-medium">Devotional Journal</div>
+        <div class="bg-indigo-950 text-gold-400 rounded-lg p-3 text-center text-sm font-medium border border-gold-400/30">Admin Dashboard</div>
+        <div class="bg-indigo-950 text-gold-400 rounded-lg p-3 text-center text-sm font-medium border border-gold-400/30">Event Manager</div>
+        <div class="bg-indigo-950 text-gold-400 rounded-lg p-3 text-center text-sm font-medium border border-gold-400/30">Store Manager</div>
+        <div class="bg-indigo-950 text-gold-400 rounded-lg p-3 text-center text-sm font-medium border border-gold-400/30">Communication Center</div>
+        <div class="bg-indigo-950 text-gold-400 rounded-lg p-3 text-center text-sm font-medium border border-gold-400/30">Analytics Dashboard</div>
+        <div class="bg-white border border-sand-200 rounded-lg p-3 text-center text-sm">Settings</div>
+      </div>
+    </div>
+
+    <!-- User Flow Mockups -->
+    <div class="grid md:grid-cols-3 gap-6 mb-12">
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm p-6">
+        <h4 class="font-serif text-lg font-bold text-indigo-950 mb-3">Flow 1: Church Discovery</h4>
+        <div class="space-y-2 text-sm text-slate-600">
+          <p><span class="text-gold-500 font-bold">1.</span> Open app → Church Browser</p>
+          <p><span class="text-gold-500 font-bold">2.</span> Filter by denomination + service time</p>
+          <p><span class="text-gold-500 font-bold">3.</span> Review profile, statement of faith</p>
+          <p><span class="text-gold-500 font-bold">4.</span> QR check-in on visit</p>
+          <p><span class="text-gold-500 font-bold">5.</span> First tithe via instant giving</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm p-6">
+        <h4 class="font-serif text-lg font-bold text-indigo-950 mb-3">Flow 2: Devotional Loop</h4>
+        <div class="space-y-2 text-sm text-slate-600">
+          <p><span class="text-gold-500 font-bold">1.</span> 6:00 AM push notification</p>
+          <p><span class="text-gold-500 font-bold">2.</span> Read scripture + deep dive</p>
+          <p><span class="text-gold-500 font-bold">3.</span> Listen to audio version</p>
+          <p><span class="text-gold-500 font-bold">4.</span> Journal reflection, mood tag</p>
+          <p><span class="text-gold-500 font-bold">5.</span> Share with leader if needed</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm p-6">
+        <h4 class="font-serif text-lg font-bold text-indigo-950 mb-3">Flow 3: Pastoral Care</h4>
+        <div class="space-y-2 text-sm text-slate-600">
+          <p><span class="text-gold-500 font-bold">1.</span> Counseling request received</p>
+          <p><span class="text-gold-500 font-bold">2.</span> Start E2E encrypted thread</p>
+          <p><span class="text-gold-500 font-bold">3.</span> Attach resource securely</p>
+          <p><span class="text-gold-500 font-bold">4.</span> Schedule invite-linked event</p>
+          <p><span class="text-gold-500 font-bold">5.</span> BullMQ auto-reminder 48hrs post</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="bg-slate-50 rounded-2xl p-8">
+      <h3 class="font-serif text-2xl font-bold text-indigo-950 mb-6">Technical Architecture</h3>
+      <div class="grid md:grid-cols-5 gap-6">
+        <div><h4 class="font-semibold text-indigo-800 text-sm mb-2">Mobile</h4><p class="text-sm text-slate-600">React Native (Expo) / Flutter</p></div>
+        <div><h4 class="font-semibold text-indigo-800 text-sm mb-2">Backend</h4><p class="text-sm text-slate-600">NestJS + Socket.io</p></div>
+        <div><h4 class="font-semibold text-indigo-800 text-sm mb-2">Database</h4><p class="text-sm text-slate-600">PostgreSQL + Redis + BullMQ</p></div>
+        <div><h4 class="font-semibold text-indigo-800 text-sm mb-2">Payments</h4><p class="text-sm text-slate-600">Stripe Connect</p></div>
+        <div><h4 class="font-semibold text-indigo-800 text-sm mb-2">Security</h4><p class="text-sm text-slate-600">TLS 1.3, AES-256, E2E (Signal Protocol), RBAC</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCHEMA -->
+<section id="schema" data-tab>
+  <div class="max-w-7xl mx-auto px-4 py-16">
+    <h2 class="font-serif text-4xl font-bold text-indigo-950 mb-2">Database Schema</h2>
+    <p class="text-slate-600 mb-8">PostgreSQL. All tables include <code>created_at</code>, <code>updated_at</code>, <code>deleted_at</code> (soft deletes). Column-level encryption for PII and pastoral counseling.</p>
+
+    <div class="space-y-6" id="schemaAccordion">
+      <!-- Schema items -->
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleSchema('s1')" class="w-full flex items-center justify-between p-5 text-left hover:bg-sand-50 transition">
+          <span class="font-semibold text-indigo-950">users</span>
+          <span class="text-xs text-slate-500">Core identity table</span>
+          <svg id="sicon-s1" class="w-5 h-5 text-indigo-400 transform ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="s1" class="hidden px-5 pb-5">
+          <pre class="bg-slate-900 text-slate-200 text-sm p-4 rounded-lg overflow-x-auto"><code>id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+email VARCHAR(255) UNIQUE NOT NULL
+password_hash VARCHAR(255) NOT NULL
+first_name VARCHAR(100) NOT NULL
+last_name VARCHAR(100) NOT NULL
+phone VARCHAR(20)
+avatar_url TEXT
+role VARCHAR(50) DEFAULT 'seeker' CHECK (role IN ('seeker','member','leader','pastor','admin','super_admin'))
+gender VARCHAR(20) CHECK (gender IN ('male','female','other','prefer_not_to_say'))
+date_of_birth DATE
+curriculum_track VARCHAR(50) DEFAULT 'flourish_men'
+health_api_connected BOOLEAN DEFAULT FALSE
+push_token TEXT
+is_email_verified BOOLEAN DEFAULT FALSE
+created_at TIMESTAMPTZ DEFAULT NOW()
+updated_at TIMESTAMPTZ DEFAULT NOW()
+deleted_at TIMESTAMPTZ</code></pre>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleSchema('s2')" class="w-full flex items-center justify-between p-5 text-left hover:bg-sand-50 transition">
+          <span class="font-semibold text-indigo-950">churches</span>
+          <span class="text-xs text-slate-500">Congregation profiles</span>
+          <svg id="sicon-s2" class="w-5 h-5 text-indigo-400 transform ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="s2" class="hidden px-5 pb-5">
+          <pre class="bg-slate-900 text-slate-200 text-sm p-4 rounded-lg overflow-x-auto"><code>id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+name VARCHAR(255) NOT NULL
+slug VARCHAR(255) UNIQUE NOT NULL
+statement_of_faith TEXT
+pastor_bio TEXT
+pastor_photo_url TEXT
+primary_language VARCHAR(50) DEFAULT 'en'
+denomination VARCHAR(100)
+website_url TEXT
+phone VARCHAR(20)
+email VARCHAR(255)
+latitude DECIMAL(10,8)
+longitude DECIMAL(11,8)
+address_line1 VARCHAR(255)
+address_line2 VARCHAR(255)
+city VARCHAR(100)
+state_province VARCHAR(100)
+postal_code VARCHAR(20)
+country VARCHAR(100) DEFAULT 'US'
+stripe_account_id VARCHAR(255)
+created_at / updated_at / deleted_at TIMESTAMPTZ</code></pre>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleSchema('s3')" class="w-full flex items-center justify-between p-5 text-left hover:bg-sand-50 transition">
+          <span class="font-semibold text-indigo-950">devotionals</span>
+          <span class="text-xs text-slate-500">Daily devotional content</span>
+          <svg id="sicon-s3" class="w-5 h-5 text-indigo-400 transform ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="s3" class="hidden px-5 pb-5">
+          <pre class="bg-slate-900 text-slate-200 text-sm p-4 rounded-lg overflow-x-auto"><code>id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+church_id UUID REFERENCES churches(id) ON DELETE SET NULL
+title VARCHAR(255) NOT NULL
+scripture_reference VARCHAR(255) NOT NULL
+scripture TEXT
+historical_context TEXT
+linguistic_nuance TEXT
+theological_flow TEXT
+modern_parallel TEXT
+action_health TEXT
+action_wealth TEXT
+action_relationships TEXT
+reflection TEXT NOT NULL
+discussion_question TEXT
+closing_prayer TEXT
+publish_date DATE NOT NULL
+author_name VARCHAR(255)
+audio_url TEXT
+tags VARCHAR(50)[]
+created_at / updated_at / deleted_at TIMESTAMPTZ</code></pre>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <button onclick="toggleSchema('s4')" class="w-full flex items-center justify-between p-5 text-left hover:bg-sand-50 transition">
+          <span class="font-semibold text-indigo-950">health_metrics</span>
+          <span class="text-xs text-slate-500">Temple Building physical tracking</span>
+          <svg id="sicon-s4" class="w-5 h-5 text-indigo-400 transform ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <div id="s4" class="hidden px-5 pb-5">
+          <pre class="bg-slate-900 text-slate-200 text-sm p-4 rounded-lg overflow-x-auto"><code>id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
+metric_date DATE NOT NULL
+source VARCHAR(50) DEFAULT 'manual'
+weight_lbs DECIMAL(6,2)
+body_fat_percent DECIMAL(5,2)
+steps INTEGER
+active_minutes INTEGER
+sleep_hours DECIMAL(4,2)
+resting_hr INTEGER
+mood_score INTEGER CHECK (mood_score BETWEEN 1 AND 10)
+fasting_completed BOOLEAN DEFAULT FALSE
+workout_logged BOOLEAN DEFAULT FALSE
+meal_plan_adherence INTEGER CHECK (meal_plan_adherence BETWEEN 1 AND 10)
+notes TEXT
+created_at / updated_at / deleted_at TIMESTAMPTZ
+UNIQUE (user_id, metric_date)</code></pre>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">memberships</h4>
+          <p class="text-xs text-slate-600">user_id, church_id, status (pending/active/inactive/removed), joined_at, left_at</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">events</h4>
+          <p class="text-xs text-slate-600">church_id, title, description, starts_at, ends_at, visibility (public/private/invite-linked), capacity</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">event_rsvps</h4>
+          <p class="text-xs text-slate-600">user_id, event_id, status (confirmed/waitlisted/declined), created_at</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">messages</h4>
+          <p class="text-xs text-slate-600">sender_id, receiver_id, content_encrypted BOOLEAN, thread_id, content, sent_at</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">prayer_requests</h4>
+          <p class="text-xs text-slate-600">user_id, church_id, title, content, visibility (private/shared/pray-chain), answered_at</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">tithe_records</h4>
+          <p class="text-xs text-slate-600">user_id, church_id, amount_cents, fund, is_recurring, stripe_payment_intent_id, receipt_url</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">store_products / orders</h4>
+          <p class="text-xs text-slate-600">SKU tracking, inventory, digital downloads, Stripe Connect, order fulfillment pipeline</p>
+        </div>
+        <div class="bg-white rounded-xl border border-sand-200 p-4">
+          <h4 class="font-semibold text-indigo-950 text-sm mb-2">notification_logs</h4>
+          <p class="text-xs text-slate-600">user_id, type (push/email/sms/in_app), title, body, metadata JSONB, is_read, sent_at</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INTEGRATION -->
+<section id="integration" data-tab>
+  <div class="max-w-7xl mx-auto px-4 py-16">
+    <h2 class="font-serif text-4xl font-bold text-indigo-950 mb-2">Cross-Pillar Integration Map</h2>
+    <p class="text-slate-600 mb-12 max-w-3xl">Twelve explicit causal linkages showing how decisions in one pillar cascade into others. Scripture-anchored. Bidirectional.</p>
+
+    <div class="overflow-x-auto mb-16">
+      <table class="w-full text-sm bg-white rounded-xl border border-sand-200 shadow-sm overflow-hidden">
+        <thead class="bg-indigo-950 text-white">
+          <tr>
+            <th class="text-left p-4 font-semibold">#</th>
+            <th class="text-left p-4 font-semibold">Trigger (Wealth)</th>
+            <th class="text-left p-4 font-semibold">Impact (Health)</th>
+            <th class="text-left p-4 font-semibold">Impact (Relationships)</th>
+            <th class="text-left p-4 font-semibold">Scripture</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-sand-200">
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">1</td><td class="p-4">Status-based spending / identity confusion</td><td class="p-4">Chronic anxiety, cortisol dysregulation</td><td class="p-4">Marital conflict over hidden purchases</td><td class="p-4 text-indigo-700 font-semibold">Phil 4:11-13</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">2</td><td class="p-4">Debt burden / consumer credit</td><td class="p-4">Depression, psychosomatic stress</td><td class="p-4">#1 driver of marital conflict</td><td class="p-4 text-indigo-700 font-semibold">Prov 22:7</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">3</td><td class="p-4">No passive income / time poverty</td><td class="p-4">Inability to Sabbath</td><td class="p-4">Absence from family</td><td class="p-4 text-indigo-700 font-semibold">Eccl 11:1-2</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">4</td><td class="p-4">Vocational idleness</td><td class="p-4">Depression, aimlessness</td><td class="p-4">Loss of confidence at home</td><td class="p-4 text-indigo-700 font-semibold">1 Tim 5:8</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">5</td><td class="p-4">No legacy vision</td><td class="p-4">Neglect of physical maintenance</td><td class="p-4">Uninstructed heirs</td><td class="p-4 text-indigo-700 font-semibold">Prov 13:22</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">6</td><td class="p-4">Panic during recession</td><td class="p-4">Cortisol spike, faithless anxiety</td><td class="p-4">Fear-driven withdrawal from community</td><td class="p-4 text-indigo-700 font-semibold">Eph 6:16</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">7</td><td class="p-4">Secret financial compromise</td><td class="p-4">Shame, depression</td><td class="p-4">Betrayal of trust</td><td class="p-4 text-indigo-700 font-semibold">Prov 28:13</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">8</td><td class="p-4">Consumerism as identity</td><td class="p-4">Never-enough psychology</td><td class="p-4">People-pleasing, romantic idolatry</td><td class="p-4 text-indigo-700 font-semibold">Matt 6:19-21</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">9</td><td class="p-4">Single income stream</td><td class="p-4">High-stress vigilance</td><td class="p-4">Fear-based parenting</td><td class="p-4 text-indigo-700 font-semibold">Prov 31:16-18</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">10</td><td class="p-4">Financial secrecy</td><td class="p-4">Cognitive load of deception</td><td class="p-4">Erosion of marital oneness</td><td class="p-4 text-indigo-700 font-semibold">James 5:16</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">11</td><td class="p-4">No tithe / kingdom allocation</td><td class="p-4">Spiritual dryness</td><td class="p-4">Generosity atrophy</td><td class="p-4 text-indigo-700 font-semibold">2 Cor 9:6-8</td></tr>
+          <tr class="hover:bg-sand-50"><td class="p-4 font-bold text-gold-600">12</td><td class="p-4">Divorce / covenant collapse</td><td class="p-4">Cardiovascular risk, reduced longevity</td><td class="p-4">Single greatest wealth destroyer</td><td class="p-4 text-indigo-700 font-semibold">Eph 5:25-33</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Reverse Cascade -->
+    <div class="bg-indigo-950 rounded-2xl p-8 text-white">
+      <h3 class="font-serif text-2xl font-bold text-gold-400 mb-6">Reverse-Cascade Linkages</h3>
+      <div class="space-y-4">
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-full bg-indigo-800 flex items-center justify-center text-gold-400 font-bold shrink-0">H→W</div>
+          <div>
+            <p class="font-semibold">Physical depletion impairs earning capacity</p>
+            <p class="text-sand-300 text-sm">Elijah fled Jezebel in exhaustion. After food, sleep, and solitude, he heard God's still small voice. Physical restoration precedes vocational restoration. — 1 Kings 19</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-full bg-indigo-800 flex items-center justify-center text-gold-400 font-bold shrink-0">H→R</div>
+          <div>
+            <p class="font-semibold">Mental strongholds produce fearful capital allocation</p>
+            <p class="text-sand-300 text-sm">Financial anxiety is a mental stronghold. Renewing the mind enables rational stewardship instead of fear-driven hoarding. — Romans 12:2</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-4">
+          <div class="w-10 h-10 rounded-full bg-indigo-800 flex items-center justify-center text-gold-400 font-bold shrink-0">R→W</div>
+          <div>
+            <p class="font-semibold">Relational isolation removes wise counsel</p>
+            <p class="text-sand-300 text-sm">Isolation is a risk factor for mental and physical decline. Brotherhood provides emotional regulation and crisis support. — Ecclesiastes 4:9-12</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-indigo-950 text-sand-300 py-8">
+  <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gold-500 flex items-center justify-center text-indigo-950 font-bold text-sm">F</div>
+      <span class="font-serif font-bold text-white">Project Flourish</span>
+    </div>
+    <p class="text-sm">Built for kingdom impact. Discipline. Scripture. Advance.</p>
+  </div>
+</footer>
+
+<script>
+// Tab Switching
+function switchTab(tab) {
+  document.querySelectorAll('[data-tab]').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const tabEl = document.getElementById(tab);
+  if(tabEl) tabEl.classList.add('active');
+  const btns = document.querySelectorAll('.tab-btn');
+  btns.forEach(btn => {
+    const oc = btn.getAttribute('onclick') || '';
+    if(oc.includes("'"+tab+"'")) btn.classList.add('active');
+  });
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function closeMenu() {
+  document.getElementById('mobileMenu').classList.add('hidden');
+}
+// Accordion for curriculum
+function toggleMonth(id) {
+  const el = document.getElementById(id);
+  const icon = document.getElementById('icon-' + id);
+  if(!el) return;
+  if(el.classList.contains('hidden')) {
+    el.classList.remove('hidden');
+    if(icon) icon.style.transform = 'rotate(180deg)';
+  } else {
+    el.classList.add('hidden');
+    if(icon) icon.style.transform = 'rotate(0deg)';
+  }
+}
+// Accordion for schema
+function toggleSchema(id) {
+  const el = document.getElementById(id);
+  const icon = document.getElementById('sicon-' + id);
+  if(!el) return;
+  if(el.classList.contains('hidden')) {
+    el.classList.remove('hidden');
+    if(icon) icon.style.transform = 'rotate(180deg)';
+  } else {
+    el.classList.add('hidden');
+    if(icon) icon.style.transform = 'rotate(0deg)';
+  }
+}
+
+// Progress Tracker — localStorage demo
+(function(){
+  const key = 'flourish_progress';
+  let prog = JSON.parse(localStorage.getItem(key) || '{}');
+  const months = ['m1','m2','m3','m4','m5','m6','m7','m8','m9','m10','m11','m12'];
+  function renderTracker(){
+    let html = '<div class="fixed bottom-4 right-4 z-50 bg-white rounded-xl shadow-xl border border-sand-200 p-4 w-64" id="progressTracker">';
+    html += '<div class="flex justify-between items-center mb-3"><h4 class="font-serif font-bold text-indigo-950">Your Progress</h4><button onclick="document.getElementById(\'progressTracker\').classList.add(\'hidden\')" class="text-slate-400 hover:text-slate-600">×</button></div>';
+    let done = 0;
+    months.forEach(m => {
+      const checked = prog[m] ? 'bg-gold-500' : 'bg-sand-200';
+      if(prog[m]) done++;
+      html += `<button onclick="toggleProgress('${m}')" class="w-6 h-6 rounded-full ${checked} inline-block mr-1 mb-1 transition hover:scale-110"></button>`;
+    });
+    html += `<p class="text-xs text-slate-500 mt-2">${done}/12 months completed</p>`;
+    html += '</div>';
+    const existing = document.getElementById('progressTracker');
+    if(existing) existing.outerHTML = html;
+    else document.body.insertAdjacentHTML('beforeend', html);
+  }
+  window.toggleProgress = function(m){
+    prog[m] = !prog[m];
+    localStorage.setItem(key, JSON.stringify(prog));
+    renderTracker();
+  };
+  window.addEventListener('DOMContentLoaded', renderTracker);
+})();
+
+// Intersection Observer fade-in animations
+(function(){
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        entry.target.classList.add('opacity-100','translate-y-0');
+        entry.target.classList.remove('opacity-0','translate-y-4');
+      }
+    });
+  }, { threshold: 0.1 });
+  window.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('section > div').forEach(el => {
+      el.classList.add('transition','duration-700','opacity-0','translate-y-4');
+      observer.observe(el);
+    });
+  });
+})();
+
+// Service Worker registration (PWA)
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdmZXRjaCcsIGZ1bmN0aW9uKGUpIHsgZS5yZXNwb25kV2l0aChmZXRjaChlLnJlcXVlc3QpKTsgfSk7').catch(()=>{});
+}
+</script>
+</body>
+</html>
