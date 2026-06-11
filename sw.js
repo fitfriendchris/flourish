@@ -1,78 +1,62 @@
-const CACHE_NAME='flourish-v1';
-const STATIC_ASSETS=[
-  '/flourish/',
-  '/flourish/index.html',
-  '/flourish/app.html',
-  '/flourish/flourish.html',
-  '/flourish/manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&display=swap'
+const CACHE_NAME = 'flourish-v10-1';
+const SHELL = [
+  './',
+  './index.html',
+  './flourish-v10.css',
+  './flourish-v10.js',
+  './manifest.json'
+];
+const DATA = [
+  './data/year1.json',
+  './data/year2.json',
+  './data/year3.json',
+  './data/plans.json'
 ];
 
-self.addEventListener('install',e=>{
+self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then(cache=>{
-      return cache.addAll(STATIC_ASSETS);
-    }).then(()=>self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(SHELL).then(() =>
+        // Data files are large — cache best-effort, don't block install
+        Promise.allSettled(DATA.map(u => cache.add(u)))
+      ))
+      .then(() => self.skipWaiting())
   );
 });
 
-self.addEventListener('activate',e=>{
+self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(names=>{
-      return Promise.all(
-        names.filter(n=>n!==CACHE_NAME).map(n=>caches.delete(n))
-      );
-    }).then(()=>self.clients.claim())
+    caches.keys()
+      .then(names => Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))))
+      .then(() => self.clients.claim())
   );
 });
 
-self.addEventListener('fetch',e=>{
-  const{request}=e;
-  const url=new URL(request.url);
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET') return;
+  // Never intercept Supabase API calls
+  if (url.hostname.endsWith('.supabase.co')) return;
 
-  if(request.method!=='GET')return;
-
-  // Network-first for curriculum data (always fresh)
-  if(url.pathname.includes('/data/')){
+  if (url.pathname.includes('/data/')) {
+    // Data: cache-first (immutable per release), fall back to network
     e.respondWith(
-      fetch(request).then(response=>{
-        const clone=response.clone();
-        caches.open(CACHE_NAME).then(c=>c.put(request,clone));
-        return response;
-      }).catch(()=>caches.match(request))
+      caches.match(e.request).then(hit => hit || fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, copy));
+        return res;
+      }))
     );
     return;
   }
-
-  // Stale-while-revalidate for HTML
-  if(request.mode==='navigate'||request.destination==='document'){
+  if (url.origin === location.origin) {
+    // Shell: network-first so updates land, cache fallback for offline
     e.respondWith(
-      caches.match(request).then(cached=>{
-        const fetchPromise=fetch(request).then(response=>{
-          if(response.ok){
-            const clone=response.clone();
-            caches.open(CACHE_NAME).then(c=>c.put(request,clone));
-          }
-          return response;
-        }).catch(()=>cached);
-        return cached||fetchPromise;
-      })
+      fetch(e.request).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then(c => c.put(e.request, copy));
+        return res;
+      }).catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
     );
-    return;
   }
-
-  // Cache-first for everything else
-  e.respondWith(
-    caches.match(request).then(cached=>{
-      if(cached)return cached;
-      return fetch(request).then(response=>{
-        if(response.ok){
-          const clone=response.clone();
-          caches.open(CACHE_NAME).then(c=>c.put(request,clone));
-        }
-        return response;
-      });
-    })
-  );
 });

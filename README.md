@@ -1,21 +1,34 @@
-# Project Flourish
+# Flourish — Biblical Life Mastery
 
-A Biblical Life Mastery Program and Church Hub App Ecosystem.
+> *"By wisdom a house is built, and by understanding it is established."* — Proverbs 24:3
 
-## Live
+A 3-year journey of biblical life mastery across **Health, Wealth, and Relationships** — with your church community built in.
+
+## Live App
 https://fitfriendchris.github.io/flourish
 
-## Sections
-- Vision: Three pillars (Health, Wealth, Relationships)
-- 12-Month Curriculum: Month-by-month with cross-pillar threading
-- Daily Devotional Engine: 5-part template with 3 sample devotionals
-- Church Hub App: 18-screen dual-sided platform
-- Database Schema: Full PostgreSQL design
-- Cross-Pillar Integration Map: 12 causal linkages
+## What's Inside (v10)
+- **3-Year Devotional** — 1,095 days across three arcs:
+  - Year 1 · *Foundation* — identity, disciplines, first principles
+  - Year 2 · *Deepening* — testing, healing, multiplication
+  - Year 3 · *Multiplication* — legacy, eldership, sending
+  - Men's & women's tracks, scripture, life application, enrichment (historical context, word studies, Christ connections, reflection)
+- **9 Guided Plans** — focused sprints inside each pillar (21-Day Temple Reset, 30-Day Debt Freedom Sprint, 21-Day Marriage Renewal, and more)
+- **Church Hub** — real multi-church support backed by Supabase:
+  - Church directory + QR/link invites; register or claim your church
+  - Members area with cross-device progress sync
+  - Community events with RSVPs
+  - Private messaging to church leaders
+  - Requests (prayer / counseling / benevolence / visits) with leader inbox
+  - **Church Plan Dashboard** for leaders — member devotional engagement, requests, events at a glance
+- **Offline-first PWA** — guest mode works fully offline; sign in to sync and join your church
 
-## Tech
-- React Native (Expo) / Vue
-- NestJS + Socket.io
-- PostgreSQL + Redis + BullMQ
-- Stripe Connect
-- Signal Protocol (E2E encryption)
+## Architecture
+- **Frontend:** vanilla JS PWA (no build step) on GitHub Pages
+- **Backend:** Supabase (Postgres + Auth + RLS) — schema in `~/Flourish/docs/schema.sql`
+- **Content pipeline:** `~/Flourish/generate_years23.py` (years 2–3), `generate_365.py` (year 1)
+
+## The Promise
+Do the lessons. Apply the wisdom. Everything governed by biblical principles —
+health, money, and relationships — gets better by design, not by accident.
+Hear → Do → Flourish. (Matthew 7:24, Psalm 1:2-3, Hebrews 12:11)
