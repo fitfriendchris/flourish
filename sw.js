@@ -1,9 +1,11 @@
-const CACHE_NAME = 'flourish-v10-3';
+const CACHE_NAME = 'flourish-v10-4';
 const SHELL = [
   './',
   './index.html',
   './flourish-v10.css',
   './flourish-v10.js',
+  './flourish-mana.js',
+  './flourish-cinematic.css',
   './flourish-art.js',
   './flourish-commerce.js',
   './flourish-commerce.css',
