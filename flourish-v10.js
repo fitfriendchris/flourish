@@ -330,8 +330,20 @@
       case 'church':     renderChurch(); break;
       case 'profile':    renderProfile(); break;
       case 'why':        renderWhy(); break;
+      case 'shop':       exposeForCommerce(); window.FlourishCommerce?.route(raw); break;
+      case 'giving':     exposeForCommerce(); window.FlourishCommerce?.routeGiving(raw); break;
       default:           renderDevotional();
     }
+  }
+
+  // ── Expose Supabase client / user / leader status to FlourishCommerce ──
+  // (Commerce module is sandboxed in its own IIFE; this bridges without leaking internals.)
+  function exposeForCommerce(){
+    window.__flourishSb = sb;
+    window.__flourishUser = state.user;
+    window.__flourishIsLeader = () => {
+      try { const m = myMembership(); return !!(m && isLeader(m)); } catch(e){ return false; }
+    };
   }
   function updateActiveNav(name){
     const map = {why:'progress'};

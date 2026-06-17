@@ -1,16 +1,20 @@
-const CACHE_NAME = 'flourish-v10-1';
+const CACHE_NAME = 'flourish-v10-2';
 const SHELL = [
   './',
   './index.html',
   './flourish-v10.css',
   './flourish-v10.js',
+  './flourish-art.js',
+  './flourish-commerce.js',
+  './flourish-commerce.css',
   './manifest.json'
 ];
 const DATA = [
   './data/year1.json',
   './data/year2.json',
   './data/year3.json',
-  './data/plans.json'
+  './data/plans.json',
+  './data/catalog.json'
 ];
 
 self.addEventListener('install', e => {
