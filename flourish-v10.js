@@ -743,7 +743,13 @@
     let P;
     try { P = await loadPlans(); }
     catch(e){ m.innerHTML=`<div class="error-state"><p class="error-msg">Plans failed to load.</p></div>`; return; }
-    if(planId){ renderPlanDetail(P.plans.find(x=>x.id===planId)); return; }
+    if(planId){
+      const pl=P.plans.find(x=>x.id===planId);
+      const qp2=new URLSearchParams(location.hash.split('?')[1]||'');
+      const dayIdx=parseInt(qp2.get('d'),10);
+      if(dayIdx && dayIdx>=1 && dayIdx<=(pl?.duration||0)){ renderLesson(pl, dayIdx); return; }
+      renderPlanDetail(pl); return;
+    }
 
     const byPillar={Health:[],Wealth:[],Relationships:[]};
     P.plans.forEach(pl=>{ (byPillar[pl.pillar] ||= []).push(pl); });
@@ -793,17 +799,77 @@
         </div>
         <div class="card card-enter">
           <div class="card-header"><span class="icon">📋</span> The Days</div>
+          <div style="font-size:12px;color:var(--text-muted);margin:4px 0 12px;line-height:1.5">Tap any day to open the full lesson — scripture, teaching, reflection, and prayer. The ✓ marks it complete.</div>
           ${pl.days.map((d,i)=>{
             const idx=i+1; const isDone=!!prog[idx];
             return `<div class="plan-day ${isDone?'done':''}">
               <div class="pd-check" onclick="app.togglePlanDay('${pl.id}',${idx})">${isDone?'✓':idx}</div>
-              <div style="flex:1">
+              <div style="flex:1;cursor:pointer" onclick="app.openLesson('${pl.id}',${idx})">
                 <div class="pd-title">Day ${idx} — ${esc(d.t)}</div>
                 <div class="pd-ref">📖 ${esc(d.s)}</div>
                 <div class="pd-action">${esc(d.a)}</div>
+                <div style="margin-top:6px;font-size:11px;color:var(--accent);font-weight:600;letter-spacing:.04em">OPEN LESSON →</div>
               </div>
             </div>`;
-          }).join('')}
+          }).join('')}\n        </div>
+        <div style="height:20px"></div>
+      </div>`;
+  }
+
+  // ── LESSON VIEW — full lesson content for a single plan day ──
+  function renderLesson(pl, idx){
+    const m=$('#main');
+    if(!pl){ m.innerHTML='<div class="empty-state">Plan not found.</div>'; return; }
+    const d=pl.days[idx-1];
+    if(!d){ m.innerHTML='<div class="empty-state">Lesson not found.</div>'; return; }
+    const prog=state.planProg[pl.id]||{};
+    const isDone=!!prog[idx];
+    const done=Object.keys(prog).length;
+    const pct=Math.round((done/pl.duration)*100);
+    const v=d.verse||{};
+    m.innerHTML=`
+      <div class="page">
+        <div class="week-detail-header card-enter">
+          <button class="btn-nav-round" onclick="app.openPlan('${pl.id}')">◀</button>
+          <div class="week-detail-info">
+            <div class="week-detail-eyebrow">${esc(pl.pillar)} · Day ${idx} of ${pl.duration}</div>
+            <div class="week-detail-theme">${esc(d.t)}</div>
+            <div class="week-detail-progress">${done}/${pl.duration} complete · ${pct}%</div>
+          </div>
+        </div>
+
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">📖</span> The Scripture</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;font-weight:600;letter-spacing:.04em">${esc(v.reference||d.s)} · ${esc(v.version||'ESV')}</div>
+          <div style="line-height:1.8;font-size:16px;color:var(--text);font-style:italic;border-left:3px solid var(--accent);padding-left:14px;margin:6px 0">${esc(v.text||'')}</div>
+        </div>
+
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">🕊️</span> The Teaching</div>
+          <div style="line-height:1.8;font-size:15px;color:var(--text)">${esc(d.teaching||'')}</div>
+        </div>
+
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">🪞</span> Reflection</div>
+          <div style="line-height:1.7;font-size:14px;color:var(--text-muted)">${esc(d.reflection||'')}</div>
+        </div>
+
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">👐</span> The Action</div>
+          <div style="line-height:1.7;font-size:14px;color:var(--text)">${esc(d.a||'')}</div>
+        </div>
+
+        ${d.prayer?`<div class="card card-enter">
+          <div class="card-header"><span class="icon">🙏</span> A Prayer for Today</div>
+          <div style="line-height:1.8;font-size:14px;color:var(--text-muted);font-style:italic">${esc(d.prayer)}</div>
+        </div>`:''}
+
+        <div class="card card-enter" style="text-align:center">
+          <button class="btn ${isDone?'btn-secondary':'btn-primary'}" style="width:100%;padding:14px;font-size:15px;font-weight:700" onclick="app.togglePlanDay('${pl.id}',${idx});app.openPlan('${pl.id}')">
+            ${isDone?'✓ Completed — Tap to Undo':'Mark Day '+idx+' Complete'}
+          </button>
+          ${!isDone&&idx<pl.duration?`<button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="app.openLesson('${pl.id}',${idx+1})">Next Day →</button>`:''}
+          ${isDone&&idx<pl.duration?`<button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="app.openLesson('${pl.id}',${idx+1})">Continue to Day ${idx+1} →</button>`:''}
         </div>
         <div style="height:20px"></div>
       </div>`;
@@ -1439,6 +1505,7 @@
 
     // plans
     openPlan(id){ location.hash=`plans?id=${id}`; showPage('plans'); },
+    openLesson(id, day){ location.hash=`plans?id=${id}&d=${day}`; showPage('plans'); },
     enrollPlan(id){
       state.planEnroll[id]=Date.now(); lsSet('flourish-plan-enrollments', state.planEnroll);
       if(sb&&state.user) sb.from('plan_enrollments').upsert({user_id:state.user.id,plan_id:id},{onConflict:'user_id,plan_id',ignoreDuplicates:true}).then(()=>{});
