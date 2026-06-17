@@ -348,3 +348,34 @@
 .at-status.completed, .at-status.test_completed{ background:rgba(90,158,111,0.18); color:var(--success); }
 .at-status.pending{ background:rgba(201,168,76,0.18); color:var(--warning); }
 .at-row .low{ color:var(--warning); font-weight:700; }
+/* ═════ STRIPE PAYMENT LINK BUTTONS ═══════════════════════════════ */
+.btn-stripe {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: .02em;
+  text-decoration: none;
+  background: linear-gradient(135deg, #635bff 0%, #4f46e5 100%);
+  color: #fff;
+  border: 1px solid rgba(99,91,255,.5);
+  box-shadow: 0 6px 18px -4px rgba(99,91,255,.45), inset 0 1px 0 rgba(255,255,255,.2);
+  transition: transform .15s ease, box-shadow .15s ease, filter .15s ease;
+  cursor: pointer;
+}
+.btn-stripe:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -4px rgba(99,91,255,.55), inset 0 1px 0 rgba(255,255,255,.25);
+  filter: brightness(1.08);
+}
+.pd-buy-btn { animation: shimmer-pop .6s ease both; }
+@keyframes shimmer-pop {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

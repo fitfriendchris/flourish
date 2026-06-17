@@ -234,6 +234,7 @@
                 </div>
               </div>
               <button class="btn btn-primary pd-add-btn" onclick="window.FlourishCommerce.addToCart('${p.id}')">Add to cart — ${fmtMoney(p.price_cents)}</button>
+              ${p.stripe_link ? `<a href="${p.stripe_link}" class="btn btn-stripe pd-buy-btn" target="_blank" rel="noopener">⚡ Buy now with Stripe</a>` : ''}
             `:`<div class="empty-mini">This item is currently unavailable.</div>`}
             <div class="pd-trust">
               <div>🪙 Hand-finished goods, made to last the journey.</div>
@@ -634,6 +635,15 @@
         window.location.href = data.url;
         return;
       } else {
+        // DEMO MODE: if the selected campaign has a real Stripe Payment Link, use it.
+        const camp = (C.catalog.campaigns||[]).find(c=>c.id===G.state.campaign_id);
+        const stripeUrl = G.state.recurring ? (camp&&camp.stripe_monthly) : (camp&&camp.stripe_one_time);
+        if(stripeUrl){
+          await persistGift({ ...G.state, id: null, status:'pending_stripe', created_at:new Date().toISOString(), mode:'stripe-link', currency:'usd' });
+          toast('Redirecting to secure Stripe checkout...');
+          window.location.href = stripeUrl;
+          return;
+        }
         await sleep(900);
         const gid = 'gift_test_'+Date.now().toString(36);
         await persistGift({ ...G.state, id: gid, status:'test_completed', created_at:new Date().toISOString(), mode:'demo', currency:'usd' });
