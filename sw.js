@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v10-5';
+const CACHE_NAME = 'flourish-v10-6'; // bumped for security fixes
 const SHELL = [
   './',
   './index.html',

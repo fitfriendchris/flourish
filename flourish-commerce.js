@@ -59,6 +59,22 @@
     return window.__flourishSb || null;
   }
   function user(){ return window.__flourishUser || null; }
+
+  // ── Auth token helper (C2 fix: backend now requires JWT) ──
+  async function authToken(){
+    const sb = sbClient();
+    if(!sb) return null;
+    try {
+      const { data:{ session } } = await sb.auth.getSession();
+      return session?.access_token || null;
+    } catch(e){ return null; }
+  }
+  async function authHeaders(){
+    const tok = await authToken();
+    const h = {'Content-Type':'application/json'};
+    if(tok) h['Authorization'] = 'Bearer ' + tok;
+    return h;
+  }
   function isStoreAdmin(){
     const u = user();
     if(!u) return false;
@@ -408,7 +424,7 @@
       if(mode==='live'){
         // LIVE: create order row + Stripe checkout session via backend
         const r = await fetch(`${BACKEND_URL}/api/create-order-session`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
+          method:'POST', headers: await authHeaders(),
           body: JSON.stringify({ order, success_url: successURL(), cancel_url: cancelURL() })
         });
         if(!r.ok) throw new Error('Backend error '+r.status);
@@ -625,7 +641,7 @@
     try{
       if(mode==='live'){
         const r = await fetch(`${BACKEND_URL}/api/create-giving-session`, {
-          method:'POST', headers:{'Content-Type':'application/json'},
+          method:'POST', headers: await authHeaders(),
           body: JSON.stringify({ ...G.state, success_url: successURLGive(), cancel_url: cancelURL() })
         });
         if(!r.ok) throw new Error('Backend error '+r.status);
@@ -825,13 +841,23 @@
     </div>`;
   }
   async function loadAllOrders(){
-    const sb = sbClient();
-    if(sb){ try{ const { data } = await sb.from('orders').select('*,items:order_items(*)').order('created_at',{ascending:false}); if(data) return data; }catch(e){} }
+    // C4 FIX: Use server-verified admin endpoint instead of unbounded Supabase SELECT
+    try{
+      const r = await fetch(`${BACKEND_URL}/api/admin/orders?limit=100`, {
+        headers: await authHeaders()
+      });
+      if(r.ok){ const data = await r.json(); return data.orders || []; }
+    }catch(e){}
     return JSON.parse(localStorage.getItem('flourish-orders')||'[]');
   }
   async function loadAllGifts(){
-    const sb = sbClient();
-    if(sb){ try{ const { data } = await sb.from('giving_records').select('*').order('created_at',{ascending:false}); if(data) return data; }catch(e){} }
+    // C4 FIX: Use server-verified admin endpoint instead of unbounded Supabase SELECT
+    try{
+      const r = await fetch(`${BACKEND_URL}/api/admin/gifts?limit=100`, {
+        headers: await authHeaders()
+      });
+      if(r.ok){ const data = await r.json(); return data.gifts || []; }
+    }catch(e){}
     return JSON.parse(localStorage.getItem('flourish-gifts')||'[]');
   }
   function exportCatalog(){
