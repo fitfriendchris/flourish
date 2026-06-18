@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flourish — Privacy Policy</title>
+<style>
+body{background:#0d1a11;color:#fff4d0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:800px;margin:0 auto;padding:40px 20px;line-height:1.6}
+h1{color:#dfc07a}h2{color:#dfc07a;margin-top:30px}
+a{color:#9b7bd4}
+.flourish-logo{font-size:1.8em;color:#dfc07a}
+</style>
+</head>
+<body>
+<div class="flourish-logo">🌱 Flourish</div>
+<h1>Privacy Policy</h1>
+<p><strong>Last updated:</strong> June 18, 2026</p>
+
+<h2>1. Information We Collect</h2>
+<ul>
+<li><strong>Account data:</strong> Name, email, church affiliation, password (hashed via Supabase Auth)</li>
+<li><strong>Progress data:</strong> Devotional completion, prayer requests, journal entries, community posts</li>
+<li><strong>Giving data:</strong> Donation amounts, campaign preferences (payment processed by Stripe)</li>
+<li><strong>Store orders:</strong> Shipping name, address, email, order items (payment via Stripe)</li>
+<li><strong>Health data:</strong> Optional — fitness goals, prayer/wellness tracking</li>
+</ul>
+
+<h2>2. How We Use Your Data</h2>
+<ul>
+<li>To provide devotionals, plans, and community features</li>
+<li>To process donations and store orders via Stripe</li>
+<li>To connect you with your church community and leaders</li>
+<li>To send prayer reminders, community updates, and order confirmations</li>
+</ul>
+
+<h2>3. Data Sharing</h2>
+<ul>
+<li><strong>Supabase:</strong> Database hosting (RLS-protected, per-user + per-church isolation)</li>
+<li><strong>Stripe:</strong> Payment processing for donations and store orders</li>
+</ul>
+<p>We do NOT sell your data. We do NOT share data with advertisers. Prayer requests marked "pastoral_only" are visible only to your church pastors (server-verified).</p>
+
+<h2>4. Data Security</h2>
+<ul>
+<li>Row-Level Security on all tables — per-user + per-church isolation</li>
+<li>JWT authentication required on all backend endpoints</li>
+<li>Server-side price resolution (no price manipulation)</li>
+<li>Rate limiting on all checkout and donation endpoints</li>
+<li>Stripe webhook signature verification (always enforced)</li>
+<li>CSP headers enabled</li>
+</ul>
+
+<h2>5. Church Data Isolation</h2>
+<p>Your data is isolated by church membership. Church leaders can see church-wide prayer requests and giving records for their church only. Store orders are visible to you and verified church admins.</p>
+
+<h2>6. Your Rights</h2>
+<ul>
+<li>Access: Request a copy of your data</li>
+<li>Deletion: Request account and data deletion</li>
+<li>Export: Export your progress and giving history</li>
+</ul>
+<p>Contact: <a href="mailto:support@fitfriendchris.github.io">support@fitfriendchris.github.io</a></p>
+
+<h2>7. Children's Privacy</h2>
+<p>Flourish is for users 13+. Users under 18 require parental consent.</p>
+
+<h2>8. Changes</h2>
+<p>We will notify users of material changes via email or in-app notification.</p>
+</body>
+</html>
