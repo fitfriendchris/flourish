@@ -1,468 +1,469 @@
 {
-  "meta": {
-    "version": 1,
-    "currency": "usd",
-    "brand": "Flourish",
-    "tagline": "The Agriculture of the Soul",
-    "note": "Hand-finished goods for the journey. Every purchase funds the charitable works of the Flourish ministry."
+ "meta": {
+  "version": 1,
+  "currency": "usd",
+  "brand": "Flourish",
+  "tagline": "The Agriculture of the Soul",
+  "note": "Hand-finished goods for the journey. Every purchase funds the charitable works of the Flourish ministry.",
+  "affiliate_note": "Products may include: affiliate_url (external partner link — renders 'Shop at brand' instead of cart), brand (partner name). FTC disclosure renders automatically when any affiliate product exists."
+ },
+ "categories": [
+  {
+   "id": "apparel",
+   "name": "Apparel",
+   "icon": "🌾",
+   "blurb": "The clothing line — wear the harvest."
   },
-  "categories": [
+  {
+   "id": "accessories",
+   "name": "Bible Accessories",
+   "icon": "🫒",
+   "blurb": "Tools for the daily reading."
+  },
+  {
+   "id": "books",
+   "name": "Books & Journals",
+   "icon": "📜",
+   "blurb": "The written record of wisdom."
+  }
+ ],
+ "products": [
+  {
+   "id": "p_rooted_tee",
+   "name": "\"Rooted\" Heavyweight Tee",
+   "category": "apparel",
+   "price_cents": 3499,
+   "compare_cents": 4299,
+   "blurb": "The tree anchored in stone. Heavyweight 7.2oz organic cotton, root-system print in deep relief.",
+   "description": "A tee built to survive the journey. 7.2oz heavyweight organic cotton with a chiseled root-system chest print and a wheat-sheaf back crest. Garment-dyed in moss and basalt. Pre-shrunk, reinforced collar, made to be worn into the ground — and out of it.",
+   "art_seed": "rooted",
+   "motif": "roots",
+   "variants": [
     {
-      "id": "apparel",
-      "name": "Apparel",
-      "icon": "\ud83c\udf3e",
-      "blurb": "The clothing line \u2014 wear the harvest."
+     "id": "v_rt_s",
+     "title": "Small / Basalt",
+     "option1": "S",
+     "option2": "Basalt",
+     "inventory_count": 24
     },
     {
-      "id": "accessories",
-      "name": "Bible Accessories",
-      "icon": "\ud83e\uded2",
-      "blurb": "Tools for the daily reading."
+     "id": "v_rt_m",
+     "title": "Medium / Basalt",
+     "option1": "M",
+     "option2": "Basalt",
+     "inventory_count": 36
     },
     {
-      "id": "books",
-      "name": "Books & Journals",
-      "icon": "\ud83d\udcdc",
-      "blurb": "The written record of wisdom."
+     "id": "v_rt_l",
+     "title": "Large / Basalt",
+     "option1": "L",
+     "option2": "Basalt",
+     "inventory_count": 30
+    },
+    {
+     "id": "v_rt_xl",
+     "title": "XL / Moss",
+     "option1": "XL",
+     "option2": "Moss",
+     "inventory_count": 22
+    },
+    {
+     "id": "v_rt_2xl",
+     "title": "2XL / Moss",
+     "option1": "2XL",
+     "option2": "Moss",
+     "inventory_count": 14
     }
-  ],
-  "products": [
+   ],
+   "stripe_link": "https://buy.stripe.com/bJe28q3LU6gkcrfgXk7Re0n",
+   "stripe_link_id": "plink_1TjPdqAGTN2oTXlIJnZyg801"
+  },
+  {
+   "id": "p_psalm1_hoodie",
+   "name": "Psalm 1 Sapling Hoodie",
+   "category": "apparel",
+   "price_cents": 6899,
+   "compare_cents": 7999,
+   "blurb": "Planted by streams of water. Midweight fleece with embossed sapling + Psalm 1:3 in gold leaf.",
+   "description": "Midweight 12oz brushed fleece hoodie. Embossed sapling crest on the chest, gold-leaf typeset of Psalm 1:3 down the left sleeve. Heavy drawcord, kangaroo pocket lined in linen. The leaf does not wither.",
+   "art_seed": "sapling",
+   "motif": "sapling",
+   "variants": [
     {
-      "id": "p_rooted_tee",
-      "name": "\"Rooted\" Heavyweight Tee",
-      "category": "apparel",
-      "price_cents": 3499,
-      "compare_cents": 4299,
-      "blurb": "The tree anchored in stone. Heavyweight 7.2oz organic cotton, root-system print in deep relief.",
-      "description": "A tee built to survive the journey. 7.2oz heavyweight organic cotton with a chiseled root-system chest print and a wheat-sheaf back crest. Garment-dyed in moss and basalt. Pre-shrunk, reinforced collar, made to be worn into the ground \u2014 and out of it.",
-      "art_seed": "rooted",
-      "motif": "roots",
-      "variants": [
-        {
-          "id": "v_rt_s",
-          "title": "Small / Basalt",
-          "option1": "S",
-          "option2": "Basalt",
-          "inventory_count": 24
-        },
-        {
-          "id": "v_rt_m",
-          "title": "Medium / Basalt",
-          "option1": "M",
-          "option2": "Basalt",
-          "inventory_count": 36
-        },
-        {
-          "id": "v_rt_l",
-          "title": "Large / Basalt",
-          "option1": "L",
-          "option2": "Basalt",
-          "inventory_count": 30
-        },
-        {
-          "id": "v_rt_xl",
-          "title": "XL / Moss",
-          "option1": "XL",
-          "option2": "Moss",
-          "inventory_count": 22
-        },
-        {
-          "id": "v_rt_2xl",
-          "title": "2XL / Moss",
-          "option1": "2XL",
-          "option2": "Moss",
-          "inventory_count": 14
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/bJe28q3LU6gkcrfgXk7Re0n",
-      "stripe_link_id": "plink_1TjPdqAGTN2oTXlIJnZyg801"
+     "id": "v_ph_s",
+     "title": "Small / Stone",
+     "option1": "S",
+     "option2": "Stone",
+     "inventory_count": 18
     },
     {
-      "id": "p_psalm1_hoodie",
-      "name": "Psalm 1 Sapling Hoodie",
-      "category": "apparel",
-      "price_cents": 6899,
-      "compare_cents": 7999,
-      "blurb": "Planted by streams of water. Midweight fleece with embossed sapling + Psalm 1:3 in gold leaf.",
-      "description": "Midweight 12oz brushed fleece hoodie. Embossed sapling crest on the chest, gold-leaf typeset of Psalm 1:3 down the left sleeve. Heavy drawcord, kangaroo pocket lined in linen. The leaf does not wither.",
-      "art_seed": "sapling",
-      "motif": "sapling",
-      "variants": [
-        {
-          "id": "v_ph_s",
-          "title": "Small / Stone",
-          "option1": "S",
-          "option2": "Stone",
-          "inventory_count": 18
-        },
-        {
-          "id": "v_ph_m",
-          "title": "Medium / Stone",
-          "option1": "M",
-          "option2": "Stone",
-          "inventory_count": 26
-        },
-        {
-          "id": "v_ph_l",
-          "title": "Large / Stone",
-          "option1": "L",
-          "option2": "Stone",
-          "inventory_count": 22
-        },
-        {
-          "id": "v_ph_xl",
-          "title": "XL / Stone",
-          "option1": "XL",
-          "option2": "Stone",
-          "inventory_count": 16
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/eVq5kCbembAE4YN6iG7Re0o",
-      "stripe_link_id": "plink_1TjPdrAGTN2oTXlIuGwLklmW"
+     "id": "v_ph_m",
+     "title": "Medium / Stone",
+     "option1": "M",
+     "option2": "Stone",
+     "inventory_count": 26
     },
     {
-      "id": "p_armor_ls",
-      "name": "Armor of God Long-Sleeve",
-      "category": "apparel",
-      "price_cents": 4299,
-      "blurb": "The full armor, etched in bronze. Long-sleeve with plate-texture print and Ephesians 6 cuff.",
-      "description": "Long-sleeve tee in 6oz ringspun cotton. The front carries an etched bronze armor motif over chiseled stone; the left cuff is set with 'Eph 6:11' in struck-metal type. Built for the cooler mornings of the journey.",
-      "art_seed": "armor",
-      "motif": "armor",
-      "variants": [
-        {
-          "id": "v_al_s",
-          "title": "Small / Iron",
-          "option1": "S",
-          "option2": "Iron",
-          "inventory_count": 20
-        },
-        {
-          "id": "v_al_m",
-          "title": "Medium / Iron",
-          "option1": "M",
-          "option2": "Iron",
-          "inventory_count": 28
-        },
-        {
-          "id": "v_al_l",
-          "title": "Large / Iron",
-          "option1": "L",
-          "option2": "Iron",
-          "inventory_count": 24
-        },
-        {
-          "id": "v_al_xl",
-          "title": "XL / Iron",
-          "option1": "XL",
-          "option2": "Iron",
-          "inventory_count": 12
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/28E28qaai0W0aj76iG7Re0p",
-      "stripe_link_id": "plink_1TjPdsAGTN2oTXlIySKcQCeD"
+     "id": "v_ph_l",
+     "title": "Large / Stone",
+     "option1": "L",
+     "option2": "Stone",
+     "inventory_count": 22
     },
     {
-      "id": "p_harvest_cap",
-      "name": "Harvest Field Cap",
-      "category": "apparel",
-      "price_cents": 3299,
-      "blurb": "Wheat-sheaf emblem, structured crown, brushed canvas. The worker's cap.",
-      "description": "Structured six-panel cap in brushed canvas. Wheat-sheaf emblem embroidered in gold and bronze thread on the front panel; woven 'Harvest' label at the back strap. Brass adjustment buckle. One size, built to weather.",
-      "art_seed": "harvest",
-      "motif": "wheat",
-      "variants": [
-        {
-          "id": "v_hc_os",
-          "title": "One Size / Moss",
-          "option1": "OS",
-          "option2": "Moss",
-          "inventory_count": 40
-        },
-        {
-          "id": "v_hc_os2",
-          "title": "One Size / Basalt",
-          "option1": "OS",
-          "option2": "Basalt",
-          "inventory_count": 30
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/3cI3cu82a8os62RePc7Re0q",
-      "stripe_link_id": "plink_1TjPdtAGTN2oTXlI0M59LyLs"
-    },
-    {
-      "id": "p_wisdom_tote",
-      "name": "\"Wisdom Builds\" Tote",
-      "category": "apparel",
-      "price_cents": 2899,
-      "blurb": "Heavy canvas tote. Proverbs 24:3 struck in gold across the stone-panel front.",
-      "description": "16oz natural canvas tote with a reinforced base and leather-reinforced handles. The front panel is a chiseled stone slab bearing 'By wisdom a house is built \u2014 Prov 24:3' in struck-gold type. Carries the books, carries the groceries, carries the work.",
-      "art_seed": "wisdom",
-      "motif": "stone",
-      "variants": [
-        {
-          "id": "v_wt_n",
-          "title": "Natural Canvas",
-          "option1": "OS",
-          "option2": "Natural",
-          "inventory_count": 50
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/3cI14m5U26gk0Ix6iG7Re0r",
-      "stripe_link_id": "plink_1TjPduAGTN2oTXlIwzrzEpa3"
-    },
-    {
-      "id": "p_fruitful_raglan",
-      "name": "\"Fruitful\" Olive Raglan",
-      "category": "apparel",
-      "price_cents": 3999,
-      "blurb": "Three-quarter raglan with an olive-branch shoulder print bearing fig and fruit.",
-      "description": "Three-quarter-sleeve raglan in heathered cotton. The right shoulder carries an olive branch bearing fig, pomegranate, and grape \u2014 the fruit of the Spirit made visible. Contrasting stone sleeves. A reminder that the branch abides to bear fruit.",
-      "art_seed": "fruitful",
-      "motif": "olive",
-      "variants": [
-        {
-          "id": "v_fr_s",
-          "title": "Small / Heather",
-          "option1": "S",
-          "option2": "Heather",
-          "inventory_count": 18
-        },
-        {
-          "id": "v_fr_m",
-          "title": "Medium / Heather",
-          "option1": "M",
-          "option2": "Heather",
-          "inventory_count": 24
-        },
-        {
-          "id": "v_fr_l",
-          "title": "Large / Heather",
-          "option1": "L",
-          "option2": "Heather",
-          "inventory_count": 20
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/eVq5kC6Y6awA0IxfTg7Re0s",
-      "stripe_link_id": "plink_1TjPdvAGTN2oTXlIZUvhKGni"
-    },
-    {
-      "id": "p_leather_journal",
-      "name": "Hand-Bound Scripture Journal",
-      "category": "accessories",
-      "price_cents": 5499,
-      "compare_cents": 6499,
-      "blurb": "Full-grain leather, 200 lined pages, embossed root-system spine. The daily record.",
-      "description": "Full-grain vegetable-tanned leather journal, 200 pages of acid-free lined paper, hand-stitched binding. The spine is embossed with a deep root system; the cover bears a recessed Flourish mark in bronze. Lay-flat binding, ribbon marker in moss. Ages with you.",
-      "art_seed": "journal",
-      "motif": "scroll",
-      "variants": [
-        {
-          "id": "v_lj_b",
-          "title": "Bourbon Brown",
-          "option1": "OS",
-          "option2": "Bourbon",
-          "inventory_count": 30
-        },
-        {
-          "id": "v_lj_c",
-          "title": "Coal Black",
-          "option1": "OS",
-          "option2": "Coal",
-          "inventory_count": 26
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/dRmfZgciqcEI4YNayW7Re0t",
-      "stripe_link_id": "plink_1TjPdwAGTN2oTXlINqtPzfz8"
-    },
-    {
-      "id": "p_brass_markers",
-      "name": "Brass Page-Marker Set",
-      "category": "accessories",
-      "price_cents": 2499,
-      "blurb": "Three solid brass line markers with wheat, olive, and vine finials. Never lose the verse.",
-      "description": "A set of three solid brass line markers, each with a different finial \u2014 a wheat sheaf, an olive branch, and a twisting vine. Brushed finish, weighted to hold the line without creasing the page. Comes in a stamped kraft sleeve. Made to mark the place where wisdom met you.",
-      "art_seed": "markers",
-      "motif": "brass",
-      "variants": [
-        {
-          "id": "v_bm_set",
-          "title": "Set of 3",
-          "option1": "OS",
-          "option2": "Brass",
-          "inventory_count": 60
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/14AdR8bem48c3UJdL87Re0u",
-      "stripe_link_id": "plink_1TjPdxAGTN2oTXlIy0WXL0qu"
-    },
-    {
-      "id": "p_anointing_kit",
-      "name": "Anointing Oil Kit",
-      "category": "accessories",
-      "price_cents": 3699,
-      "blurb": "Cold-pressed olive oil in a hand-blown vial, with a pressed-stone dish. The old rite.",
-      "description": "A 30ml vial of cold-pressed olive oil from first-press fruit, sealed in hand-blown glass with a bronze stopper. Paired with a pressed-basalt anointing dish, scored to pool the oil. A linen sleeve explains the rite. For the setting-apart of a person, a place, or a season.",
-      "art_seed": "anoint",
-      "motif": "olive",
-      "variants": [
-        {
-          "id": "v_ak_30",
-          "title": "30ml / Stone Dish",
-          "option1": "OS",
-          "option2": "Stone",
-          "inventory_count": 24
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/7sYbJ0aaicEIbnb22q7Re0v",
-      "stripe_link_id": "plink_1TjPdyAGTN2oTXlI3mtYROYA"
-    },
-    {
-      "id": "p_olivewood_cross",
-      "name": "Olive-Wood Pendant Cross",
-      "category": "accessories",
-      "price_cents": 4499,
-      "blurb": "Carved from olive wood, hung on a bronze chain. The grain is the sermon.",
-      "description": "A pendant cross hand-carved from a single piece of olive wood \u2014 every grain line intact, no two alike. Hung on a 22-inch brushed-bronze chain with a forged clasp. The wood is finished in beeswax and oil. Comes in a stamped kraft box with a linen sleeve.",
-      "art_seed": "cross",
-      "motif": "wood",
-      "variants": [
-        {
-          "id": "v_oc_22",
-          "title": "22in / Bronze Chain",
-          "option1": "OS",
-          "option2": "Bronze",
-          "inventory_count": 28
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/5kQ7sK6Y6gUYaj75eC7Re0w",
-      "stripe_link_id": "plink_1TjPdzAGTN2oTXlIF9tkK4SI"
-    },
-    {
-      "id": "p_linen_bookmark",
-      "name": "Wheat-Motif Linen Bookmark",
-      "category": "accessories",
-      "price_cents": 1499,
-      "blurb": "Woven linen with a wheat-sheaf border and a struck-verse center. Keeps the place.",
-      "description": "A woven linen bookmark, 2 \u00d7 8 inches, with a wheat-sheaf border and a struck-gold verse at center: 'Your word is a lamp to my feet.' Hand-finished edges, no fray. Slender enough for the thinnest Bible paper.",
-      "art_seed": "bookmark",
-      "motif": "wheat",
-      "variants": [
-        {
-          "id": "v_lb_n",
-          "title": "Natural Linen",
-          "option1": "OS",
-          "option2": "Natural",
-          "inventory_count": 80
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/eVq4gy6Y6fQUdvj8qO7Re0x",
-      "stripe_link_id": "plink_1TjPe0AGTN2oTXlIfwhyAT8e"
-    },
-    {
-      "id": "p_concordance_cover",
-      "name": "Pocket Concordance Cover",
-      "category": "accessories",
-      "price_cents": 3999,
-      "blurb": "Formed leather cover for a pocket concordance, embossed with a vine lattice.",
-      "description": "A formed-leather cover sized for a standard pocket concordance, embossed with a twisting vine lattice and a recessed bronze Flourish mark. Magnetic flap closure, internal card slot. Vegetable-tanned, ages to a deep patina.",
-      "art_seed": "cover",
-      "motif": "vine",
-      "variants": [
-        {
-          "id": "v_cc_b",
-          "title": "Bourbon Brown",
-          "option1": "OS",
-          "option2": "Bourbon",
-          "inventory_count": 22
-        },
-        {
-          "id": "v_cc_c",
-          "title": "Coal Black",
-          "option1": "OS",
-          "option2": "Coal",
-          "inventory_count": 18
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/fZu8wO5U22048aZ0Ym7Re0y",
-      "stripe_link_id": "plink_1TjPe0AGTN2oTXlIxWJcVZaq"
-    },
-    {
-      "id": "p_365_guide",
-      "name": "365-Day Study Guide (Physical)",
-      "category": "books",
-      "price_cents": 2999,
-      "compare_cents": 3499,
-      "blurb": "The full Year One companion in print. Hardcover, sewn binding, 384 pages.",
-      "description": "The complete 365-day Year One curriculum in a single hardcover volume. Sewn binding, 384 pages on uncoated stock, with a chiseled-stone cover and a gold-leaf spine. The same daily seeds, scripture, and reflection prompts as the app \u2014 in a form you can underline, dog-ear, and hand down.",
-      "art_seed": "guide365",
-      "motif": "scroll",
-      "variants": [
-        {
-          "id": "v_365_h",
-          "title": "Hardcover",
-          "option1": "OS",
-          "option2": "Stone",
-          "inventory_count": 120
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/28E00ifuC5cg3UJ4ay7Re0z",
-      "stripe_link_id": "plink_1TjPe1AGTN2oTXlIl0toaGZd"
-    },
-    {
-      "id": "p_foundations_cards",
-      "name": "Foundations Devotional Card Set",
-      "category": "books",
-      "price_cents": 2299,
-      "blurb": "52 heavy-stock cards, one for each week of Year One. The foundation in your pocket.",
-      "description": "A set of 52 heavy-stock devotional cards \u2014 one for each week of the foundation year. Each card carries a scripture, a one-line principle, and a single action. Pressed-basalt holder, bronze thumb-notch. Pull one each week. Carry it. Live it.",
-      "art_seed": "cards",
-      "motif": "stone",
-      "variants": [
-        {
-          "id": "v_fc_52",
-          "title": "Set of 52",
-          "option1": "OS",
-          "option2": "Stone",
-          "inventory_count": 45
-        }
-      ],
-      "stripe_link": "https://buy.stripe.com/cNi28q0zIbAEbnb9uS7Re0A",
-      "stripe_link_id": "plink_1TjPe2AGTN2oTXlIXBsndU9Y"
+     "id": "v_ph_xl",
+     "title": "XL / Stone",
+     "option1": "XL",
+     "option2": "Stone",
+     "inventory_count": 16
     }
-  ],
-  "campaigns": [
+   ],
+   "stripe_link": "https://buy.stripe.com/eVq5kCbembAE4YN6iG7Re0o",
+   "stripe_link_id": "plink_1TjPdrAGTN2oTXlIuGwLklmW"
+  },
+  {
+   "id": "p_armor_ls",
+   "name": "Armor of God Long-Sleeve",
+   "category": "apparel",
+   "price_cents": 4299,
+   "blurb": "The full armor, etched in bronze. Long-sleeve with plate-texture print and Ephesians 6 cuff.",
+   "description": "Long-sleeve tee in 6oz ringspun cotton. The front carries an etched bronze armor motif over chiseled stone; the left cuff is set with 'Eph 6:11' in struck-metal type. Built for the cooler mornings of the journey.",
+   "art_seed": "armor",
+   "motif": "armor",
+   "variants": [
     {
-      "id": "c_general",
-      "title": "Where Most Needed",
-      "description": "Gifts to the general fund let the ministry direct resources to the deepest need \u2014 a family in crisis, a printing run, a prison shipment, a roof. No restriction, full trust.",
-      "goal_cents": 5000000,
-      "stripe_one_time": "https://donate.stripe.com/5kQaEWaai8osdvj7mK7Re0F",
-      "stripe_monthly": "https://donate.stripe.com/aFa4gyaaigUY4YN4ay7Re0G"
+     "id": "v_al_s",
+     "title": "Small / Iron",
+     "option1": "S",
+     "option2": "Iron",
+     "inventory_count": 20
     },
     {
-      "id": "c_benevolence",
-      "title": "Benevolence Fund",
-      "description": "Direct emergency help for families in the Flourish community facing eviction, medical bills, or sudden loss. Every gift passes through the hands of a pastor, not a processor.",
-      "goal_cents": 2500000,
-      "stripe_one_time": "https://donate.stripe.com/3cI7sKdmu204aj70Ym7Re0H",
-      "stripe_monthly": "https://donate.stripe.com/00waEW0zI9sw62R4ay7Re0I"
+     "id": "v_al_m",
+     "title": "Medium / Iron",
+     "option1": "M",
+     "option2": "Iron",
+     "inventory_count": 28
     },
     {
-      "id": "c_prison",
-      "title": "Prison Ministry \u2014 Bibles Behind Walls",
-      "description": "Sends the 365-Day Study Guide and a scripture journal into prisons across the country. One gift covers one inmate's full year of material and postage.",
-      "goal_cents": 1500000,
-      "stripe_one_time": "https://donate.stripe.com/dRmcN4aai204bnb7mK7Re0J",
-      "stripe_monthly": "https://donate.stripe.com/dRm3cuciqbAEgHv36u7Re0K"
+     "id": "v_al_l",
+     "title": "Large / Iron",
+     "option1": "L",
+     "option2": "Iron",
+     "inventory_count": 24
     },
     {
-      "id": "c_printing",
-      "title": "The Printing Press",
-      "description": "Capital fund to own our own short-run press. Ends the per-unit margin paid to outside printers and lets us give books away at cost \u2014 or below it.",
-      "goal_cents": 4000000,
-      "stripe_one_time": "https://donate.stripe.com/28E8wO96e6gk0Ix5eC7Re0L",
-      "stripe_monthly": "https://donate.stripe.com/28EaEWciq5cgaj70Ym7Re0M"
+     "id": "v_al_xl",
+     "title": "XL / Iron",
+     "option1": "XL",
+     "option2": "Iron",
+     "inventory_count": 12
     }
-  ]
+   ],
+   "stripe_link": "https://buy.stripe.com/28E28qaai0W0aj76iG7Re0p",
+   "stripe_link_id": "plink_1TjPdsAGTN2oTXlIySKcQCeD"
+  },
+  {
+   "id": "p_harvest_cap",
+   "name": "Harvest Field Cap",
+   "category": "apparel",
+   "price_cents": 3299,
+   "blurb": "Wheat-sheaf emblem, structured crown, brushed canvas. The worker's cap.",
+   "description": "Structured six-panel cap in brushed canvas. Wheat-sheaf emblem embroidered in gold and bronze thread on the front panel; woven 'Harvest' label at the back strap. Brass adjustment buckle. One size, built to weather.",
+   "art_seed": "harvest",
+   "motif": "wheat",
+   "variants": [
+    {
+     "id": "v_hc_os",
+     "title": "One Size / Moss",
+     "option1": "OS",
+     "option2": "Moss",
+     "inventory_count": 40
+    },
+    {
+     "id": "v_hc_os2",
+     "title": "One Size / Basalt",
+     "option1": "OS",
+     "option2": "Basalt",
+     "inventory_count": 30
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/3cI3cu82a8os62RePc7Re0q",
+   "stripe_link_id": "plink_1TjPdtAGTN2oTXlI0M59LyLs"
+  },
+  {
+   "id": "p_wisdom_tote",
+   "name": "\"Wisdom Builds\" Tote",
+   "category": "apparel",
+   "price_cents": 2899,
+   "blurb": "Heavy canvas tote. Proverbs 24:3 struck in gold across the stone-panel front.",
+   "description": "16oz natural canvas tote with a reinforced base and leather-reinforced handles. The front panel is a chiseled stone slab bearing 'By wisdom a house is built — Prov 24:3' in struck-gold type. Carries the books, carries the groceries, carries the work.",
+   "art_seed": "wisdom",
+   "motif": "stone",
+   "variants": [
+    {
+     "id": "v_wt_n",
+     "title": "Natural Canvas",
+     "option1": "OS",
+     "option2": "Natural",
+     "inventory_count": 50
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/3cI14m5U26gk0Ix6iG7Re0r",
+   "stripe_link_id": "plink_1TjPduAGTN2oTXlIwzrzEpa3"
+  },
+  {
+   "id": "p_fruitful_raglan",
+   "name": "\"Fruitful\" Olive Raglan",
+   "category": "apparel",
+   "price_cents": 3999,
+   "blurb": "Three-quarter raglan with an olive-branch shoulder print bearing fig and fruit.",
+   "description": "Three-quarter-sleeve raglan in heathered cotton. The right shoulder carries an olive branch bearing fig, pomegranate, and grape — the fruit of the Spirit made visible. Contrasting stone sleeves. A reminder that the branch abides to bear fruit.",
+   "art_seed": "fruitful",
+   "motif": "olive",
+   "variants": [
+    {
+     "id": "v_fr_s",
+     "title": "Small / Heather",
+     "option1": "S",
+     "option2": "Heather",
+     "inventory_count": 18
+    },
+    {
+     "id": "v_fr_m",
+     "title": "Medium / Heather",
+     "option1": "M",
+     "option2": "Heather",
+     "inventory_count": 24
+    },
+    {
+     "id": "v_fr_l",
+     "title": "Large / Heather",
+     "option1": "L",
+     "option2": "Heather",
+     "inventory_count": 20
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/eVq5kC6Y6awA0IxfTg7Re0s",
+   "stripe_link_id": "plink_1TjPdvAGTN2oTXlIZUvhKGni"
+  },
+  {
+   "id": "p_leather_journal",
+   "name": "Hand-Bound Scripture Journal",
+   "category": "accessories",
+   "price_cents": 5499,
+   "compare_cents": 6499,
+   "blurb": "Full-grain leather, 200 lined pages, embossed root-system spine. The daily record.",
+   "description": "Full-grain vegetable-tanned leather journal, 200 pages of acid-free lined paper, hand-stitched binding. The spine is embossed with a deep root system; the cover bears a recessed Flourish mark in bronze. Lay-flat binding, ribbon marker in moss. Ages with you.",
+   "art_seed": "journal",
+   "motif": "scroll",
+   "variants": [
+    {
+     "id": "v_lj_b",
+     "title": "Bourbon Brown",
+     "option1": "OS",
+     "option2": "Bourbon",
+     "inventory_count": 30
+    },
+    {
+     "id": "v_lj_c",
+     "title": "Coal Black",
+     "option1": "OS",
+     "option2": "Coal",
+     "inventory_count": 26
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/dRmfZgciqcEI4YNayW7Re0t",
+   "stripe_link_id": "plink_1TjPdwAGTN2oTXlINqtPzfz8"
+  },
+  {
+   "id": "p_brass_markers",
+   "name": "Brass Page-Marker Set",
+   "category": "accessories",
+   "price_cents": 2499,
+   "blurb": "Three solid brass line markers with wheat, olive, and vine finials. Never lose the verse.",
+   "description": "A set of three solid brass line markers, each with a different finial — a wheat sheaf, an olive branch, and a twisting vine. Brushed finish, weighted to hold the line without creasing the page. Comes in a stamped kraft sleeve. Made to mark the place where wisdom met you.",
+   "art_seed": "markers",
+   "motif": "brass",
+   "variants": [
+    {
+     "id": "v_bm_set",
+     "title": "Set of 3",
+     "option1": "OS",
+     "option2": "Brass",
+     "inventory_count": 60
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/14AdR8bem48c3UJdL87Re0u",
+   "stripe_link_id": "plink_1TjPdxAGTN2oTXlIy0WXL0qu"
+  },
+  {
+   "id": "p_anointing_kit",
+   "name": "Anointing Oil Kit",
+   "category": "accessories",
+   "price_cents": 3699,
+   "blurb": "Cold-pressed olive oil in a hand-blown vial, with a pressed-stone dish. The old rite.",
+   "description": "A 30ml vial of cold-pressed olive oil from first-press fruit, sealed in hand-blown glass with a bronze stopper. Paired with a pressed-basalt anointing dish, scored to pool the oil. A linen sleeve explains the rite. For the setting-apart of a person, a place, or a season.",
+   "art_seed": "anoint",
+   "motif": "olive",
+   "variants": [
+    {
+     "id": "v_ak_30",
+     "title": "30ml / Stone Dish",
+     "option1": "OS",
+     "option2": "Stone",
+     "inventory_count": 24
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/7sYbJ0aaicEIbnb22q7Re0v",
+   "stripe_link_id": "plink_1TjPdyAGTN2oTXlI3mtYROYA"
+  },
+  {
+   "id": "p_olivewood_cross",
+   "name": "Olive-Wood Pendant Cross",
+   "category": "accessories",
+   "price_cents": 4499,
+   "blurb": "Carved from olive wood, hung on a bronze chain. The grain is the sermon.",
+   "description": "A pendant cross hand-carved from a single piece of olive wood — every grain line intact, no two alike. Hung on a 22-inch brushed-bronze chain with a forged clasp. The wood is finished in beeswax and oil. Comes in a stamped kraft box with a linen sleeve.",
+   "art_seed": "cross",
+   "motif": "wood",
+   "variants": [
+    {
+     "id": "v_oc_22",
+     "title": "22in / Bronze Chain",
+     "option1": "OS",
+     "option2": "Bronze",
+     "inventory_count": 28
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/5kQ7sK6Y6gUYaj75eC7Re0w",
+   "stripe_link_id": "plink_1TjPdzAGTN2oTXlIF9tkK4SI"
+  },
+  {
+   "id": "p_linen_bookmark",
+   "name": "Wheat-Motif Linen Bookmark",
+   "category": "accessories",
+   "price_cents": 1499,
+   "blurb": "Woven linen with a wheat-sheaf border and a struck-verse center. Keeps the place.",
+   "description": "A woven linen bookmark, 2 × 8 inches, with a wheat-sheaf border and a struck-gold verse at center: 'Your word is a lamp to my feet.' Hand-finished edges, no fray. Slender enough for the thinnest Bible paper.",
+   "art_seed": "bookmark",
+   "motif": "wheat",
+   "variants": [
+    {
+     "id": "v_lb_n",
+     "title": "Natural Linen",
+     "option1": "OS",
+     "option2": "Natural",
+     "inventory_count": 80
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/eVq4gy6Y6fQUdvj8qO7Re0x",
+   "stripe_link_id": "plink_1TjPe0AGTN2oTXlIfwhyAT8e"
+  },
+  {
+   "id": "p_concordance_cover",
+   "name": "Pocket Concordance Cover",
+   "category": "accessories",
+   "price_cents": 3999,
+   "blurb": "Formed leather cover for a pocket concordance, embossed with a vine lattice.",
+   "description": "A formed-leather cover sized for a standard pocket concordance, embossed with a twisting vine lattice and a recessed bronze Flourish mark. Magnetic flap closure, internal card slot. Vegetable-tanned, ages to a deep patina.",
+   "art_seed": "cover",
+   "motif": "vine",
+   "variants": [
+    {
+     "id": "v_cc_b",
+     "title": "Bourbon Brown",
+     "option1": "OS",
+     "option2": "Bourbon",
+     "inventory_count": 22
+    },
+    {
+     "id": "v_cc_c",
+     "title": "Coal Black",
+     "option1": "OS",
+     "option2": "Coal",
+     "inventory_count": 18
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/fZu8wO5U22048aZ0Ym7Re0y",
+   "stripe_link_id": "plink_1TjPe0AGTN2oTXlIxWJcVZaq"
+  },
+  {
+   "id": "p_365_guide",
+   "name": "365-Day Study Guide (Physical)",
+   "category": "books",
+   "price_cents": 2999,
+   "compare_cents": 3499,
+   "blurb": "The full Year One companion in print. Hardcover, sewn binding, 384 pages.",
+   "description": "The complete 365-day Year One curriculum in a single hardcover volume. Sewn binding, 384 pages on uncoated stock, with a chiseled-stone cover and a gold-leaf spine. The same daily seeds, scripture, and reflection prompts as the app — in a form you can underline, dog-ear, and hand down.",
+   "art_seed": "guide365",
+   "motif": "scroll",
+   "variants": [
+    {
+     "id": "v_365_h",
+     "title": "Hardcover",
+     "option1": "OS",
+     "option2": "Stone",
+     "inventory_count": 120
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/28E00ifuC5cg3UJ4ay7Re0z",
+   "stripe_link_id": "plink_1TjPe1AGTN2oTXlIl0toaGZd"
+  },
+  {
+   "id": "p_foundations_cards",
+   "name": "Foundations Devotional Card Set",
+   "category": "books",
+   "price_cents": 2299,
+   "blurb": "52 heavy-stock cards, one for each week of Year One. The foundation in your pocket.",
+   "description": "A set of 52 heavy-stock devotional cards — one for each week of the foundation year. Each card carries a scripture, a one-line principle, and a single action. Pressed-basalt holder, bronze thumb-notch. Pull one each week. Carry it. Live it.",
+   "art_seed": "cards",
+   "motif": "stone",
+   "variants": [
+    {
+     "id": "v_fc_52",
+     "title": "Set of 52",
+     "option1": "OS",
+     "option2": "Stone",
+     "inventory_count": 45
+    }
+   ],
+   "stripe_link": "https://buy.stripe.com/cNi28q0zIbAEbnb9uS7Re0A",
+   "stripe_link_id": "plink_1TjPe2AGTN2oTXlIXBsndU9Y"
+  }
+ ],
+ "campaigns": [
+  {
+   "id": "c_general",
+   "title": "Where Most Needed",
+   "description": "Gifts to the general fund let the ministry direct resources to the deepest need — a family in crisis, a printing run, a prison shipment, a roof. No restriction, full trust.",
+   "goal_cents": 5000000,
+   "stripe_one_time": "https://donate.stripe.com/5kQaEWaai8osdvj7mK7Re0F",
+   "stripe_monthly": "https://donate.stripe.com/aFa4gyaaigUY4YN4ay7Re0G"
+  },
+  {
+   "id": "c_benevolence",
+   "title": "Benevolence Fund",
+   "description": "Direct emergency help for families in the Flourish community facing eviction, medical bills, or sudden loss. Every gift passes through the hands of a pastor, not a processor.",
+   "goal_cents": 2500000,
+   "stripe_one_time": "https://donate.stripe.com/3cI7sKdmu204aj70Ym7Re0H",
+   "stripe_monthly": "https://donate.stripe.com/00waEW0zI9sw62R4ay7Re0I"
+  },
+  {
+   "id": "c_prison",
+   "title": "Prison Ministry — Bibles Behind Walls",
+   "description": "Sends the 365-Day Study Guide and a scripture journal into prisons across the country. One gift covers one inmate's full year of material and postage.",
+   "goal_cents": 1500000,
+   "stripe_one_time": "https://donate.stripe.com/dRmcN4aai204bnb7mK7Re0J",
+   "stripe_monthly": "https://donate.stripe.com/dRm3cuciqbAEgHv36u7Re0K"
+  },
+  {
+   "id": "c_printing",
+   "title": "The Printing Press",
+   "description": "Capital fund to own our own short-run press. Ends the per-unit margin paid to outside printers and lets us give books away at cost — or below it.",
+   "goal_cents": 4000000,
+   "stripe_one_time": "https://donate.stripe.com/28E8wO96e6gk0Ix5eC7Re0L",
+   "stripe_monthly": "https://donate.stripe.com/28EaEWciq5cgaj70Ym7Re0M"
+  }
+ ]
 }

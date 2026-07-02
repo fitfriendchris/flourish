@@ -189,6 +189,7 @@
         </div>
         <div class="shop-footnote card-enter">
           Every purchase funds the charitable works of the Flourish ministry — benevolence, prison shipments, and the printing press. You are not buying a shirt. You are sowing into a harvest.
+          ${(C.catalog.products||[]).some(p=>p.affiliate_url)?`<div style="margin-top:8px;opacity:.75">🤝 Items marked "Partner" are sold by trusted partner brands; Flourish may earn a commission on those purchases at no extra cost to you.</div>`:''}
         </div>
         <div style="height:20px"></div>
       </div>`;
@@ -201,12 +202,14 @@
     return `<div class="shop-card card-enter" style="animation-delay:${0.04*i}s" onclick="window.FlourishCommerce.go('product?p=${p.id}')">
       <div class="pc-art">${window.FlourishArt.render(p.art_seed||p.id, p.motif, {label:p.name})}</div>
       <div class="pc-body">
-        <div class="pc-cat">${esc(catName(p.category))}</div>
+        <div class="pc-cat">${esc(catName(p.category))}${p.affiliate_url?` · <span style="color:var(--accent,#c9a84c)">🤝 ${esc(p.brand||'Partner')}</span>`:''}</div>
         <div class="pc-name">${esc(p.name)}</div>
         <div class="pc-blurb">${esc(p.blurb||'')}</div>
         <div class="pc-foot">
           <span class="pc-price">${fmtMoney(p.price_cents)} ${compare}</span>
-          <span class="pc-add" onclick="event.stopPropagation();window.FlourishCommerce.quickAdd('${p.id}','${v.id||''}')">+ Cart</span>
+          ${p.affiliate_url
+            ? `<span class="pc-add" onclick="event.stopPropagation();window.open('${esc(p.affiliate_url)}','_blank','noopener')">Shop ↗</span>`
+            : `<span class="pc-add" onclick="event.stopPropagation();window.FlourishCommerce.quickAdd('${p.id}','${v.id||''}')">+ Cart</span>`}
         </div>
         ${lowStock}
       </div>
@@ -236,7 +239,10 @@
             <div class="pd-price">${fmtMoney(p.price_cents)} ${compare}</div>
             <div class="pd-blurb">${esc(p.blurb||'')}</div>
             <div class="pd-desc">${esc(p.description||'')}</div>
-            ${variants.length?`
+            ${p.affiliate_url?`
+              <div class="pd-desc" style="margin-top:8px">🤝 Sold by our partner <strong>${esc(p.brand||'brand')}</strong>. Buying through this link supports the Flourish ministry at no extra cost to you.</div>
+              <a href="${esc(p.affiliate_url)}" class="btn btn-primary pd-add-btn" style="text-decoration:none;text-align:center;display:block" target="_blank" rel="noopener sponsored">Shop at ${esc(p.brand||'our partner')} ↗</a>
+            `:variants.length?`
               <div class="pd-label">Choose variant</div>
               <div class="pd-variants">
                 ${variants.map((v,i)=>`<button class="pd-variant ${i===0?'active':''}" data-vid="${v.id}" onclick="window.FlourishCommerce.selectVariant(this)">${esc(v.title)}${v.inventory_count!=null?` <span class="vv-stock">· ${v.inventory_count} in stock</span>`:''}</button>`).join('')}
