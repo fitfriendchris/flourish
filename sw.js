@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v11-0'; // community hub + geolocation + 9 new plans
+const CACHE_NAME = 'flourish-v11-1'; // +8 plans: relationships suite, emotional healing, generous life (26 plans / 431 days)
 const SHELL = [
   './',
   './index.html',

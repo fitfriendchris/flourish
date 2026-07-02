@@ -806,9 +806,9 @@
     const byPillar={Health:[],Wealth:[],Relationships:[]};
     P.plans.forEach(pl=>{ (byPillar[pl.pillar] ||= []).push(pl); });
     const SUBCAT_LABELS={
-      Spiritual:'🛡️ Spiritual Health', Mental:'🧠 Mental Health & the Mind', Physical:'💪 Physical Health',
-      Income:'⚒️ Building Income', Stewardship:'📜 Stewardship & the Rules of Money', Saving:'🏺 Saving', Investing:'🌱 Investing',
-      Romantic:'💍 Marriage', FamilySocial:'🏠 Family', Community:'🤝 Community'
+      Spiritual:'🛡️ Spiritual Health', Mental:'🧠 Mental Health & the Mind', Emotional:'💗 Emotional Health', Physical:'💪 Physical Health',
+      Income:'⚒️ Building Income', Stewardship:'📜 Stewardship & the Rules of Money', Saving:'🏺 Saving', Investing:'🌱 Investing', Generosity:'🎁 Generosity & Legacy',
+      Romantic:'💍 Dating & Marriage', FamilySocial:'🏠 Family', Friendship:'🤝 Friendship & Boundaries', Community:'⛪ Community'
     };
     const planCard=pl=>{
       const prog=Object.keys(state.planProg[pl.id]||{}).length;
