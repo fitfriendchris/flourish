@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Church on Flourish</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*.supabase.co; img-src data:; base-uri 'none'; form-action 'none';">
+<meta name="robots" content="noindex">
+<style>
+  :root{--bg:#0d1a11;--card:#14241a;--text:#f2ecd9;--muted:#b9b39e;--accent:#c9a84c;--line:#22392b;}
+  @media (prefers-color-scheme: light){ :root{--bg:#f5f0e8;--card:#ffffff;--text:#1a2b1f;--muted:#5d6b60;--accent:#8a6d1f;--line:#e2dccb;} }
+  *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
+  body{background:var(--bg);color:var(--text);padding:14px;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;}
+  .hd{display:flex;align-items:center;gap:12px;margin-bottom:6px;}
+  .ico{font-size:30px;}
+  h1{font-size:18px;line-height:1.25;}
+  .meta{font-size:12.5px;color:var(--muted);margin-top:2px;}
+  .desc{font-size:13px;color:var(--muted);line-height:1.55;margin:10px 0 4px;}
+  .times{margin:10px 0 2px;font-size:12.5px;color:var(--muted);line-height:1.7;}
+  .sec{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:16px 0 8px;}
+  .ev{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line);}
+  .d{min-width:44px;text-align:center;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:5px 2px;}
+  .d .m{font-size:9.5px;font-weight:800;letter-spacing:.08em;color:var(--accent);}
+  .d .n{font-size:17px;font-weight:800;line-height:1.1;}
+  .ev .t{font-size:13.5px;font-weight:650;line-height:1.3;}
+  .ev .w{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .none{font-size:12.5px;color:var(--muted);padding:8px 0;border-top:1px solid var(--line);}
+  a.btn{display:block;text-align:center;background:var(--accent);color:#14140a;font-weight:800;font-size:13.5px;text-decoration:none;border-radius:12px;padding:12px;margin-top:14px;}
+  a.pw{display:block;text-align:center;font-size:10.5px;color:var(--muted);text-decoration:none;margin-top:10px;}
+  a.pw b{color:var(--accent);}
+  .err{font-size:13px;color:var(--muted);text-align:center;padding:20px 6px;}
+</style>
+</head>
+<body>
+<div class="card" id="root"><div class="err">Loading…</div></div>
+<script>
+(function(){
+  'use strict';
+  var SUPABASE_URL = 'https://rdnlorxsmyufaboftzus.supabase.co';
+  var KEY = 'sb_publishable_j_DHEHR24w0Uyi_tbYT4TA_zgXuD58z';
+  var APP = 'https://fitfriendchris.github.io/flourish/';
+  var qp = new URLSearchParams(location.search);
+  var slug = qp.get('church') || '';
+  var root = document.getElementById('root');
+  function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+  function rest(path){
+    return fetch(SUPABASE_URL + '/rest/v1/' + path, {headers:{apikey:KEY, Authorization:'Bearer '+KEY}})
+      .then(function(r){ if(!r.ok) throw new Error('load failed'); return r.json(); });
+  }
+  if(!slug){ root.innerHTML='<div class="err">Missing ?church= parameter.</div>'; return; }
+  var isUuid=/^[0-9a-f]{8}-[0-9a-f]{4}/.test(slug);
+  var filt=(isUuid?'id':'slug')+'=eq.'+encodeURIComponent(slug);
+  rest('churches?select=id,slug,name,city,state,denomination,pastor_name,description,website,address,service_times,is_public&'+filt+'&limit=1')
+  .then(function(rows){
+    var ch=rows[0];
+    if(!ch || ch.is_public===false){ root.innerHTML='<div class="err">Church not found.</div>'; return; }
+    var since=new Date(Date.now()-864e5).toISOString();
+    rest('events?select=id,title,description,start_time,location_name&church_id=eq.'+ch.id+'&visibility=eq.public&cancelled_at=is.null&start_time=gte.'+encodeURIComponent(since)+'&order=start_time.asc&limit=5')
+    .then(function(events){
+      var times = Array.isArray(ch.service_times)?ch.service_times:[];
+      var link = APP + '?church=' + encodeURIComponent(ch.slug||ch.id);
+      var html = ''
+        + '<div class="hd"><div class="ico">⛪</div><div><h1>'+esc(ch.name)+'</h1>'
+        + '<div class="meta">'+esc(ch.city||'')+(ch.state?', '+esc(ch.state):'')+(ch.denomination?' · '+esc(ch.denomination):'')+'</div></div></div>'
+        + (ch.description?'<div class="desc">'+esc(ch.description)+'</div>':'')
+        + (times.length?'<div class="times">'+times.map(function(t){
+            var s = (typeof t==='string') ? t : [t&&t.label, [t&&t.day, t&&t.time].filter(Boolean).join(' ')].filter(Boolean).join(' — ');
+            return '🕰️ '+esc(s);
+          }).join('<br>')+'</div>':'')
+        + '<div class="sec">Upcoming events</div>'
+        + (events.length?events.map(function(ev){
+            var dt=new Date(ev.start_time);
+            var mo=dt.toLocaleString(undefined,{month:'short'}).toUpperCase();
+            var when=dt.toLocaleString(undefined,{weekday:'short',hour:'numeric',minute:'2-digit'});
+            return '<div class="ev"><div class="d"><div class="m">'+esc(mo)+'</div><div class="n">'+dt.getDate()+'</div></div>'
+              + '<div><div class="t">'+esc(ev.title)+'</div><div class="w">'+esc(when)+(ev.location_name?' · '+esc(ev.location_name):'')+'</div></div></div>';
+          }).join(''):'<div class="none">No upcoming public events.</div>')
+        + '<a class="btn" href="'+link+'" target="_blank" rel="noopener">Join '+esc(ch.name)+' on Flourish →</a>'
+        + '<a class="pw" href="'+APP+'" target="_blank" rel="noopener">Daily devotionals · lesson plans · church community — powered by <b>Flourish 🌱</b></a>';
+      root.innerHTML=html;
+    });
+  })
+  .catch(function(){ root.innerHTML='<div class="err">Could not load church info right now.</div>'; });
+})();
+</script>
+</body>
+</html>

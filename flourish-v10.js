@@ -72,6 +72,58 @@
   const fmtDateTime = d => new Date(d).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
 
   // ════════════════════════════════════════════
+  // GEOLOCATION — church community by proximity
+  // ════════════════════════════════════════════
+  let geoPos = null; // {lat,lng} cached for the session
+  function getGeo(){
+    return new Promise((resolve, reject)=>{
+      if(geoPos) return resolve(geoPos);
+      if(!navigator.geolocation) return reject(new Error('Location is not supported on this device.'));
+      navigator.geolocation.getCurrentPosition(
+        p=>{ geoPos={lat:p.coords.latitude, lng:p.coords.longitude}; resolve(geoPos); },
+        ()=>reject(new Error('Location permission denied. You can still search by name or city.')),
+        {enableHighAccuracy:false, timeout:10000, maximumAge:600000}
+      );
+    });
+  }
+  function distMi(a, b){
+    const R=3958.8, toR=x=>x*Math.PI/180;
+    const dLat=toR(b.lat-a.lat), dLng=toR(b.lng-a.lng);
+    const s=Math.sin(dLat/2)**2 + Math.cos(toR(a.lat))*Math.cos(toR(b.lat))*Math.sin(dLng/2)**2;
+    return R*2*Math.asin(Math.sqrt(s));
+  }
+  const fmtMi = m => m==null ? '' : (m<10 ? m.toFixed(1) : Math.round(m)) + ' mi';
+  const hasCoords = ch => typeof ch?.lat==='number' && typeof ch?.lng==='number';
+  function withDistance(churches){
+    return churches.map(ch=>({ ...ch, _mi: (geoPos && hasCoords(ch)) ? distMi(geoPos, ch) : null }));
+  }
+  function sortByDistance(churches){
+    return withDistance(churches).sort((a,b)=>{
+      if(a._mi==null && b._mi==null) return (a.name||'').localeCompare(b.name||'');
+      if(a._mi==null) return 1;
+      if(b._mi==null) return -1;
+      return a._mi - b._mi;
+    });
+  }
+
+  // ── Add-to-calendar (.ics) ──
+  const evCache = {};
+  function icsDownload(ev, churchName){
+    const dt = t => new Date(t).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+    const end = ev.end_time || new Date(new Date(ev.start_time).getTime()+36e5).toISOString();
+    const ics = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Flourish//Church Hub//EN','BEGIN:VEVENT',
+      'UID:'+ev.id+'@flourish','DTSTAMP:'+dt(Date.now()),'DTSTART:'+dt(ev.start_time),'DTEND:'+dt(end),
+      'SUMMARY:'+(ev.title||'').replace(/[\n,;]/g,' '),
+      'DESCRIPTION:'+((ev.description||'')+(churchName?' — '+churchName:'')).replace(/[\n;]/g,' ').replace(/,/g,'\\,'),
+      'LOCATION:'+((ev.location_name||'')+(ev.location_address?', '+ev.location_address:'')).replace(/[\n,;]/g,' '),
+      'END:VEVENT','END:VCALENDAR'].join('\r\n');
+    const a=document.createElement('a');
+    a.href='data:text/calendar;charset=utf-8,'+encodeURIComponent(ics);
+    a.download=(ev.title||'event').replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.ics';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ════════════════════════════════════════════
   // THE PROMISE — wisdom & biblical principles messaging
   // ════════════════════════════════════════════
   const PROMISE = {
@@ -753,24 +805,44 @@
 
     const byPillar={Health:[],Wealth:[],Relationships:[]};
     P.plans.forEach(pl=>{ (byPillar[pl.pillar] ||= []).push(pl); });
+    const SUBCAT_LABELS={
+      Spiritual:'🛡️ Spiritual Health', Mental:'🧠 Mental Health & the Mind', Physical:'💪 Physical Health',
+      Income:'⚒️ Building Income', Stewardship:'📜 Stewardship & the Rules of Money', Saving:'🏺 Saving', Investing:'🌱 Investing',
+      Romantic:'💍 Marriage', FamilySocial:'🏠 Family', Community:'🤝 Community'
+    };
+    const planCard=pl=>{
+      const prog=Object.keys(state.planProg[pl.id]||{}).length;
+      const pct=Math.round((prog/pl.duration)*100);
+      const enrolled=!!state.planEnroll[pl.id];
+      return `<div class="plan-card card-enter" onclick="app.openPlan('${pl.id}')">
+        <div class="pc-pillar ${pl.pillar.toLowerCase()}">${esc(pl.pillar)} · ${pl.duration} days</div>
+        <div class="pc-title">${esc(pl.title)}</div>
+        <div class="pc-tag">${esc(pl.tagline)}</div>
+        <div class="pc-bar"><div class="pc-fill" style="width:${pct}%"></div></div>
+        <div class="pc-meta"><span>${enrolled?(pct>=100?'✅ Completed':prog+'/'+pl.duration+' days'):'Not started'}</span><span>${pct}%</span></div>
+      </div>`;
+    };
+    const taxonomy=P.meta?.taxonomy||{};
     m.innerHTML=`
       <div class="page">
         <div class="page-title card-enter">Guided Plans</div>
         <div class="page-subtitle card-enter">${esc(P.tagline)}</div>
-        ${Object.entries(byPillar).map(([pillar,plans])=>`
-          <div class="section-label">${pillar==='Health'?'🌿':pillar==='Wealth'?'⚜️':'💜'} ${esc(pillar)} Pillar</div>
-          ${plans.map(pl=>{
-            const prog=Object.keys(state.planProg[pl.id]||{}).length;
-            const pct=Math.round((prog/pl.duration)*100);
-            const enrolled=!!state.planEnroll[pl.id];
-            return `<div class="plan-card card-enter" onclick="app.openPlan('${pl.id}')">
-              <div class="pc-pillar ${pillar.toLowerCase()}">${esc(pillar)} · ${pl.duration} days</div>
-              <div class="pc-title">${esc(pl.title)}</div>
-              <div class="pc-tag">${esc(pl.tagline)}</div>
-              <div class="pc-bar"><div class="pc-fill" style="width:${pct}%"></div></div>
-              <div class="pc-meta"><span>${enrolled?(pct>=100?'✅ Completed':prog+'/'+pl.duration+' days'):'Not started'}</span><span>${pct}%</span></div>
-            </div>`;
-          }).join('')}`).join('')}
+        ${Object.entries(byPillar).map(([pillar,plans])=>{
+          const tax=taxonomy[pillar];
+          let inner;
+          if(tax){
+            const placed=new Set();
+            inner=Object.entries(tax).map(([sub,ids])=>{
+              const subPlans=ids.map(id=>plans.find(p=>p.id===id)).filter(Boolean);
+              subPlans.forEach(p=>placed.add(p.id));
+              if(!subPlans.length) return '';
+              return `<div style="font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--text-muted);margin:14px 2px 8px;text-transform:uppercase">${SUBCAT_LABELS[sub]||esc(sub)}</div>${subPlans.map(planCard).join('')}`;
+            }).join('') + plans.filter(p=>!placed.has(p.id)).map(planCard).join('');
+          } else {
+            inner=plans.map(planCard).join('');
+          }
+          return `<div class="section-label">${pillar==='Health'?'🌿':pillar==='Wealth'?'⚜️':'💜'} ${esc(pillar)} Pillar</div>${inner}`;
+        }).join('')}
         <div style="height:20px"></div>
       </div>`;
   }
@@ -885,6 +957,8 @@
     if(!sb){ m.innerHTML='<div class="error-state card-enter"><p class="error-msg">Community features need an internet connection.</p></div>'; return; }
 
     if(view==='directory'){ return renderDirectory(); }
+    if(view==='community'){ return renderCommunity(); }
+    if(view==='page'){ return renderChurchPage(qp.get('c')); }
     if(view==='dashboard'){ return renderDashboard(); }
     if(view==='chat'){ return renderChat(qp.get('c')); }
     if(view==='requests'){ return renderRequestsInbox(); }
@@ -901,7 +975,9 @@
             <div class="ph-body">The journey is personal but never private. Join your church inside Flourish to share events, send requests to your leaders, and walk the three years together.</div>
             ${state.user?'' :'<button class="btn btn-primary" style="margin-top:14px" onclick="app.openAuth()">Sign in / Create account</button>'}
           </div>
-          <button class="btn btn-primary card-enter" onclick="app.churchView('directory')">⛪ Browse the Church Directory</button>
+          <button class="btn btn-primary card-enter" onclick="app.churchView('directory')">📍 Find Churches Near Me</button>
+          <div style="height:8px"></div>
+          <button class="btn btn-primary card-enter" onclick="app.churchView('community')">🌍 Community Hub — churches & events around you</button>
           <div style="height:8px"></div>
           ${state.user?`<button class="btn btn-ghost card-enter" onclick="app.registerChurchForm()">➕ Register your church</button>`:''}
           <div style="height:20px"></div>
@@ -928,11 +1004,15 @@
           <div class="church-hero-name">${esc(ch.name)}</div>
           <div class="church-hero-meta">${esc(ch.city)}${ch.state?', '+esc(ch.state):''} · ${esc(ch.denomination||'')}</div>
           <div class="church-hero-pastor">${esc(ch.pastor_name||'')} ${leader?'· <span style="color:var(--accent)">You are a leader</span>':''}</div>
+          ${ch.website?`<div style="margin-top:8px"><a class="auth-link" href="${esc(ch.website)}" target="_blank" rel="noopener" style="font-size:13px">🌐 ${esc(ch.website.replace(/^https?:\/\//,''))}</a></div>`:''}
           ${state.memberships.length>1?`<div class="chip-row" style="justify-content:center;margin-top:10px">${state.memberships.map(mm=>`<button class="f-chip ${mm.church_id===ch.id?'active':''}" onclick="app.switchChurch('${mm.church_id}')">${esc(mm.churches.name)}</button>`).join('')}</div>`:''}
           ${!leader?`<div style="margin-top:10px;font-size:12px"><span class="auth-link" onclick="app.claimChurch('${ch.id}','${esc(ch.name)}')">Are you this church's pastor/admin? Claim leadership →</span></div>`:''}
+          ${leader?`<div style="margin-top:10px"><button class="btn btn-ghost" style="width:auto;padding:8px 16px;font-size:12px" onclick="app.editChurchProfile()">✏️ Edit church profile & location</button></div>`:''}
         </div>
 
         ${leader?`<button class="btn btn-primary card-enter" onclick="app.churchView('dashboard')">📊 Church Plan Dashboard</button><div style="height:10px"></div>`:''}
+        <button class="btn btn-ghost card-enter" onclick="app.churchView('community')">🌍 Community Hub — churches & events near you</button>
+        <div style="height:10px"></div>
 
         <div class="card card-enter">
           <div class="card-header"><span class="icon">📢</span> Announcements</div>
@@ -950,14 +1030,16 @@
             const mine=(ev.event_rsvps||[]).find(r=>r.user_id===state.user.id);
             const yes=(ev.event_rsvps||[]).filter(r=>r.status==='yes').length;
             const dt=new Date(ev.start_time);
+            evCache[ev.id]=ev;
             return `<div class="event-item">
               <div class="event-date-block"><div class="d-month">${dt.toLocaleString(undefined,{month:'short'}).toUpperCase()}</div><div class="d-day">${dt.getDate()}</div></div>
               <div class="event-body">
-                <div class="event-title">${esc(ev.title)}</div>
+                <div class="event-title">${esc(ev.title)} ${ev.visibility==='public'?'<span title="Visible in the Community Hub" style="font-size:11px">🌍</span>':''}</div>
                 <div class="event-meta">${fmtDateTime(ev.start_time)}${ev.location_name?' · '+esc(ev.location_name):''} · ${yes} going</div>
                 ${ev.description?`<div style="font-size:12.5px;color:var(--text-muted);margin-top:4px;line-height:1.5">${esc(ev.description)}</div>`:''}
                 <div class="rsvp-row">
                   ${['yes','maybe','no'].map(s=>`<button class="rsvp-btn ${mine?.status===s?'active':''}" onclick="app.rsvp('${ev.id}','${s}')">${s==='yes'?'✅ Going':s==='maybe'?'🤔 Maybe':'✖️ No'}</button>`).join('')}
+                  <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️</button>
                 </div>
               </div>
             </div>`;
@@ -977,12 +1059,22 @@
         </div>
 
         <div class="card card-enter">
-          <div class="card-header"><span class="icon">📷</span> Invite via QR</div>
+          <div class="card-header"><span class="icon">🔗</span> Share & Integrate</div>
           <div style="display:flex;justify-content:center;padding:12px;background:var(--surface-2);border-radius:12px;margin-bottom:10px">${QR.create(joinURL(ch), {size:200, color:'#1a3c1a', bg:'#f5f0e8'})}</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-primary" style="flex:1" onclick="app.copyText('${esc(joinURL(ch))}')">📋 Copy invite link</button>
-            <button class="btn btn-ghost" style="flex:1" onclick="app.leaveChurch('${mem.id}','${esc(ch.name)}')">Leave church</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" style="flex:1;min-width:45%" onclick="app.copyText('${esc(joinURL(ch))}')">📋 Invite link</button>
+            <button class="btn btn-primary" style="flex:1;min-width:45%" onclick="app.copyText('${esc(pageURL(ch))}')">🌍 Public page link</button>
           </div>
+          ${leader?`
+          <div style="font-size:12.5px;color:var(--text-muted);line-height:1.6;margin-top:12px">
+            <strong>Put Flourish on your church's website:</strong> link the public page from your site, or paste this widget into any page — it shows your church card and upcoming events, and lets visitors join in one tap.
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-ghost" style="flex:1" onclick="app.copyEmbed('${ch.id}')">📦 Copy embed code</button>
+            <button class="btn btn-ghost" style="flex:1" onclick="app.openChurchPage('${esc(ch.slug||ch.id)}')">👁️ Preview page</button>
+          </div>`:`
+          <button class="btn btn-ghost" style="margin-top:8px" onclick="app.leaveChurch('${mem.id}','${esc(ch.name)}')">Leave church</button>`}
+          ${leader?`<button class="btn btn-ghost" style="margin-top:8px" onclick="app.leaveChurch('${mem.id}','${esc(ch.name)}')">Leave church</button>`:''}
         </div>
 
         <button class="btn btn-ghost card-enter" onclick="app.churchView('directory')">⛪ Browse all churches</button>
@@ -991,43 +1083,197 @@
   }
 
   const joinURL = ch => location.origin + location.pathname + '?join=' + encodeURIComponent(ch.slug);
+  const pageURL = ch => location.origin + location.pathname + '?church=' + encodeURIComponent(ch.slug||ch.id);
+  const fmtServiceTime = t => typeof t==='string' ? t
+    : [t?.label, [t?.day, t?.time].filter(Boolean).join(' ')].filter(Boolean).join(' — ') || '';
+  const embedURL = ch => location.origin + location.pathname.replace(/index\.html$/,'').replace(/\/$/,'') + '/embed.html?church=' + encodeURIComponent(ch.slug||ch.id);
+  const embedCode = ch => `<iframe src="${embedURL(ch)}" style="width:100%;max-width:420px;height:520px;border:0;border-radius:16px" title="${(ch.name||'Church')} on Flourish" loading="lazy"></iframe>`;
+
+  let directoryChurches = null;
+  function churchCard(ch, opts={}){
+    const memberOf=new Set(state.memberships.map(mm=>mm.church_id));
+    const joined=memberOf.has(ch.id);
+    return `<div class="card church-card ${joined?'joined':''}" style="margin:0;padding:14px" data-search="${esc((ch.name+' '+ch.city+' '+(ch.state||'')+' '+(ch.denomination||'')).toLowerCase())}">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div class="church-avatar">⛪</div>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:15px;color:var(--text)">${esc(ch.name)} ${joined?'<span style="color:var(--accent);font-size:12px">✓ Member</span>':''}${ch.is_verified?' <span title="Verified" style="font-size:12px">☑️</span>':''}
+            ${ch._mi!=null?`<span style="float:right;font-size:12px;color:var(--accent);font-weight:700">📍 ${fmtMi(ch._mi)}</span>`:''}</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:2px">${esc(ch.city)}${ch.state?', '+esc(ch.state):''} · ${esc(ch.denomination||'')}</div>
+          ${ch.pastor_name?`<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(ch.pastor_name)}</div>`:''}
+          ${ch.description?`<div style="font-size:12.5px;color:var(--text-muted);margin-top:5px;line-height:1.5">${esc(ch.description)}</div>`:''}
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;width:auto" onclick="app.openChurchPage('${esc(ch.slug||ch.id)}')">View page</button>
+            ${ch.website?`<a class="btn btn-ghost" style="font-size:12px;padding:6px 12px;width:auto;text-decoration:none;text-align:center" href="${esc(ch.website)}" target="_blank" rel="noopener">🌐 Website</a>`:''}
+            ${joined
+              ? `<button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;width:auto" onclick="app.switchChurch('${ch.id}');app.churchView('home')">Open</button>`
+              : `<button class="btn btn-primary" style="font-size:12px;padding:6px 12px;width:auto" onclick="app.joinChurch('${ch.id}','${esc(ch.name)}')">Join</button>`}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
 
   async function renderDirectory(){
     const m=$('#main');
     m.innerHTML=`<div class="sacred-loader card-enter"><div class="seed-glyph">⛪</div><p class="loader-text">Finding the flocks...</p></div>`;
     const { data: churches, error } = await sb.from('churches').select('*').eq('is_public', true).order('name');
     if(error){ m.innerHTML=`<div class="error-state"><p class="error-msg">${esc(error.message)}</p></div>`; return; }
-    const memberOf=new Set(state.memberships.map(mm=>mm.church_id));
+    directoryChurches = churches;
+    const sorted = geoPos ? sortByDistance(churches) : withDistance(churches);
+    const located = churches.filter(hasCoords).length;
     m.innerHTML=`
       <div class="page">
         <div class="week-detail-header card-enter">
           <button class="btn-nav-round" onclick="app.churchView('home')">◀</button>
           <div class="week-detail-info"><div class="week-detail-theme">Church Directory</div>
-          <div class="week-detail-progress">${churches.length} churches on Flourish</div></div>
+          <div class="week-detail-progress">${churches.length} churches on Flourish${geoPos?' · sorted by distance':''}</div></div>
         </div>
+        ${geoPos?'':`<button class="btn btn-primary card-enter" onclick="app.findNearMe('directory')">📍 Sort by distance from me</button><div style="height:10px"></div>`}
         <input type="text" class="search-box card-enter" placeholder="Search by name or city..." oninput="app.filterChurches(this.value)">
+        ${geoPos && located<churches.length?`<div style="font-size:11.5px;color:var(--text-dim);margin-top:6px">Churches without a set location appear last — leaders can pin theirs in Church → Edit profile.</div>`:''}
         <div id="church-list" style="display:flex;flex-direction:column;gap:12px;margin-top:10px">
-          ${churches.map(ch=>{
-            const joined=memberOf.has(ch.id);
-            return `<div class="card church-card ${joined?'joined':''}" style="margin:0;padding:14px" data-search="${esc((ch.name+' '+ch.city+' '+(ch.state||'')+' '+(ch.denomination||'')).toLowerCase())}">
-              <div style="display:flex;align-items:flex-start;gap:12px">
-                <div class="church-avatar">⛪</div>
-                <div style="flex:1">
-                  <div style="font-weight:600;font-size:15px;color:var(--text)">${esc(ch.name)} ${joined?'<span style="color:var(--accent);font-size:12px">✓ Member</span>':''}${ch.is_verified?' <span title="Verified" style="font-size:12px">☑️</span>':''}</div>
-                  <div style="font-size:12px;color:var(--text-dim);margin-top:2px">${esc(ch.city)}${ch.state?', '+esc(ch.state):''} · ${esc(ch.denomination||'')}</div>
-                  ${ch.pastor_name?`<div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(ch.pastor_name)}</div>`:''}
-                  ${ch.description?`<div style="font-size:12.5px;color:var(--text-muted);margin-top:5px;line-height:1.5">${esc(ch.description)}</div>`:''}
-                  <div style="display:flex;gap:8px;margin-top:10px">
-                    ${joined
-                      ? `<button class="btn btn-ghost" style="font-size:12px;padding:6px 12px" onclick="app.switchChurch('${ch.id}');app.churchView('home')">Open</button>`
-                      : `<button class="btn btn-primary" style="font-size:12px;padding:6px 12px" onclick="app.joinChurch('${ch.id}','${esc(ch.name)}')">Join</button>`}
-                  </div>
+          ${sorted.map(ch=>churchCard(ch)).join('')}
+        </div>
+        <div style="height:12px"></div>
+        <button class="btn btn-ghost card-enter" onclick="app.churchView('community')">🌍 Open the Community Hub</button>
+        ${state.user?`<div style="height:8px"></div><button class="btn btn-ghost card-enter" onclick="app.registerChurchForm()">➕ My church isn't listed — register it</button>`:''}
+        <div style="height:20px"></div>
+      </div>`;
+  }
+
+  // ── COMMUNITY HUB — churches & public events around you ──
+  async function renderCommunity(){
+    const m=$('#main');
+    m.innerHTML=`<div class="sacred-loader card-enter"><div class="seed-glyph">🌍</div><p class="loader-text">Gathering the body of Christ around you...</p></div>`;
+    const [chRes, evRes] = await Promise.all([
+      sb.from('churches').select('*').eq('is_public', true),
+      sb.from('events').select('*, churches(id,name,slug,city,state,lat,lng,is_public)')
+        .eq('visibility','public').gte('start_time', new Date(Date.now()-864e5).toISOString())
+        .is('cancelled_at', null).order('start_time').limit(60)
+    ]);
+    if(chRes.error){ m.innerHTML=`<div class="error-state"><p class="error-msg">${esc(chRes.error.message)}</p></div>`; return; }
+    const churches = sortByDistance(chRes.data||[]);
+    const near = churches.filter(c=>c._mi!=null && c._mi<=60);
+    const events = (evRes.data||[]).filter(ev=>ev.churches?.is_public!==false).map(ev=>{
+      ev._mi = (geoPos && hasCoords(ev.churches)) ? distMi(geoPos, ev.churches) : null;
+      evCache[ev.id]=ev;
+      return ev;
+    }).sort((a,b)=>{
+      // near events first (within 60mi), then by date
+      const an=a._mi!=null&&a._mi<=60, bn=b._mi!=null&&b._mi<=60;
+      if(an!==bn) return an?-1:1;
+      return new Date(a.start_time)-new Date(b.start_time);
+    });
+    m.innerHTML=`
+      <div class="page">
+        <div class="week-detail-header card-enter">
+          <button class="btn-nav-round" onclick="app.churchView('home')">◀</button>
+          <div class="week-detail-info"><div class="week-detail-theme">Community Hub</div>
+          <div class="week-detail-progress">One body, many congregations — ${churches.length} churches · ${events.length} public events</div></div>
+        </div>
+        ${!geoPos?`
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">📍</span> Use your location</div>
+          <div style="font-size:13.5px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">See churches and gatherings near you, sorted by distance. Your location stays on your device — it is never uploaded.</div>
+          <button class="btn btn-primary" onclick="app.findNearMe('community')">📍 Find the church near me</button>
+        </div>`:''}
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">📅</span> Happening in the Body</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">Public events from every church on Flourish — visit, worship, and serve together across congregations.</div>
+          ${events.length?events.map(ev=>{
+            const dt=new Date(ev.start_time);
+            return `<div class="event-item">
+              <div class="event-date-block"><div class="d-month">${dt.toLocaleString(undefined,{month:'short'}).toUpperCase()}</div><div class="d-day">${dt.getDate()}</div></div>
+              <div class="event-body">
+                <div class="event-title">${esc(ev.title)}</div>
+                <div class="event-meta">⛪ <span class="auth-link" onclick="app.openChurchPage('${esc(ev.churches?.slug||ev.church_id)}')">${esc(ev.churches?.name||'Church')}</span>${ev.churches?.city?' · '+esc(ev.churches.city):''}${ev._mi!=null?' · 📍 '+fmtMi(ev._mi):''}</div>
+                <div class="event-meta">${fmtDateTime(ev.start_time)}${ev.location_name?' · '+esc(ev.location_name):''}</div>
+                ${ev.description?`<div style="font-size:12.5px;color:var(--text-muted);margin-top:4px;line-height:1.5">${esc(ev.description)}</div>`:''}
+                <div class="rsvp-row">
+                  <button class="rsvp-btn" onclick="app.rsvpCommunity('${ev.id}')">✅ I'm coming</button>
+                  <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️ Add to calendar</button>
                 </div>
               </div>
             </div>`;
-          }).join('')}
+          }).join(''):'<div class="empty-mini">No public events yet. Church leaders: post your events as 🌍 Public and they appear here for the whole community.</div>'}
         </div>
-        ${state.user?`<div style="height:12px"></div><button class="btn btn-ghost card-enter" onclick="app.registerChurchForm()">➕ My church isn't listed — register it</button>`:''}
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">⛪</span> ${geoPos?'Churches Near You':'Churches on Flourish'}</div>
+          <div id="church-list" style="display:flex;flex-direction:column;gap:12px">
+            ${(geoPos?(near.length?near:churches):churches).slice(0,15).map(ch=>churchCard(ch)).join('')}
+          </div>
+          ${geoPos&&!near.length?'<div class="empty-mini" style="margin-top:8px">No located churches within 60 miles yet — showing all. Invite your church to Flourish!</div>':''}
+          <button class="btn btn-ghost" style="margin-top:10px" onclick="app.churchView('directory')">Full directory →</button>
+        </div>
+        ${state.user?`<button class="btn btn-ghost card-enter" onclick="app.registerChurchForm()">➕ Register your church</button>`:''}
+        <div style="height:20px"></div>
+      </div>`;
+  }
+
+  // ── PUBLIC CHURCH PAGE — shareable & linkable from church websites ──
+  async function renderChurchPage(key){
+    const m=$('#main');
+    if(!key){ return app.churchView('directory'); }
+    m.innerHTML=`<div class="sacred-loader card-enter"><div class="seed-glyph">⛪</div><p class="loader-text">Opening the church page...</p></div>`;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}/.test(key);
+    const { data: ch, error } = await sb.from('churches').select('*')
+      .eq(isUuid?'id':'slug', key).maybeSingle();
+    if(error || !ch){ m.innerHTML=`<div class="error-state"><p class="error-msg">Church not found.</p></div>`; return; }
+    const { data: events } = await sb.from('events').select('*')
+      .eq('church_id', ch.id).eq('visibility','public')
+      .gte('start_time', new Date(Date.now()-864e5).toISOString())
+      .is('cancelled_at', null).order('start_time').limit(12);
+    (events||[]).forEach(ev=>{ evCache[ev.id]=ev; ev.churches=ch; });
+    const joined = state.memberships.some(mm=>mm.church_id===ch.id);
+    const mi = (geoPos && hasCoords(ch)) ? distMi(geoPos, ch) : null;
+    const times = Array.isArray(ch.service_times) ? ch.service_times : (ch.service_times?Object.values(ch.service_times):[]);
+    const mapsQ = encodeURIComponent([ch.address, ch.city, ch.state].filter(Boolean).join(', ') || ch.name);
+    m.innerHTML=`
+      <div class="page">
+        <div class="church-hero card-enter">
+          <button class="btn-nav-round" onclick="app.churchView('community')" style="position:absolute;top:14px;left:14px">◀</button>
+          <div class="church-hero-icon">⛪</div>
+          <div class="church-hero-name">${esc(ch.name)} ${ch.is_verified?'<span title="Verified" style="font-size:14px">☑️</span>':''}</div>
+          <div class="church-hero-meta">${esc(ch.city)}${ch.state?', '+esc(ch.state):''} · ${esc(ch.denomination||'')}${mi!=null?' · 📍 '+fmtMi(mi)+' from you':''}</div>
+          <div class="church-hero-pastor">${esc(ch.pastor_name||'')}</div>
+          ${ch.description?`<div style="font-size:13.5px;color:var(--text-muted);line-height:1.6;margin-top:10px">${esc(ch.description)}</div>`:''}
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;justify-content:center">
+            ${joined
+              ? `<button class="btn btn-ghost" style="width:auto;padding:10px 18px" onclick="app.switchChurch('${ch.id}');app.churchView('home')">Open my church</button>`
+              : `<button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="app.joinChurch('${ch.id}','${esc(ch.name)}')">⛪ Join this church</button>`}
+            ${ch.website?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none" href="${esc(ch.website)}" target="_blank" rel="noopener">🌐 Website</a>`:''}
+          </div>
+        </div>
+        ${(ch.address||times.length)?`
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">🕰️</span> Visit</div>
+          ${ch.address?`<div style="font-size:13.5px;line-height:1.6">${esc(ch.address)}${ch.city?', '+esc(ch.city):''}${ch.state?', '+esc(ch.state):''} — <a class="auth-link" href="https://www.google.com/maps/search/?api=1&query=${mapsQ}" target="_blank" rel="noopener">Directions ↗</a></div>`:''}
+          ${times.length?`<div style="margin-top:8px">${times.map(t=>`<div style="font-size:13px;color:var(--text-muted)">⛪ ${esc(fmtServiceTime(t))}</div>`).join('')}</div>`:''}
+        </div>`:''}
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">📅</span> Upcoming Events</div>
+          ${(events||[]).length?(events).map(ev=>{
+            const dt=new Date(ev.start_time);
+            return `<div class="event-item">
+              <div class="event-date-block"><div class="d-month">${dt.toLocaleString(undefined,{month:'short'}).toUpperCase()}</div><div class="d-day">${dt.getDate()}</div></div>
+              <div class="event-body">
+                <div class="event-title">${esc(ev.title)}</div>
+                <div class="event-meta">${fmtDateTime(ev.start_time)}${ev.location_name?' · '+esc(ev.location_name):''}</div>
+                ${ev.description?`<div style="font-size:12.5px;color:var(--text-muted);margin-top:4px;line-height:1.5">${esc(ev.description)}</div>`:''}
+                <div class="rsvp-row">
+                  <button class="rsvp-btn" onclick="app.rsvpCommunity('${ev.id}')">✅ I'm coming</button>
+                  <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️ Add to calendar</button>
+                </div>
+              </div>
+            </div>`;
+          }).join(''):'<div class="empty-mini">No upcoming public events.</div>'}
+        </div>
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">📷</span> Share this church</div>
+          <div style="display:flex;justify-content:center;padding:12px;background:var(--surface-2);border-radius:12px;margin-bottom:10px">${QR.create(pageURL(ch), {size:180, color:'#1a3c1a', bg:'#f5f0e8'})}</div>
+          <button class="btn btn-primary" onclick="app.copyText('${esc(pageURL(ch))}')">📋 Copy page link</button>
+        </div>
         <div style="height:20px"></div>
       </div>`;
   }
@@ -1315,6 +1561,68 @@
     };
   }
 
+  // ── Leader: edit church profile, website & location ──
+  function editChurchProfile(){
+    const mem=myMembership(); if(!mem||!isLeader(mem)) return toast('Leader access required');
+    const ch=mem.churches;
+    closeSheets();
+    const times = Array.isArray(ch.service_times) ? ch.service_times.map(fmtServiceTime).join('\n') : '';
+    document.body.insertAdjacentHTML('beforeend',`
+      <div class="auth-overlay" id="auth-overlay" onclick="if(event.target===this)this.remove()">
+        <div class="auth-sheet">
+          <h3>✏️ ${esc(ch.name)}</h3>
+          <div class="as-sub">Your public profile — what seekers see in the directory, the Community Hub, and your public page.</div>
+          <input class="auth-input" id="ec-website" placeholder="Website (https://...)" value="${esc(ch.website||'')}">
+          <input class="auth-input" id="ec-address" placeholder="Street address" value="${esc(ch.address||'')}">
+          <div style="display:flex;gap:8px">
+            <input class="auth-input" id="ec-city" placeholder="City" value="${esc(ch.city||'')}" style="flex:2">
+            <input class="auth-input" id="ec-state" placeholder="State" value="${esc(ch.state||'')}" style="flex:1">
+          </div>
+          <input class="auth-input" id="ec-pastor" placeholder="Pastor's name" value="${esc(ch.pastor_name||'')}">
+          <textarea class="auth-input" id="ec-desc" rows="2" placeholder="A sentence about your church">${esc(ch.description||'')}</textarea>
+          <textarea class="auth-input" id="ec-times" rows="2" placeholder="Service times — one per line (e.g., Sunday 10:00 AM)">${esc(times)}</textarea>
+          <div style="background:var(--surface-2);border-radius:12px;padding:12px;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:700;margin-bottom:6px">📍 Map location <span id="ec-coords" style="font-weight:400;color:var(--text-muted)">${hasCoords(ch)?`(${ch.lat.toFixed(4)}, ${ch.lng.toFixed(4)}) ✓`:'(not set — needed for "near me" search)'}</span></div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="flex:1;font-size:12px;padding:8px" onclick="app.pinLocationHere()">Use my location</button>
+              <button class="btn btn-ghost" style="flex:1;font-size:12px;padding:8px" onclick="app.pinLocationFromAddress()">Locate from address</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" id="ec-save">Save Profile</button>
+        </div>
+      </div>`);
+    let pin = hasCoords(ch) ? {lat:ch.lat, lng:ch.lng} : null;
+    window.__setPin = p => { pin=p; const el=$('#ec-coords'); if(el) el.textContent=`(${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}) ✓`; };
+    $('#ec-save').onclick=async()=>{
+      const upd={
+        website: $('#ec-website').value.trim()||null,
+        address: $('#ec-address').value.trim()||null,
+        city: $('#ec-city').value.trim()||ch.city,
+        state: $('#ec-state').value.trim()||null,
+        pastor_name: $('#ec-pastor').value.trim()||null,
+        description: $('#ec-desc').value.trim()||null,
+        service_times: $('#ec-times').value.split('\n').map(s=>s.trim()).filter(Boolean),
+        updated_at: new Date().toISOString()
+      };
+      if(upd.website && !/^https?:\/\//.test(upd.website)) upd.website='https://'+upd.website;
+      if(pin){ upd.lat=pin.lat; upd.lng=pin.lng; }
+      const { error }=await sb.from('churches').update(upd).eq('id', ch.id);
+      if(error) return toast('⚠️ '+error.message);
+      Object.assign(ch, upd);
+      $('#auth-overlay')?.remove();
+      toast('⛪ Church profile updated.');
+      app.churchView('home');
+    };
+  }
+
+  async function geocodeAddress(q){
+    const r = await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q), {headers:{'Accept':'application/json'}});
+    if(!r.ok) throw new Error('Geocoding service unavailable');
+    const hits = await r.json();
+    if(!hits.length) throw new Error('Address not found — try adding city and state');
+    return {lat:parseFloat(hits[0].lat), lng:parseFloat(hits[0].lon)};
+  }
+
   function registerChurchForm(){
     if(!requireAuth('Sign in to register your church.')) return;
     closeSheets();
@@ -1328,6 +1636,8 @@
           <input class="auth-input" id="rc-state" placeholder="State / region">
           <input class="auth-input" id="rc-denom" placeholder="Denomination">
           <input class="auth-input" id="rc-pastor" placeholder="Pastor's name">
+          <input class="auth-input" id="rc-website" placeholder="Website (https://...)">
+          <input class="auth-input" id="rc-address" placeholder="Street address (for the map & 'near me')">
           <textarea class="auth-input" id="rc-desc" rows="3" placeholder="A sentence about your church"></textarea>
           <button class="btn btn-primary" id="rc-send">Create Church</button>
         </div>
@@ -1340,6 +1650,18 @@
         p_denomination:$('#rc-denom').value.trim()||null, p_pastor_name:$('#rc-pastor').value.trim()||null,
         p_description:$('#rc-desc').value.trim()||null});
       if(error) return toast('⚠️ '+error.message);
+      // Enrich with website/address/coords (created churches: creator is admin, update allowed)
+      let website=$('#rc-website').value.trim()||null;
+      if(website && !/^https?:\/\//.test(website)) website='https://'+website;
+      const address=$('#rc-address').value.trim()||null;
+      const upd={};
+      if(website) upd.website=website;
+      if(address) upd.address=address;
+      try {
+        const q=[address, city, $('#rc-state').value.trim()].filter(Boolean).join(', ');
+        if(q){ const pin=await geocodeAddress(q); upd.lat=pin.lat; upd.lng=pin.lng; }
+      } catch(e){ /* geocode optional */ }
+      if(Object.keys(upd).length) await sb.from('churches').update(upd).eq('id', data);
       $('#auth-overlay').remove();
       await loadMemberships();
       state.activeChurchId=data;
@@ -1350,6 +1672,14 @@
 
   async function checkJoinFromURL(){
     const params=new URLSearchParams(location.search);
+    // ?church=<slug> — deep link to a public church page (from church websites, QR, embeds)
+    const pageSlug=params.get('church');
+    if(pageSlug){
+      history.replaceState({}, '', location.pathname);
+      location.hash=`church?v=page&c=${encodeURIComponent(pageSlug)}`;
+      showPage();
+      return;
+    }
     const slug=params.get('join');
     if(!slug) return;
     history.replaceState({}, '', location.pathname + location.hash);
@@ -1566,7 +1896,50 @@
       else toast('This church already has leadership. Ask them to promote you.');
     },
     registerChurchForm, newRequestForm, messageLeaders, leaderConversations,
-    composeAnnouncement, composeEvent,
+    composeAnnouncement, composeEvent, editChurchProfile,
+
+    // geolocation + community hub + integration
+    async findNearMe(view){
+      toast('📍 Finding you...');
+      try { await getGeo(); toast('📍 Location found — sorting by distance.'); }
+      catch(e){ toast('⚠️ '+e.message); return; }
+      app.churchView(view==='community'?'community':'directory');
+    },
+    openChurchPage(slug){ location.hash=`church?v=page&c=${encodeURIComponent(slug)}`; showPage(); },
+    addToCal(id){
+      const ev=evCache[id]; if(!ev) return toast('Event not found');
+      icsDownload(ev, ev.churches?.name);
+      toast('🗓️ Calendar file downloaded.');
+    },
+    async rsvpCommunity(id){
+      if(!requireAuth('Sign in to RSVP to community events.')) return;
+      const { error }=await sb.from('event_rsvps').upsert({event_id:id,user_id:state.user.id,status:'yes'},{onConflict:'event_id,user_id'});
+      if(error) return toast('⚠️ '+error.message);
+      toast('✅ See you there! The host church will know you are coming.');
+    },
+    async pinLocationHere(){
+      try {
+        const p=await getGeo();
+        window.__setPin?.(p);
+        toast('📍 Location pinned. Save the profile to publish it.');
+      } catch(e){ toast('⚠️ '+e.message); }
+    },
+    async pinLocationFromAddress(){
+      const q=[$('#ec-address')?.value, $('#ec-city')?.value, $('#ec-state')?.value].map(v=>(v||'').trim()).filter(Boolean).join(', ');
+      if(!q) return toast('Fill in the address and city first');
+      toast('🔎 Locating address...');
+      try {
+        const p=await geocodeAddress(q);
+        window.__setPin?.(p);
+        toast('📍 Address located. Save the profile to publish it.');
+      } catch(e){ toast('⚠️ '+e.message); }
+    },
+    copyEmbed(churchId){
+      const mm=state.memberships.find(x=>x.church_id===churchId);
+      const ch=mm?.churches; if(!ch) return toast('Church not found');
+      app.copyText(embedCode(ch));
+      toast('📦 Embed code copied — paste it into your church website.');
+    },
     openChat(id){ location.hash=`church?v=chat&c=${id}`; showPage(); },
     async sendMessage(convId){
       const inp=$('#chat-input'); const content=inp?.value?.trim();

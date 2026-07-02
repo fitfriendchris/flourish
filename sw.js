@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v10-6'; // bumped for security fixes
+const CACHE_NAME = 'flourish-v11-0'; // community hub + geolocation + 9 new plans
 const SHELL = [
   './',
   './index.html',
