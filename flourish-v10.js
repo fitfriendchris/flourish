@@ -1957,7 +1957,11 @@
       toast(status==='yes'?'✅ See you there!':status==='maybe'?'🤔 Marked maybe':'Noted.');
       app.churchView('home');
     },
-    async prayFor(id){ await sb.rpc('increment_prayer_count',{p_prayer_id:id}); toast('🙏 They\'ll know you\'re praying.'); },
+    async prayFor(id){
+      const { error }=await sb.rpc('increment_prayer_count',{p_prayer_id:id});
+      if(error) return toast('⚠️ '+error.message);
+      toast('🙏 They\'ll know you\'re praying.');
+    },
     async setRequestStatus(id,status){
       const { error }=await sb.from('prayer_requests').update({status}).eq('id',id);
       if(error) return toast('⚠️ '+error.message);
