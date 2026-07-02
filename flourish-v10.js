@@ -1014,6 +1014,18 @@
         <button class="btn btn-ghost card-enter" onclick="app.churchView('community')">🌍 Community Hub — churches & events near you</button>
         <div style="height:10px"></div>
 
+        ${ch.giving_url?`
+        <div class="card card-enter" style="border-color:var(--accent)">
+          <div class="card-header"><span class="icon">💝</span> Give to ${esc(ch.name)}</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">${esc(ch.giving_note||'Tithes and offerings go directly to your church — Flourish never touches them.')}</div>
+          <a class="btn btn-primary" style="display:block;text-align:center;text-decoration:none" href="${esc(ch.giving_url)}" target="_blank" rel="noopener">💝 Give / Tithe online</a>
+        </div>`:leader?`
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">💝</span> Set up online giving</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">Add your church's giving link (Stripe, Tithe.ly, Givelify, PayPal) and members can tithe from right here — funds go straight to your church.</div>
+          <button class="btn btn-ghost" onclick="app.editChurchProfile()">Add giving link →</button>
+        </div>`:''}
+
         <div class="card card-enter">
           <div class="card-header"><span class="icon">📢</span> Announcements</div>
           ${(annRes.data||[]).length?(annRes.data).map(a=>`
@@ -1040,6 +1052,7 @@
                 <div class="rsvp-row">
                   ${['yes','maybe','no'].map(s=>`<button class="rsvp-btn ${mine?.status===s?'active':''}" onclick="app.rsvp('${ev.id}','${s}')">${s==='yes'?'✅ Going':s==='maybe'?'🤔 Maybe':'✖️ No'}</button>`).join('')}
                   <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️</button>
+                  ${ev.fundraising_url?`<a class="rsvp-btn" style="text-decoration:none;border-color:var(--accent)" href="${esc(ev.fundraising_url)}" target="_blank" rel="noopener">💝 ${esc(ev.fundraising_label||'Support')}</a>`:''}
                 </div>
               </div>
             </div>`;
@@ -1193,6 +1206,7 @@
                 <div class="rsvp-row">
                   <button class="rsvp-btn" onclick="app.rsvpCommunity('${ev.id}')">✅ I'm coming</button>
                   <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️ Add to calendar</button>
+                  ${ev.fundraising_url?`<a class="rsvp-btn" style="text-decoration:none;border-color:var(--accent)" href="${esc(ev.fundraising_url)}" target="_blank" rel="noopener">💝 ${esc(ev.fundraising_label||'Support')}</a>`:''}
                 </div>
               </div>
             </div>`;
@@ -1243,6 +1257,7 @@
               ? `<button class="btn btn-ghost" style="width:auto;padding:10px 18px" onclick="app.switchChurch('${ch.id}');app.churchView('home')">Open my church</button>`
               : `<button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="app.joinChurch('${ch.id}','${esc(ch.name)}')">⛪ Join this church</button>`}
             ${ch.website?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none" href="${esc(ch.website)}" target="_blank" rel="noopener">🌐 Website</a>`:''}
+            ${ch.giving_url?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none;border-color:var(--accent)" href="${esc(ch.giving_url)}" target="_blank" rel="noopener">💝 Give</a>`:''}
           </div>
         </div>
         ${(ch.address||times.length)?`
@@ -1264,6 +1279,7 @@
                 <div class="rsvp-row">
                   <button class="rsvp-btn" onclick="app.rsvpCommunity('${ev.id}')">✅ I'm coming</button>
                   <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️ Add to calendar</button>
+                  ${ev.fundraising_url?`<a class="rsvp-btn" style="text-decoration:none;border-color:var(--accent)" href="${esc(ev.fundraising_url)}" target="_blank" rel="noopener">💝 ${esc(ev.fundraising_label||'Support')}</a>`:''}
                 </div>
               </div>
             </div>`;
@@ -1539,6 +1555,8 @@
           <textarea class="auth-input" id="ev-desc" rows="3" placeholder="Description"></textarea>
           <input class="auth-input" id="ev-when" type="datetime-local">
           <input class="auth-input" id="ev-loc" placeholder="Location (e.g., Fellowship Hall)">
+          <input class="auth-input" id="ev-fund" placeholder="Fundraising link (optional — Stripe/GoFundMe/etc.)">
+          <input class="auth-input" id="ev-fund-label" placeholder="Fundraiser label (e.g., 'Youth Mission Trip Fund')">
           <div class="chip-row">
             <button class="f-chip active" id="ev-pub">🌍 Public</button>
             <button class="f-chip" id="ev-mem">🔒 Members only</button>
@@ -1552,9 +1570,12 @@
     $('#ev-send').onclick=async()=>{
       const title=$('#ev-title').value.trim(), when=$('#ev-when').value;
       if(!title||!when) return toast('Title and date required');
+      let fund=$('#ev-fund').value.trim()||null;
+      if(fund && !/^https?:\/\//.test(fund)) fund='https://'+fund;
       const { error }=await sb.from('events').insert({
         church_id:mem.church_id, title, description:$('#ev-desc').value.trim()||null,
         start_time:new Date(when).toISOString(), location_name:$('#ev-loc').value.trim()||null,
+        fundraising_url: fund, fundraising_label: $('#ev-fund-label').value.trim()||null,
         visibility: b.classList.contains('active')?'members_only':'public', created_by: state.user.id});
       if(error) return toast('⚠️ '+error.message);
       $('#auth-overlay').remove(); toast('📅 Event created.'); app.churchView('home');
@@ -1573,6 +1594,8 @@
           <h3>✏️ ${esc(ch.name)}</h3>
           <div class="as-sub">Your public profile — what seekers see in the directory, the Community Hub, and your public page.</div>
           <input class="auth-input" id="ec-website" placeholder="Website (https://...)" value="${esc(ch.website||'')}">
+          <input class="auth-input" id="ec-giving" placeholder="Online giving link (Stripe, Tithe.ly, Givelify, PayPal...)" value="${esc(ch.giving_url||'')}">
+          <input class="auth-input" id="ec-giving-note" placeholder="Giving note (e.g., 'Tithes & offerings — Malachi 3:10')" value="${esc(ch.giving_note||'')}">
           <input class="auth-input" id="ec-address" placeholder="Street address" value="${esc(ch.address||'')}">
           <div style="display:flex;gap:8px">
             <input class="auth-input" id="ec-city" placeholder="City" value="${esc(ch.city||'')}" style="flex:2">
@@ -1596,6 +1619,8 @@
     $('#ec-save').onclick=async()=>{
       const upd={
         website: $('#ec-website').value.trim()||null,
+        giving_url: $('#ec-giving').value.trim()||null,
+        giving_note: $('#ec-giving-note').value.trim()||null,
         address: $('#ec-address').value.trim()||null,
         city: $('#ec-city').value.trim()||ch.city,
         state: $('#ec-state').value.trim()||null,
@@ -1605,6 +1630,7 @@
         updated_at: new Date().toISOString()
       };
       if(upd.website && !/^https?:\/\//.test(upd.website)) upd.website='https://'+upd.website;
+      if(upd.giving_url && !/^https?:\/\//.test(upd.giving_url)) upd.giving_url='https://'+upd.giving_url;
       if(pin){ upd.lat=pin.lat; upd.lng=pin.lng; }
       const { error }=await sb.from('churches').update(upd).eq('id', ch.id);
       if(error) return toast('⚠️ '+error.message);

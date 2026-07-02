@@ -51,7 +51,7 @@
   if(!slug){ root.innerHTML='<div class="err">Missing ?church= parameter.</div>'; return; }
   var isUuid=/^[0-9a-f]{8}-[0-9a-f]{4}/.test(slug);
   var filt=(isUuid?'id':'slug')+'=eq.'+encodeURIComponent(slug);
-  rest('churches?select=id,slug,name,city,state,denomination,pastor_name,description,website,address,service_times,is_public&'+filt+'&limit=1')
+  rest('churches?select=id,slug,name,city,state,denomination,pastor_name,description,website,address,service_times,giving_url,is_public&'+filt+'&limit=1')
   .then(function(rows){
     var ch=rows[0];
     if(!ch || ch.is_public===false){ root.innerHTML='<div class="err">Church not found.</div>'; return; }
@@ -76,6 +76,7 @@
             return '<div class="ev"><div class="d"><div class="m">'+esc(mo)+'</div><div class="n">'+dt.getDate()+'</div></div>'
               + '<div><div class="t">'+esc(ev.title)+'</div><div class="w">'+esc(when)+(ev.location_name?' · '+esc(ev.location_name):'')+'</div></div></div>';
           }).join(''):'<div class="none">No upcoming public events.</div>')
+        + (ch.giving_url?'<a class="btn" style="background:transparent;border:1.5px solid var(--accent);color:var(--accent)" href="'+esc(ch.giving_url)+'" target="_blank" rel="noopener">💝 Give / Tithe online</a>':'')
         + '<a class="btn" href="'+link+'" target="_blank" rel="noopener">Join '+esc(ch.name)+' on Flourish →</a>'
         + '<a class="pw" href="'+APP+'" target="_blank" rel="noopener">Daily devotionals · lesson plans · church community — powered by <b>Flourish 🌱</b></a>';
       root.innerHTML=html;
