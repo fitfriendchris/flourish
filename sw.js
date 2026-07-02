@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v11-2'; // per-church giving, affiliates, web push daily nudge
+const CACHE_NAME = 'flourish-v11-3'; // prayer wall, sermon shelf, serving sign-ups
 const SHELL = [
   './',
   './index.html',

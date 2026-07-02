@@ -991,10 +991,11 @@
     const leader=isLeader(mem);
 
     m.innerHTML=`<div class="sacred-loader card-enter"><div class="seed-glyph">⛪</div><p class="loader-text">Opening the church doors...</p></div>`;
-    const [annRes, evRes, reqRes] = await Promise.all([
+    const [annRes, evRes, reqRes, wallRes] = await Promise.all([
       sb.from('announcements').select('*').eq('church_id', ch.id).order('pinned',{ascending:false}).order('publish_at',{ascending:false}).limit(5),
-      sb.from('events').select('*, event_rsvps(user_id, status)').eq('church_id', ch.id).gte('start_time', new Date(Date.now()-864e5).toISOString()).is('cancelled_at', null).order('start_time').limit(8),
-      sb.from('prayer_requests').select('id,status').eq('user_id', state.user.id).in('status',['active','urgent'])
+      sb.from('events').select('*, event_rsvps(user_id, status), event_volunteers(user_id, role)').eq('church_id', ch.id).gte('start_time', new Date(Date.now()-864e5).toISOString()).is('cancelled_at', null).order('start_time').limit(8),
+      sb.from('prayer_requests').select('id,status').eq('user_id', state.user.id).in('status',['active','urgent']),
+      sb.from('prayer_requests').select('id,title,body,category,status,prayer_count,created_at').eq('church_id', ch.id).eq('privacy','church_wide').in('status',['active','urgent']).order('created_at',{ascending:false}).limit(8)
     ]);
 
     m.innerHTML=`
@@ -1005,6 +1006,7 @@
           <div class="church-hero-meta">${esc(ch.city)}${ch.state?', '+esc(ch.state):''} · ${esc(ch.denomination||'')}</div>
           <div class="church-hero-pastor">${esc(ch.pastor_name||'')} ${leader?'· <span style="color:var(--accent)">You are a leader</span>':''}</div>
           ${ch.website?`<div style="margin-top:8px"><a class="auth-link" href="${esc(ch.website)}" target="_blank" rel="noopener" style="font-size:13px">🌐 ${esc(ch.website.replace(/^https?:\/\//,''))}</a></div>`:''}
+          ${ch.sermons_url?`<div style="margin-top:6px"><a class="auth-link" href="${esc(ch.sermons_url)}" target="_blank" rel="noopener" style="font-size:13px">🎙️ Sermons & media</a></div>`:''}
           ${state.memberships.length>1?`<div class="chip-row" style="justify-content:center;margin-top:10px">${state.memberships.map(mm=>`<button class="f-chip ${mm.church_id===ch.id?'active':''}" onclick="app.switchChurch('${mm.church_id}')">${esc(mm.churches.name)}</button>`).join('')}</div>`:''}
           ${!leader?`<div style="margin-top:10px;font-size:12px"><span class="auth-link" onclick="app.claimChurch('${ch.id}','${esc(ch.name)}')">Are you this church's pastor/admin? Claim leadership →</span></div>`:''}
           ${leader?`<div style="margin-top:10px"><button class="btn btn-ghost" style="width:auto;padding:8px 16px;font-size:12px" onclick="app.editChurchProfile()">✏️ Edit church profile & location</button></div>`:''}
@@ -1054,10 +1056,32 @@
                   <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️</button>
                   ${ev.fundraising_url?`<a class="rsvp-btn" style="text-decoration:none;border-color:var(--accent)" href="${esc(ev.fundraising_url)}" target="_blank" rel="noopener">💝 ${esc(ev.fundraising_label||'Support')}</a>`:''}
                 </div>
+                ${(Array.isArray(ev.volunteer_roles)&&ev.volunteer_roles.length)?`
+                <div class="rsvp-row" style="margin-top:6px">
+                  <span style="font-size:11px;color:var(--text-dim);align-self:center">🤝 Serve:</span>
+                  ${ev.volunteer_roles.map(r=>{
+                    const vols=(ev.event_volunteers||[]).filter(v=>v.role===r);
+                    const mineV=vols.some(v=>v.user_id===state.user.id);
+                    return `<button class="rsvp-btn ${mineV?'active':''}" onclick="app.toggleServe('${ev.id}','${esc(r)}')">${esc(r)}${vols.length?' · '+vols.length:''}</button>`;
+                  }).join('')}
+                </div>`:''}
               </div>
             </div>`;
           }).join(''):'<div class="empty-mini">No upcoming events.</div>'}
           ${leader?`<button class="btn btn-ghost" onclick="app.composeEvent()">+ Create event</button>`:''}
+        </div>
+
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">🙏</span> Prayer Wall</div>
+          <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:10px">Church-wide requests from your congregation. Tap 🙏 to let them know you're praying.</div>
+          ${(wallRes.data||[]).length?(wallRes.data).map(r=>`
+            <div class="card req-card ${r.status}" style="padding:12px;margin-bottom:8px">
+              <div><span class="req-badge ${r.status}">${r.status}</span><span class="req-badge active">${esc(r.category)}</span></div>
+              <div style="font-weight:700;font-size:14px;margin-top:5px">${esc(r.title)}</div>
+              ${r.body?`<div style="font-size:13px;color:var(--text-muted);line-height:1.55;margin-top:4px">${esc(r.body)}</div>`:''}
+              <div class="req-meta">${fmtDate(r.created_at)} · 🙏 ${r.prayer_count} praying</div>
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;width:auto;margin-top:8px" onclick="app.prayFor('${r.id}')">🙏 I'm praying</button>
+            </div>`).join(''):'<div class="empty-mini">No church-wide requests right now. Share one with "⛪ Church-wide prayer" in New Request.</div>'}
         </div>
 
         <div class="card card-enter">
@@ -1258,6 +1282,7 @@
               : `<button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="app.joinChurch('${ch.id}','${esc(ch.name)}')">⛪ Join this church</button>`}
             ${ch.website?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none" href="${esc(ch.website)}" target="_blank" rel="noopener">🌐 Website</a>`:''}
             ${ch.giving_url?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none;border-color:var(--accent)" href="${esc(ch.giving_url)}" target="_blank" rel="noopener">💝 Give</a>`:''}
+            ${ch.sermons_url?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none" href="${esc(ch.sermons_url)}" target="_blank" rel="noopener">🎙️ Sermons</a>`:''}
           </div>
         </div>
         ${(ch.address||times.length)?`
@@ -1557,6 +1582,7 @@
           <input class="auth-input" id="ev-loc" placeholder="Location (e.g., Fellowship Hall)">
           <input class="auth-input" id="ev-fund" placeholder="Fundraising link (optional — Stripe/GoFundMe/etc.)">
           <input class="auth-input" id="ev-fund-label" placeholder="Fundraiser label (e.g., 'Youth Mission Trip Fund')">
+          <input class="auth-input" id="ev-roles" placeholder="Serving roles, comma-separated (e.g., Setup, Greeting, Kitchen)">
           <div class="chip-row">
             <button class="f-chip active" id="ev-pub">🌍 Public</button>
             <button class="f-chip" id="ev-mem">🔒 Members only</button>
@@ -1576,6 +1602,7 @@
         church_id:mem.church_id, title, description:$('#ev-desc').value.trim()||null,
         start_time:new Date(when).toISOString(), location_name:$('#ev-loc').value.trim()||null,
         fundraising_url: fund, fundraising_label: $('#ev-fund-label').value.trim()||null,
+        volunteer_roles: $('#ev-roles').value.split(',').map(s=>s.trim()).filter(Boolean),
         visibility: b.classList.contains('active')?'members_only':'public', created_by: state.user.id});
       if(error) return toast('⚠️ '+error.message);
       $('#auth-overlay').remove(); toast('📅 Event created.'); app.churchView('home');
@@ -1596,6 +1623,7 @@
           <input class="auth-input" id="ec-website" placeholder="Website (https://...)" value="${esc(ch.website||'')}">
           <input class="auth-input" id="ec-giving" placeholder="Online giving link (Stripe, Tithe.ly, Givelify, PayPal...)" value="${esc(ch.giving_url||'')}">
           <input class="auth-input" id="ec-giving-note" placeholder="Giving note (e.g., 'Tithes & offerings — Malachi 3:10')" value="${esc(ch.giving_note||'')}">
+          <input class="auth-input" id="ec-sermons" placeholder="Sermons/media link (YouTube channel, podcast...)" value="${esc(ch.sermons_url||'')}">
           <input class="auth-input" id="ec-address" placeholder="Street address" value="${esc(ch.address||'')}">
           <div style="display:flex;gap:8px">
             <input class="auth-input" id="ec-city" placeholder="City" value="${esc(ch.city||'')}" style="flex:2">
@@ -1621,6 +1649,7 @@
         website: $('#ec-website').value.trim()||null,
         giving_url: $('#ec-giving').value.trim()||null,
         giving_note: $('#ec-giving-note').value.trim()||null,
+        sermons_url: $('#ec-sermons').value.trim()||null,
         address: $('#ec-address').value.trim()||null,
         city: $('#ec-city').value.trim()||ch.city,
         state: $('#ec-state').value.trim()||null,
@@ -1629,8 +1658,9 @@
         service_times: $('#ec-times').value.split('\n').map(s=>s.trim()).filter(Boolean),
         updated_at: new Date().toISOString()
       };
-      if(upd.website && !/^https?:\/\//.test(upd.website)) upd.website='https://'+upd.website;
-      if(upd.giving_url && !/^https?:\/\//.test(upd.giving_url)) upd.giving_url='https://'+upd.giving_url;
+      ['website','giving_url','sermons_url'].forEach(k=>{
+        if(upd[k] && !/^https?:\/\//.test(upd[k])) upd[k]='https://'+upd[k];
+      });
       if(pin){ upd.lat=pin.lat; upd.lng=pin.lng; }
       const { error }=await sb.from('churches').update(upd).eq('id', ch.id);
       if(error) return toast('⚠️ '+error.message);
@@ -1989,6 +2019,20 @@
         window.__setPin?.(p);
         toast('📍 Address located. Save the profile to publish it.');
       } catch(e){ toast('⚠️ '+e.message); }
+    },
+    async toggleServe(eventId, role){
+      if(!requireAuth('Sign in to volunteer for this event.')) return;
+      const { data: mine }=await sb.from('event_volunteers').select('role').eq('event_id',eventId).eq('user_id',state.user.id).eq('role',role);
+      if(mine && mine.length){
+        const { error }=await sb.from('event_volunteers').delete().eq('event_id',eventId).eq('user_id',state.user.id).eq('role',role);
+        if(error) return toast('⚠️ '+error.message);
+        toast('Removed from '+role+'.');
+      } else {
+        const { error }=await sb.from('event_volunteers').insert({event_id:eventId,user_id:state.user.id,role});
+        if(error) return toast('⚠️ '+error.message);
+        toast('🤝 You\'re serving: '+role+'. Thank you!');
+      }
+      app.churchView('home');
     },
     async togglePush(){
       if(!state.user) return openAuthSheet('Sign in to get your daily reminder.');
