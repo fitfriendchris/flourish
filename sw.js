@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v11-1'; // +8 plans: relationships suite, emotional healing, generous life (26 plans / 431 days)
+const CACHE_NAME = 'flourish-v11-2'; // per-church giving, affiliates, web push daily nudge
 const SHELL = [
   './',
   './index.html',
@@ -36,6 +36,25 @@ self.addEventListener('activate', e => {
       .then(names => Promise.all(names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))))
       .then(() => self.clients.claim())
   );
+});
+
+// ── Web push: daily devotional nudge (payload-less) ──
+self.addEventListener('push', e => {
+  let title = '🌱 Flourish', body = "Today's lesson is ready. Keep the streak — hear, do, flourish.";
+  try { const d = e.data && e.data.json(); if (d) { title = d.title || title; body = d.body || body; } } catch (_) {}
+  e.waitUntil(self.registration.showNotification(title, {
+    body,
+    tag: 'flourish-daily',
+    data: { url: './#devotional' }
+  }));
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+    for (const c of list) { if ('focus' in c) { c.navigate(e.notification.data?.url || './'); return c.focus(); } }
+    return clients.openWindow(e.notification.data?.url || './');
+  }));
 });
 
 self.addEventListener('fetch', e => {

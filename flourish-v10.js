@@ -1756,6 +1756,12 @@
 
         ${state.user?`
         <div class="card">
+          <div class="card-header"><span class="icon">🔔</span> Daily Reminder</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">Get a morning nudge when your daily lesson is ready — the streak's best friend.</div>
+          <button class="btn btn-primary" id="push-toggle" onclick="app.togglePush()">Checking...</button>
+          <div id="push-status" style="font-size:11.5px;color:var(--text-dim);margin-top:8px"></div>
+        </div>
+        <div class="card">
           <div class="card-header"><span class="icon">⚙️</span> Account</div>
           <div class="setting-row"><span class="s-label">Display name</span><span class="s-val auth-link" onclick="app.editName()">${esc(state.profile?.display_name||'Set name')} ✏️</span></div>
           <div class="setting-row"><span class="s-label">Email</span><span class="s-val">${esc(state.user.email)}</span></div>
@@ -1791,6 +1797,30 @@
         </div>
         <div style="height:20px"></div>
       </div>`;
+    refreshPushUI();
+  }
+
+  // ════════════════════════════════════════════
+  // WEB PUSH — daily devotional nudge
+  // ════════════════════════════════════════════
+  const VAPID_PUBLIC = 'BA3lk2Tp2VelH8TBIYzQKEmcvBRzbR2hbfHqqTjZIcD5i92FkXYWyFQpaEFH0hNO2SSJuQOBiYiOr-l-nhx7REo';
+  function vapidKeyBytes(){
+    const pad='='.repeat((4 - VAPID_PUBLIC.length % 4) % 4);
+    const raw=atob((VAPID_PUBLIC+pad).replace(/-/g,'+').replace(/_/g,'/'));
+    return Uint8Array.from(raw, c=>c.charCodeAt(0));
+  }
+  async function pushSubscription(){
+    if(!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+    const reg = await navigator.serviceWorker.ready;
+    return reg.pushManager.getSubscription();
+  }
+  async function refreshPushUI(){
+    const btn=$('#push-toggle'), st=$('#push-status');
+    if(!btn) return;
+    if(!('PushManager' in window)){ btn.textContent='Not supported on this browser'; btn.disabled=true; return; }
+    const sub = await pushSubscription();
+    btn.textContent = sub ? '🔕 Turn off daily reminder' : '🔔 Turn on daily reminder';
+    if(st) st.textContent = sub ? 'Reminders on — one gentle nudge each morning.' : (Notification.permission==='denied'?'Notifications are blocked in your browser settings.':'');
   }
 
   // ════════════════════════════════════════════
@@ -1959,6 +1989,29 @@
         window.__setPin?.(p);
         toast('📍 Address located. Save the profile to publish it.');
       } catch(e){ toast('⚠️ '+e.message); }
+    },
+    async togglePush(){
+      if(!state.user) return openAuthSheet('Sign in to get your daily reminder.');
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        if(existing){
+          await sb.from('push_subscriptions').delete().eq('endpoint', existing.endpoint);
+          await existing.unsubscribe();
+          toast('🔕 Daily reminder off.');
+        } else {
+          const perm = await Notification.requestPermission();
+          if(perm!=='granted') return toast('Notifications not allowed — check browser settings.');
+          const sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: vapidKeyBytes() });
+          const j = sub.toJSON();
+          const { error } = await sb.from('push_subscriptions').upsert(
+            { user_id: state.user.id, endpoint: sub.endpoint, p256dh: j.keys?.p256dh||null, auth: j.keys?.auth||null },
+            { onConflict: 'endpoint' });
+          if(error){ await sub.unsubscribe(); return toast('⚠️ '+error.message); }
+          toast('🔔 Daily reminder on. See you tomorrow morning.');
+        }
+      } catch(e){ toast('⚠️ '+(e.message||'Could not update reminders')); }
+      refreshPushUI();
     },
     copyEmbed(churchId){
       const mm=state.memberships.find(x=>x.church_id===churchId);
