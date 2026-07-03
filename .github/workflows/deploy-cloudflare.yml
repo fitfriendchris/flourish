@@ -1,0 +1,29 @@
+name: Deploy to Cloudflare Pages
+
+# Auto-deploys the live site to https://flourish-8ql.pages.dev whenever gh-pages updates.
+# Requires two repo secrets:
+#   CLOUDFLARE_ACCOUNT_ID  (set)
+#   CLOUDFLARE_API_TOKEN   (create in Cloudflare dashboard: My Profile -> API Tokens ->
+#                           Create Token -> "Cloudflare Pages - Edit" template, then:
+#                           gh secret set CLOUDFLARE_API_TOKEN -R fitfriendchris/flourish)
+
+on:
+  push:
+    branches: [gh-pages]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Strip non-site files
+        run: rm -rf .github .gitignore enrich_plans.py
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy . --project-name=flourish --branch=gh-pages --commit-dirty=true

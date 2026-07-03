@@ -32,6 +32,16 @@ Both serve the same code from the `gh-pages` branch. Deploy to Cloudflare with
 - **Backend:** Supabase (Postgres + Auth + RLS) — schema in `~/Flourish/docs/schema.sql`
 - **Content pipeline:** `~/Flourish/generate_years23.py` (years 2–3), `generate_365.py` (year 1)
 
+## Operations
+- **Deploys:** push to `gh-pages` → GitHub Pages updates automatically; the GitHub Action
+  (`.github/workflows/deploy-cloudflare.yml`) deploys Cloudflare once `CLOUDFLARE_API_TOKEN`
+  is set as a repo secret (manual fallback: `npx wrangler pages deploy . --project-name flourish --branch gh-pages`).
+- **Database:** Supabase `flourish-church-hub` (rdnlorxsmyufaboftzus) — schema changes via migrations only.
+  Free tier auto-pauses when idle; if the church hub "breaks," check project status first.
+- **Daily push nudge:** edge function `daily-nudge`, invoked by pg_cron at 13:00 UTC.
+- **Cache busting:** bump `CACHE_NAME` in `sw.js` on every release.
+- **Security headers:** `_headers` (Cloudflare only). `/embed` must stay iframe-able.
+
 ## The Promise
 Do the lessons. Apply the wisdom. Everything governed by biblical principles —
 health, money, and relationships — gets better by design, not by accident.

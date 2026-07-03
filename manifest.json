@@ -2,24 +2,33 @@
   "name": "Flourish — Biblical Life Mastery",
   "short_name": "Flourish",
   "description": "A 3-Year Biblical Life Mastery Journey — Health, Wealth, Relationships. Daily devotionals, guided plans, and your church community.",
-  "start_url": "/flourish/?source=pwa",
+  "id": "flourish-app",
+  "lang": "en",
+  "start_url": "./?source=pwa",
   "display": "standalone",
   "background_color": "#0c150c",
   "theme_color": "#1a3c1a",
   "orientation": "portrait",
-  "scope": "/flourish/",
+  "scope": "./",
+  "categories": ["lifestyle", "education", "social"],
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect fill='%231a3c1a' width='192' height='192' rx='36'/%3E%3Ctext x='96' y='128' font-size='110' text-anchor='middle'%3E🌱%3C/text%3E%3C/svg%3E",
+      "src": "icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect fill='%231a3c1a' width='512' height='512' rx='96'/%3E%3Ctext x='256' y='340' font-size='300' text-anchor='middle'%3E🌱%3C/text%3E%3C/svg%3E",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

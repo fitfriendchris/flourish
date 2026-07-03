@@ -1,7 +1,10 @@
-const CACHE_NAME = 'flourish-v11-3'; // prayer wall, sermon shelf, serving sign-ups
+const CACHE_NAME = 'flourish-v11-4'; // production pass: PNG icons, host-agnostic manifest, social links, 404
 const SHELL = [
   './',
   './index.html',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
   './flourish-v10.css',
   './flourish-v10.js',
   './flourish-mana.js',

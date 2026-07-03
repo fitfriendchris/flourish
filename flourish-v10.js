@@ -1007,6 +1007,7 @@
           <div class="church-hero-pastor">${esc(ch.pastor_name||'')} ${leader?'· <span style="color:var(--accent)">You are a leader</span>':''}</div>
           ${ch.website?`<div style="margin-top:8px"><a class="auth-link" href="${esc(ch.website)}" target="_blank" rel="noopener" style="font-size:13px">🌐 ${esc(ch.website.replace(/^https?:\/\//,''))}</a></div>`:''}
           ${ch.sermons_url?`<div style="margin-top:6px"><a class="auth-link" href="${esc(ch.sermons_url)}" target="_blank" rel="noopener" style="font-size:13px">🎙️ Sermons & media</a></div>`:''}
+          ${socialRow(ch)}
           ${state.memberships.length>1?`<div class="chip-row" style="justify-content:center;margin-top:10px">${state.memberships.map(mm=>`<button class="f-chip ${mm.church_id===ch.id?'active':''}" onclick="app.switchChurch('${mm.church_id}')">${esc(mm.churches.name)}</button>`).join('')}</div>`:''}
           ${!leader?`<div style="margin-top:10px;font-size:12px"><span class="auth-link" onclick="app.claimChurch('${ch.id}','${esc(ch.name)}')">Are you this church's pastor/admin? Claim leadership →</span></div>`:''}
           ${leader?`<div style="margin-top:10px"><button class="btn btn-ghost" style="width:auto;padding:8px 16px;font-size:12px" onclick="app.editChurchProfile()">✏️ Edit church profile & location</button></div>`:''}
@@ -1123,6 +1124,14 @@
   const pageURL = ch => location.origin + location.pathname + '?church=' + encodeURIComponent(ch.slug||ch.id);
   const fmtServiceTime = t => typeof t==='string' ? t
     : [t?.label, [t?.day, t?.time].filter(Boolean).join(' ')].filter(Boolean).join(' — ') || '';
+  const SOCIAL_ICONS = {youtube:'▶️ YouTube', facebook:'📘 Facebook', instagram:'📸 Instagram', podcast:'🎧 Podcast'};
+  function socialRow(ch, style){
+    const links = ch?.social_links || {};
+    const entries = Object.entries(SOCIAL_ICONS).filter(([k])=>links[k]);
+    if(!entries.length) return '';
+    return `<div class="chip-row" style="${style||'justify-content:center;margin-top:10px'}">${entries.map(([k,label])=>
+      `<a class="f-chip" style="text-decoration:none" href="${esc(links[k])}" target="_blank" rel="noopener">${label}</a>`).join('')}</div>`;
+  }
   const embedURL = ch => location.origin + location.pathname.replace(/index\.html$/,'').replace(/\/$/,'') + '/embed.html?church=' + encodeURIComponent(ch.slug||ch.id);
   const embedCode = ch => `<iframe src="${embedURL(ch)}" style="width:100%;max-width:420px;height:520px;border:0;border-radius:16px" title="${(ch.name||'Church')} on Flourish" loading="lazy"></iframe>`;
 
@@ -1284,6 +1293,7 @@
             ${ch.giving_url?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none;border-color:var(--accent)" href="${esc(ch.giving_url)}" target="_blank" rel="noopener">💝 Give</a>`:''}
             ${ch.sermons_url?`<a class="btn btn-ghost" style="width:auto;padding:10px 18px;text-decoration:none" href="${esc(ch.sermons_url)}" target="_blank" rel="noopener">🎙️ Sermons</a>`:''}
           </div>
+          ${socialRow(ch)}
         </div>
         ${(ch.address||times.length)?`
         <div class="card card-enter">
@@ -1624,6 +1634,15 @@
           <input class="auth-input" id="ec-giving" placeholder="Online giving link (Stripe, Tithe.ly, Givelify, PayPal...)" value="${esc(ch.giving_url||'')}">
           <input class="auth-input" id="ec-giving-note" placeholder="Giving note (e.g., 'Tithes & offerings — Malachi 3:10')" value="${esc(ch.giving_note||'')}">
           <input class="auth-input" id="ec-sermons" placeholder="Sermons/media link (YouTube channel, podcast...)" value="${esc(ch.sermons_url||'')}">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin:2px 0 6px">Connect your platforms (shown on your public page)</div>
+          <div style="display:flex;gap:8px">
+            <input class="auth-input" id="ec-yt" placeholder="YouTube" value="${esc(ch.social_links?.youtube||'')}" style="flex:1">
+            <input class="auth-input" id="ec-fb" placeholder="Facebook" value="${esc(ch.social_links?.facebook||'')}" style="flex:1">
+          </div>
+          <div style="display:flex;gap:8px">
+            <input class="auth-input" id="ec-ig" placeholder="Instagram" value="${esc(ch.social_links?.instagram||'')}" style="flex:1">
+            <input class="auth-input" id="ec-pod" placeholder="Podcast" value="${esc(ch.social_links?.podcast||'')}" style="flex:1">
+          </div>
           <input class="auth-input" id="ec-address" placeholder="Street address" value="${esc(ch.address||'')}">
           <div style="display:flex;gap:8px">
             <input class="auth-input" id="ec-city" placeholder="City" value="${esc(ch.city||'')}" style="flex:2">
@@ -1661,6 +1680,12 @@
       ['website','giving_url','sermons_url'].forEach(k=>{
         if(upd[k] && !/^https?:\/\//.test(upd[k])) upd[k]='https://'+upd[k];
       });
+      const socials={};
+      [['youtube','#ec-yt'],['facebook','#ec-fb'],['instagram','#ec-ig'],['podcast','#ec-pod']].forEach(([k,sel])=>{
+        let v=$(sel)?.value?.trim();
+        if(v){ if(!/^https?:\/\//.test(v)) v='https://'+v; socials[k]=v; }
+      });
+      upd.social_links=socials;
       if(pin){ upd.lat=pin.lat; upd.lng=pin.lng; }
       const { error }=await sb.from('churches').update(upd).eq('id', ch.id);
       if(error) return toast('⚠️ '+error.message);
