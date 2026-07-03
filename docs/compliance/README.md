@@ -35,8 +35,14 @@ process no codebase can grant itself:
 
 ## Gaps to close before an audit (tracked)
 
-1. Supabase **Pro/Team plan**: scheduled backups + PITR (currently the largest availability gap: free tier auto-pauses).
-2. Dashboard toggles: leaked-password protection (HIBP), MFA enforcement for leader/admin accounts.
-3. Move VAPID push keys from edge-function source to Supabase secrets.
+1. Supabase **Pro/Team plan**: scheduled backups + PITR + unlocks HIBP leaked-password protection
+   (currently the largest availability gap: free tier auto-pauses). Requires dashboard billing.
+2. MFA enforcement for leader/admin accounts (TOTP enrollment is enabled; enforcement pending).
+3. ~~Move VAPID push keys to Supabase secrets~~ ✅ Done 2026-07-03 (project secrets; function redeployed + tested).
 4. Formal quarterly access review + risk review calendar (template in risk-and-vendor-register.md).
 5. A second maintainer / break-glass account documented (bus factor = 1 today).
+
+**Hardening applied 2026-07-03 via Management API:** password minimum length raised 6 → 10;
+production auth URLs fixed (site_url was `localhost:3000` with an empty redirect allow-list —
+password-reset emails would have redirected to localhost; now set to the production hosts).
+HIBP leaked-password protection attempted — API returned 402: Pro plan required.

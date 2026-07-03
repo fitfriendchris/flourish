@@ -11,7 +11,7 @@ Scoring: Likelihood × Impact, 1–5 each. Treat ≥12 first.
 | R2 | No DB backups until Pro plan | 2 | 5 | 10 | Same as R1; interim manual export | Open |
 | R3 | Bus factor = 1 (single operator/admin) | 3 | 4 | 12 | Document break-glass; add second maintainer | Open |
 | R4 | Leader account takeover exposes pastoral data of that church | 2 | 5 | 10 | MFA for leaders (dashboard toggle); HIBP passwords; audit trail detects | Mitigating |
-| R5 | VAPID private key embedded in edge-function source | 2 | 2 | 4 | Move to Supabase secrets | Open (low) |
+| R5 | VAPID private key embedded in edge-function source | 2 | 2 | 4 | Moved to Supabase project secrets; function redeployed + tested | **Closed 2026-07-03** |
 | R6 | Malicious/compromised deploy via GitHub account | 2 | 4 | 8 | GitHub 2FA; instant revert runbook (IR §3.1); dual-host isolation | Mitigating |
 | R7 | Church leader misuses member data (insider) | 2 | 4 | 8 | Per-church isolation caps blast radius; audit_logs; delisting policy | Accepted w/ controls |
 | R8 | XSS via user content | 1 | 4 | 4 | esc() on all render paths + CSP; checked each release | Controlled |

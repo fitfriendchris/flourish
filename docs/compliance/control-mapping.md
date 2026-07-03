@@ -8,7 +8,7 @@ Evidence column names the artifact an auditor would inspect.
 | Security policies | A.5.1 | CC1.x | §164.316 | ✅ | This folder (adopted 2026-07-03) |
 | Roles & responsibilities | A.5.2 | CC1.3 | §164.308(a)(2) | ✅ | information-security-policy §2; app_role enum + RLS |
 | Access control / least privilege | A.5.15, A.8.2 | CC6.1–6.3 | §164.312(a)(1) | ✅ | RLS on 31/31 tables; anon lockout on privileged RPCs; server-side guards in every SECURITY DEFINER fn |
-| Authentication | A.5.16–5.17 | CC6.1 | §164.312(d) | 🟡 | Supabase Auth (bcrypt, email verify, reset). Gap: HIBP leaked-password toggle + MFA enforcement for leaders (dashboard) |
+| Authentication | A.5.16–5.17 | CC6.1 | §164.312(d) | 🟡 | Supabase Auth (bcrypt, email verify, reset); min password length 10; production reset-URLs fixed; TOTP enrollment enabled. Gap: HIBP (Pro-gated) + MFA enforcement for leaders |
 | Access reviews | A.5.18 | CC6.2 | §164.308(a)(4) | 🟡 | Quarterly review defined; first review due 2026-10-01 |
 | Cryptography in transit | A.8.24 | CC6.7 | §164.312(e) | ✅ | TLS everywhere; HSTS (Cloudflare host); CSP restricts origins |
 | Cryptography at rest | A.8.24 | CC6.7 | §164.312(a)(2)(iv) | ✅ | Supabase/AWS AES-256 (vendor attestation) |
