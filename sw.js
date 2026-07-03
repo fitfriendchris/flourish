@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v11-6'; // reading-together campaigns + QR event check-in
+const CACHE_NAME = 'flourish-v11-7'; // compliance: data export, account erasure, audit logging
 const SHELL = [
   './',
   './index.html',

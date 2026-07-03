@@ -2000,6 +2000,13 @@
           <div class="setting-row"><span class="s-label">Gender track</span><span class="s-val">${state.gender==='men'?'Man':'Woman'} (toggle in header)</span></div>
           <div class="setting-row"><span class="s-label">Churches</span><span class="s-val">${state.memberships.map(mm=>esc(mm.churches.name)+(isLeader(mm)?' 👑':'')).join(', ')||'None yet'}</span></div>
           <button class="btn btn-ghost" style="margin-top:10px" onclick="app.signOut()">Sign out</button>
+          <div style="border-top:1px solid var(--surface-2);margin-top:14px;padding-top:12px">
+            <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:8px">Your data, your rights</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="flex:1;font-size:12.5px" onclick="app.exportMyData()">📦 Export my data</button>
+              <button class="btn btn-ghost" style="flex:1;font-size:12.5px;color:#e07370;border-color:#e0737055" onclick="app.deleteMyAccount()">🗑️ Delete account</button>
+            </div>
+          </div>
         </div>
         <div class="card">
           <div class="card-header"><span class="icon">🙏</span> My Requests</div>
@@ -2330,6 +2337,46 @@
       if(error) return toast('⚠️ '+error.message);
       toast('✅ Marked answered. Praise God.');
       app.churchView('requests');
+    },
+    // ── Data rights: portability + erasure ──
+    async exportMyData(){
+      if(!state.user) return;
+      toast('📦 Gathering your data...');
+      const tables=[['profiles','*'],['user_progress','*'],['plan_enrollments','*'],['plan_progress','*'],
+        ['prayer_requests','*'],['church_memberships','*, churches(name)'],['group_members','*'],
+        ['event_rsvps','*'],['event_volunteers','*'],['event_checkins','*'],['push_subscriptions','id,endpoint,created_at']];
+      const out={ exported_at:new Date().toISOString(), user:{id:state.user.id, email:state.user.email},
+        local:{ progress:state.progress, plan_progress:state.planProg, plan_enrollments:state.planEnroll } };
+      for(const [t,sel] of tables){
+        try {
+          let q=sb.from(t).select(sel);
+          q = (t==='profiles') ? q.eq('id', state.user.id) : q.eq('user_id', state.user.id);
+          const { data }=await q;
+          out[t]=data||[];
+        } catch(e){ out[t]='unavailable'; }
+      }
+      const a=document.createElement('a');
+      a.href='data:application/json;charset=utf-8,'+encodeURIComponent(JSON.stringify(out,null,1));
+      a.download='flourish-my-data-'+new Date().toISOString().slice(0,10)+'.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('📦 Downloaded. That is everything Flourish stores about you.');
+    },
+    async deleteMyAccount(){
+      if(!state.user) return;
+      if(!confirm('Delete your Flourish account?\n\nThis permanently erases your profile, progress, prayer requests, memberships, and subscriptions on our servers. This cannot be undone.')) return;
+      const typed=prompt('Type DELETE to confirm permanent erasure:');
+      if(typed!=='DELETE') return toast('Deletion cancelled.');
+      try {
+        const { data:{ session } } = await sb.auth.getSession();
+        const r=await fetch(SUPABASE_URL+'/functions/v1/delete-account', {
+          method:'POST', headers:{ 'Authorization':'Bearer '+session.access_token, 'Content-Type':'application/json' }, body:'{}' });
+        const j=await r.json();
+        if(!r.ok || !j.deleted) throw new Error(j.error||'Deletion failed');
+        localStorage.clear();
+        await sb.auth.signOut().catch(()=>{});
+        toast('Your account and data have been erased. Grace and peace to you. 🌱', 6000);
+        setTimeout(()=>location.reload(), 2500);
+      } catch(e){ toast('⚠️ '+e.message); }
     },
     async editName(){
       const name=prompt('Display name:', state.profile?.display_name||'');
