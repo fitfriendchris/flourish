@@ -992,13 +992,17 @@
     const leader=isLeader(mem);
 
     m.innerHTML=`<div class="sacred-loader card-enter"><div class="seed-glyph">⛪</div><p class="loader-text">Opening the church doors...</p></div>`;
-    const [annRes, evRes, reqRes, wallRes, grpRes] = await Promise.all([
+    const [annRes, evRes, reqRes, wallRes, grpRes, campRes] = await Promise.all([
       sb.from('announcements').select('*').eq('church_id', ch.id).order('pinned',{ascending:false}).order('publish_at',{ascending:false}).limit(5),
-      sb.from('events').select('*, event_rsvps(user_id, status), event_volunteers(user_id, role)').eq('church_id', ch.id).gte('start_time', new Date(Date.now()-864e5).toISOString()).is('cancelled_at', null).order('start_time').limit(8),
+      sb.from('events').select('*, event_rsvps(user_id, status), event_volunteers(user_id, role), event_checkins(user_id)').eq('church_id', ch.id).gte('start_time', new Date(Date.now()-864e5).toISOString()).is('cancelled_at', null).order('start_time').limit(8),
       sb.from('prayer_requests').select('id,status').eq('user_id', state.user.id).in('status',['active','urgent']),
       sb.from('prayer_requests').select('id,title,body,category,status,prayer_count,created_at').eq('church_id', ch.id).eq('privacy','church_wide').in('status',['active','urgent']).order('created_at',{ascending:false}).limit(8),
-      sb.from('groups').select('*, group_members(user_id, role)').eq('church_id', ch.id).order('name')
+      sb.from('groups').select('*, group_members(user_id, role)').eq('church_id', ch.id).order('name'),
+      sb.from('church_plan_campaigns').select('*').eq('church_id', ch.id).is('archived_at', null).order('created_at',{ascending:false}).limit(1)
     ]);
+    await loadPlans().catch(()=>null);
+    const camp=(campRes.data||[])[0];
+    const campPlan=camp && state.plans?.plans?.find(p=>p.id===camp.plan_id);
 
     m.innerHTML=`
       <div class="page">
@@ -1058,6 +1062,7 @@
                   ${['yes','maybe','no'].map(s=>`<button class="rsvp-btn ${mine?.status===s?'active':''}" onclick="app.rsvp('${ev.id}','${s}')">${s==='yes'?'✅ Going':s==='maybe'?'🤔 Maybe':'✖️ No'}</button>`).join('')}
                   <button class="rsvp-btn" onclick="app.addToCal('${ev.id}')">🗓️</button>
                   ${ev.fundraising_url?`<a class="rsvp-btn" style="text-decoration:none;border-color:var(--accent)" href="${esc(ev.fundraising_url)}" target="_blank" rel="noopener">💝 ${esc(ev.fundraising_label||'Support')}</a>`:''}
+                  ${leader?`<button class="rsvp-btn" onclick="app.checkinQR('${ev.id}','${esc(ev.title)}')">📲 Check-in${(ev.event_checkins||[]).length?' · '+(ev.event_checkins||[]).length:''}</button>`:''}
                 </div>
                 ${(Array.isArray(ev.volunteer_roles)&&ev.volunteer_roles.length)?`
                 <div class="rsvp-row" style="margin-top:6px">
@@ -1073,6 +1078,24 @@
           }).join(''):'<div class="empty-mini">No upcoming events.</div>'}
           ${leader?`<button class="btn btn-ghost" onclick="app.composeEvent()">+ Create event</button>`:''}
         </div>
+
+        ${camp?`
+        <div class="card card-enter" style="border-color:var(--accent)">
+          <div class="card-header"><span class="icon">📖</span> Reading Together</div>
+          <div style="font-weight:700;font-size:15px">${esc(campPlan?.title||camp.plan_id)}</div>
+          ${campPlan?`<div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-top:4px">${esc(campPlan.tagline)}</div>`:''}
+          ${camp.note?`<div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-top:6px">💬 ${esc(camp.note)}</div>`:''}
+          <div style="font-size:11.5px;color:var(--text-dim);margin-top:6px">Your whole church is walking this plan together — started ${fmtDate(camp.starts_on)}.</div>
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button class="btn btn-primary" style="flex:1" onclick="app.openPlan('${esc(camp.plan_id)}')">Open the plan →</button>
+            ${leader?`<button class="btn btn-ghost" style="width:auto" onclick="app.archiveCampaign('${camp.id}')">End</button>`:''}
+          </div>
+        </div>`:leader?`
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">📖</span> Reading Together</div>
+          <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:10px">Pick one of the 26 guided plans for your whole church to walk through together — it appears here for every member.</div>
+          <button class="btn btn-ghost" onclick="app.startCampaignForm()">📖 Start a church campaign</button>
+        </div>`:''}
 
         <div class="card card-enter">
           <div class="card-header"><span class="icon">👥</span> Groups & Ministries</div>
@@ -1796,6 +1819,62 @@
     return {lat:parseFloat(hits[0].lat), lng:parseFloat(hits[0].lon)};
   }
 
+  // ── Church plan campaign composer ──
+  function startCampaignForm(){
+    const mem=myMembership(); if(!mem||!isLeader(mem)) return toast('Leader access required');
+    const plans=state.plans?.plans||[];
+    if(!plans.length) return toast('Plans still loading — try again in a moment');
+    closeSheets();
+    document.body.insertAdjacentHTML('beforeend',`
+      <div class="auth-overlay" id="auth-overlay" onclick="if(event.target===this)this.remove()">
+        <div class="auth-sheet">
+          <h3>📖 Reading Together</h3>
+          <div class="as-sub">Choose a guided plan for all of ${esc(mem.churches.name)} to walk through together.</div>
+          <select class="auth-input" id="camp-plan">
+            ${plans.map(p=>`<option value="${p.id}">[${p.pillar}] ${esc(p.title)}</option>`).join('')}
+          </select>
+          <textarea class="auth-input" id="camp-note" rows="2" placeholder="A word to the church (e.g., 'We start Monday — bring your questions to home group')"></textarea>
+          <button class="btn btn-primary" id="camp-send">Launch Campaign</button>
+        </div>
+      </div>`);
+    $('#camp-send').onclick=async()=>{
+      const { error }=await sb.from('church_plan_campaigns').insert({
+        church_id:mem.church_id, plan_id:$('#camp-plan').value,
+        note:$('#camp-note').value.trim()||null, created_by:state.user.id});
+      if(error) return toast('⚠️ '+error.message);
+      $('#auth-overlay').remove();
+      toast('📖 Campaign launched — the whole church sees it now.');
+      app.churchView('home');
+    };
+  }
+
+  // ── Event check-in QR (leaders show; members scan) ──
+  function checkinQR(eventId, title){
+    closeSheets();
+    const url = location.origin + location.pathname + '?checkin=' + encodeURIComponent(eventId);
+    document.body.insertAdjacentHTML('beforeend',`
+      <div class="auth-overlay" id="auth-overlay" onclick="if(event.target===this)this.remove()">
+        <div class="auth-sheet" style="text-align:center">
+          <h3>📲 Check-in — ${esc(title)}</h3>
+          <div class="as-sub">Members scan this at the door. Each scan records attendance once.</div>
+          <div style="display:flex;justify-content:center;padding:14px;background:var(--surface-2);border-radius:12px;margin:10px 0">${QR.create(url,{size:220,color:'#1a3c1a',bg:'#f5f0e8'})}</div>
+          <button class="btn btn-primary" onclick="app.copyText('${esc(url)}')">📋 Copy check-in link</button>
+        </div>
+      </div>`);
+  }
+
+  async function handleCheckinFromURL(eventId){
+    if(!state.user){ openAuthSheet('Sign in to check in to this event.'); return; }
+    const { error } = await sb.from('event_checkins').insert({event_id:eventId, user_id:state.user.id});
+    if(error){
+      if(error.code==='23505') toast('✅ Already checked in — you\'re counted.');
+      else toast('⚠️ '+error.message);
+    } else {
+      toast('✅ Checked in. Glad you\'re here!');
+    }
+    location.hash='church'; showPage();
+  }
+
   function registerChurchForm(){
     if(!requireAuth('Sign in to register your church.')) return;
     closeSheets();
@@ -1845,6 +1924,12 @@
 
   async function checkJoinFromURL(){
     const params=new URLSearchParams(location.search);
+    // ?checkin=<eventId> — event attendance QR
+    const checkinId=params.get('checkin');
+    if(checkinId && sb){
+      history.replaceState({}, '', location.pathname);
+      return handleCheckinFromURL(checkinId);
+    }
     // ?church=<slug> — deep link to a public church page (from church websites, QR, embeds)
     const pageSlug=params.get('church');
     if(pageSlug){
@@ -2139,7 +2224,14 @@
     },
     // groups
     openGroup(id){ location.hash=`church?v=group&g=${id}`; showPage(); },
-    createGroupForm,
+    createGroupForm, startCampaignForm, checkinQR,
+    async archiveCampaign(id){
+      if(!confirm('End this church campaign?')) return;
+      const { error }=await sb.from('church_plan_campaigns').update({archived_at:new Date().toISOString()}).eq('id',id);
+      if(error) return toast('⚠️ '+error.message);
+      toast('Campaign ended.');
+      app.churchView('home');
+    },
     async joinGroup(id, name){
       if(!requireAuth(`Sign in to join ${name||'this group'}.`)) return;
       const { error }=await sb.rpc('join_group',{p_group_id:id});

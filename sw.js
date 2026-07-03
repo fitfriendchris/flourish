@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v11-5'; // groups & ministries
+const CACHE_NAME = 'flourish-v11-6'; // reading-together campaigns + QR event check-in
 const SHELL = [
   './',
   './index.html',
