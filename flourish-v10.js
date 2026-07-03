@@ -959,6 +959,7 @@
     if(view==='directory'){ return renderDirectory(); }
     if(view==='community'){ return renderCommunity(); }
     if(view==='page'){ return renderChurchPage(qp.get('c')); }
+    if(view==='group'){ return renderGroup(qp.get('g')); }
     if(view==='dashboard'){ return renderDashboard(); }
     if(view==='chat'){ return renderChat(qp.get('c')); }
     if(view==='requests'){ return renderRequestsInbox(); }
@@ -991,11 +992,12 @@
     const leader=isLeader(mem);
 
     m.innerHTML=`<div class="sacred-loader card-enter"><div class="seed-glyph">⛪</div><p class="loader-text">Opening the church doors...</p></div>`;
-    const [annRes, evRes, reqRes, wallRes] = await Promise.all([
+    const [annRes, evRes, reqRes, wallRes, grpRes] = await Promise.all([
       sb.from('announcements').select('*').eq('church_id', ch.id).order('pinned',{ascending:false}).order('publish_at',{ascending:false}).limit(5),
       sb.from('events').select('*, event_rsvps(user_id, status), event_volunteers(user_id, role)').eq('church_id', ch.id).gte('start_time', new Date(Date.now()-864e5).toISOString()).is('cancelled_at', null).order('start_time').limit(8),
       sb.from('prayer_requests').select('id,status').eq('user_id', state.user.id).in('status',['active','urgent']),
-      sb.from('prayer_requests').select('id,title,body,category,status,prayer_count,created_at').eq('church_id', ch.id).eq('privacy','church_wide').in('status',['active','urgent']).order('created_at',{ascending:false}).limit(8)
+      sb.from('prayer_requests').select('id,title,body,category,status,prayer_count,created_at').eq('church_id', ch.id).eq('privacy','church_wide').in('status',['active','urgent']).order('created_at',{ascending:false}).limit(8),
+      sb.from('groups').select('*, group_members(user_id, role)').eq('church_id', ch.id).order('name')
     ]);
 
     m.innerHTML=`
@@ -1070,6 +1072,20 @@
             </div>`;
           }).join(''):'<div class="empty-mini">No upcoming events.</div>'}
           ${leader?`<button class="btn btn-ghost" onclick="app.composeEvent()">+ Create event</button>`:''}
+        </div>
+
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">👥</span> Groups & Ministries</div>
+          ${(grpRes.data||[]).length?(grpRes.data).map(g=>{
+            const members=g.group_members||[];
+            const joined=members.some(m=>m.user_id===state.user.id);
+            return `<div class="conv-row" onclick="app.openGroup('${g.id}')">
+              <div><div class="cr-title">${esc(g.emoji||'👥')} ${esc(g.name)} ${joined?'<span style="color:var(--accent);font-size:11px">✓ Joined</span>':''}</div>
+              <div class="cr-sub">${members.length} member${members.length===1?'':'s'}${g.meeting_info?' · '+esc(g.meeting_info):''}</div></div>
+              <div>→</div>
+            </div>`;
+          }).join(''):'<div class="empty-mini">No groups yet.'+(leader?' Create the first one below.':' Ask your leaders to create men\'s, women\'s, youth, or study groups.')+'</div>'}
+          ${leader?`<button class="btn btn-ghost" onclick="app.createGroupForm()">+ Create group</button>`:''}
         </div>
 
         <div class="card card-enter">
@@ -1327,6 +1343,82 @@
         </div>
         <div style="height:20px"></div>
       </div>`;
+  }
+
+  // ── GROUP DETAIL — roster, meeting info, group chat ──
+  async function renderGroup(groupId){
+    const m=$('#main');
+    if(!groupId || !state.user){ return app.churchView('home'); }
+    m.innerHTML=`<div class="sacred-loader card-enter"><div class="seed-glyph">👥</div><p class="loader-text">Gathering the group...</p></div>`;
+    const { data: g, error } = await sb.from('groups').select('*, group_members(user_id, role, joined_at)').eq('id', groupId).maybeSingle();
+    if(error || !g){ toast('Group not found'); return app.churchView('home'); }
+    const members=g.group_members||[];
+    const joined=members.some(mm=>mm.user_id===state.user.id);
+    const isGroupLeader=members.some(mm=>mm.user_id===state.user.id && mm.role==='leader');
+    const chLeader=isLeader(myMembership());
+    // roster names (graceful degrade if profiles unreadable)
+    let names={};
+    try {
+      const { data: profs } = await sb.from('profiles').select('id, display_name').in('id', members.map(mm=>mm.user_id));
+      (profs||[]).forEach(p=>names[p.id]=p.display_name);
+    } catch(e){}
+    m.innerHTML=`
+      <div class="page">
+        <div class="week-detail-header card-enter">
+          <button class="btn-nav-round" onclick="app.churchView('home')">◀</button>
+          <div class="week-detail-info">
+            <div class="week-detail-eyebrow">Group · ${members.length} member${members.length===1?'':'s'}</div>
+            <div class="week-detail-theme">${esc(g.emoji||'👥')} ${esc(g.name)}</div>
+            ${g.meeting_info?`<div class="week-detail-progress">🗓️ ${esc(g.meeting_info)}</div>`:''}
+          </div>
+        </div>
+        ${g.description?`<div class="card card-enter"><div style="line-height:1.7;font-size:14px;color:var(--text-muted)">${esc(g.description)}</div></div>`:''}
+        <div style="display:flex;gap:8px" class="card-enter">
+          ${joined
+            ? `${g.conversation_id?`<button class="btn btn-primary" style="flex:1" onclick="app.openChat('${g.conversation_id}')">💬 Group chat</button>`:''}
+               <button class="btn btn-ghost" style="flex:1" onclick="app.leaveGroup('${g.id}','${esc(g.name)}')">Leave group</button>`
+            : `<button class="btn btn-primary" style="flex:1" onclick="app.joinGroup('${g.id}','${esc(g.name)}')">👥 Join this group</button>`}
+        </div>
+        <div style="height:10px"></div>
+        <div class="card card-enter">
+          <div class="card-header"><span class="icon">📋</span> Members</div>
+          ${members.map(mm=>`<div class="member-row"><span>${esc(names[mm.user_id]||'Member')} ${mm.role==='leader'?'👑':''}</span><span style="font-size:12px;color:var(--text-dim)">since ${fmtDate(mm.joined_at)}</span></div>`).join('')||'<div class="empty-mini">No members yet.</div>'}
+        </div>
+        ${(isGroupLeader||chLeader)?`<button class="btn btn-danger card-enter" onclick="app.deleteGroup('${g.id}','${esc(g.name)}')">Delete group</button>`:''}
+        <div style="height:20px"></div>
+      </div>`;
+  }
+
+  function createGroupForm(){
+    const mem=myMembership(); if(!mem||!isLeader(mem)) return toast('Leader access required');
+    closeSheets();
+    document.body.insertAdjacentHTML('beforeend',`
+      <div class="auth-overlay" id="auth-overlay" onclick="if(event.target===this)this.remove()">
+        <div class="auth-sheet">
+          <h3>👥 New Group / Ministry</h3>
+          <div class="as-sub">For ${esc(mem.churches.name)} — men's group, women's study, youth, worship team, any ministry.</div>
+          <div style="display:flex;gap:8px">
+            <input class="auth-input" id="gr-emoji" placeholder="Emoji" value="👥" style="width:72px">
+            <input class="auth-input" id="gr-name" placeholder="Group name *" style="flex:1">
+          </div>
+          <textarea class="auth-input" id="gr-desc" rows="2" placeholder="What is this group about?"></textarea>
+          <input class="auth-input" id="gr-meet" placeholder="Meeting rhythm (e.g., Tuesdays 7pm, Room 3)">
+          <button class="btn btn-primary" id="gr-send">Create Group</button>
+        </div>
+      </div>`);
+    $('#gr-send').onclick=async()=>{
+      const name=$('#gr-name').value.trim();
+      if(!name) return toast('Name required');
+      const { data, error }=await sb.rpc('create_group',{
+        p_church_id:mem.church_id, p_name:name,
+        p_description:$('#gr-desc').value.trim()||null,
+        p_emoji:$('#gr-emoji').value.trim()||'👥',
+        p_meeting_info:$('#gr-meet').value.trim()||null});
+      if(error) return toast('⚠️ '+error.message);
+      $('#auth-overlay').remove();
+      toast('👥 Group created.');
+      app.openGroup(data);
+    };
   }
 
   async function renderDashboard(){
@@ -2044,6 +2136,30 @@
         window.__setPin?.(p);
         toast('📍 Address located. Save the profile to publish it.');
       } catch(e){ toast('⚠️ '+e.message); }
+    },
+    // groups
+    openGroup(id){ location.hash=`church?v=group&g=${id}`; showPage(); },
+    createGroupForm,
+    async joinGroup(id, name){
+      if(!requireAuth(`Sign in to join ${name||'this group'}.`)) return;
+      const { error }=await sb.rpc('join_group',{p_group_id:id});
+      if(error) return toast('⚠️ '+error.message);
+      toast(`👥 Welcome to ${name||'the group'}!`);
+      app.openGroup(id);
+    },
+    async leaveGroup(id, name){
+      if(!confirm(`Leave ${name}?`)) return;
+      const { error }=await sb.rpc('leave_group',{p_group_id:id});
+      if(error) return toast('⚠️ '+error.message);
+      toast(`Left ${name}.`);
+      app.churchView('home');
+    },
+    async deleteGroup(id, name){
+      if(!confirm(`Delete ${name}? This removes the group for everyone.`)) return;
+      const { error }=await sb.from('groups').delete().eq('id', id);
+      if(error) return toast('⚠️ '+error.message);
+      toast('Group deleted.');
+      app.churchView('home');
     },
     async toggleServe(eventId, role){
       if(!requireAuth('Sign in to volunteer for this event.')) return;

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'flourish-v11-4'; // production pass: PNG icons, host-agnostic manifest, social links, 404
+const CACHE_NAME = 'flourish-v11-5'; // groups & ministries
 const SHELL = [
   './',
   './index.html',
