@@ -5,7 +5,11 @@
 A 3-year journey of biblical life mastery across **Health, Wealth, and Relationships** — with your church community built in.
 
 ## Live App
-https://fitfriendchris.github.io/flourish
+- **Cloudflare (primary — hardened security headers):** https://flourish-8ql.pages.dev
+- **GitHub Pages (mirror):** https://fitfriendchris.github.io/flourish
+
+Both serve the same code from the `gh-pages` branch. Deploy to Cloudflare with
+`npx wrangler pages deploy . --project-name flourish --branch gh-pages` after pushing.
 
 ## What's Inside (v10)
 - **3-Year Devotional** — 1,095 days across three arcs:

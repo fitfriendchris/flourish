@@ -1,0 +1,15 @@
+# Cloudflare Pages security headers (ignored by GitHub Pages)
+/*
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  X-Frame-Options: DENY
+
+# The church embed widget must remain iframe-able on church websites
+# (Pages pretty-URLs serve it at /embed; cover both paths)
+/embed.html
+  ! X-Frame-Options
+
+/embed
+  ! X-Frame-Options
