@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="bf2ef8cb87";
+const APP_VERSION="12109a4c96";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -505,7 +505,7 @@ function lockedDay(){
   if (S.unlocked) return 0;
   if (S.page !== "today" && S.page !== "academy") return 0;
   const r = S.route || {};
-  if (S.page === "today" && (r.sub === "rebuild" || r.sub === "advent")) return 0;   // free to the end
+  if (S.page === "today" && (r.sub === "rebuild" || isSeason(r.sub))) return 0;   // free to the end
   const today = dayNumber();
   if (!dayAllowed(today)) return today;
   if (S.page === "today") {
@@ -534,7 +534,7 @@ function lockedView(locked){
     : S.page === "academy" && r.sub === "lesson"
       ? `<button class="btn sm ghost block" style="margin:-4px 0 12px" data-act="go-academy">\u2039 Back to the Academy</button>`
     : "";
-  return `${rbLockedEntry()}${adventBanner()}${back}<div class="hero">
+  return `${rbLockedEntry()}${seasonBanner()}${back}<div class="hero">
       <div class="eyebrow">Year ${arc.y} \u00b7 ${esc(arc.name)} \u00b7 Day ${d}</div>
       <h1 class="serif" style="font-size:26px;margin:8px 0 4px">${esc(o.t || "Today's lesson")}</h1>
       <div class="faint" style="font-size:13px">${esc(o.p || "")}${o.s ? " \u00b7 " + esc(o.s) : ""}</div>
@@ -652,9 +652,10 @@ function applyHash(){
     _applyingHash = true; save(); render(); _applyingHash = false;
     return true;
   }
-  // Seasonal posts link to <site>/#/advent (and #/advent/<day>).
-  if (String(parts[0] || "").split("?")[0].toLowerCase() === "advent") {
-    S.page = "today"; S.route = { sub:"advent", id: parts[1] ? String(parts[1]).split("?")[0] : undefined };
+  // Seasonal posts link to <site>/#/advent or #/lent (and #/<season>/<day>).
+  const seasonId = String(parts[0] || "").split("?")[0].toLowerCase();
+  if (isSeason(seasonId)) {
+    S.page = "today"; S.route = { sub: seasonId, id: parts[1] ? String(parts[1]).split("?")[0] : undefined };
     _applyingHash = true; save(); render(); _applyingHash = false;
     return true;
   }
@@ -693,7 +694,7 @@ function render(){
   /* The 30-Day Rebuild and Advent are free to the end. The paywall is about the
      1,095-day path, so their routes are exempt even when that path is locked,
      and neither waits for the book. */
-  const onRebuild = S.page==="today" && !!S.route && (S.route.sub==="rebuild" || S.route.sub==="advent");
+  const onRebuild = S.page==="today" && !!S.route && (S.route.sub==="rebuild" || isSeason(S.route.sub));
   const bookless = !CURR().length && !onRebuild &&
                    (S.page==="academy" || ((S.page==="today" || !S.page) && S.onboarded));
   let html="";
@@ -844,22 +845,27 @@ function handle(act,id,el){
     case"rebuild-tick":rebuildTick(id,el.dataset.k,el);break;
     case"rebuild-join":if(typeof membershipSheet==="function")membershipSheet();break;
     case"rebuild-church":go("church");break;
-    case"advent-home":S.page="today";save();route("advent");break;
-    case"advent-open":S.page="today";save();route("advent",id);break;
-    case"advent-done":completeAdventDay(id);break;
     case"listen":listenToggle(id);break;
     case"remind":reminderSheet(id);break;
     case"listen-stop":listenStop();break;
     case"listen-rate":listenCycleRate();break;
-    case"advent-path":go("today");break;
-    default:break;
+    case"season-path":go("today");break;
+    default: {
+      /* <season>-home, <season>-open, <season>-done for every season in SEASON_DEFS */
+      const m = /^([a-z]+)-(home|open|done)$/.exec(String(act || ""));
+      if (m && isSeason(m[1])) {
+        if (m[2] === "done") completeSeasonDay(m[1], id);
+        else { S.page = "today"; save(); m[2] === "home" ? route(m[1]) : route(m[1], id); }
+      }
+      break;
+    }
   }
 }
 
 /* ============ TODAY (DEVOTIONAL) ============ */
 function renderToday(){
   if(S.route&&S.route.sub==="rebuild")return renderRebuild(S.route.id);
-  if(S.route&&S.route.sub==="advent")return renderAdvent(S.route.id);
+  if(S.route&&isSeason(S.route.sub))return renderSeason(S.route.sub,S.route.id);
   if(!S.onboarded)return renderOnboard();
   const today=dayNumber();
   if(S.viewDay==null)S.viewDay=today;
@@ -875,7 +881,7 @@ function renderToday(){
     <div class="ring" style="--p:${li.pct}"><span>L${li.lv}</span></div>
   </div>
   ${rbBanner()}
-  ${adventBanner()}
+  ${seasonBanner()}
   <div class="daynav">
     <button class="dn" data-act="day-prev" ${d<=1?"disabled":""}>‹</button>
     <div class="dc"><b>Day ${d}</b><small>of ${N.toLocaleString()} · ${d===today?"today":(d<today?"past":"preview")}</small></div>
@@ -923,7 +929,7 @@ function renderToday(){
   <div class="shead"><h2 class="serif">Keep going</h2></div>
   <div class="scroll-x">
     ${reminderAvailable("daily") ? `<div class="card" style="width:200px" data-act="remind" data-id="daily"><div style="font-size:30px">⏰</div><b>Daily reminder</b><div class="faint" style="font-size:12px">Never miss a day</div></div>` : ""}
-    ${advScrollerCard()}
+    ${seasonScrollerCard()}
     ${rbScrollerCard()}
     <div class="card" style="width:200px" data-act="play-game" data-id="trivia"><div style="font-size:30px">🎮</div><b>Bible Trivia Duel</b><div class="faint" style="font-size:12px">Challenge a friend</div></div>
     <div class="card" style="width:200px" data-act="go-academy"><div style="font-size:30px">🎓</div><b>Academy</b><div class="faint" style="font-size:12px">${N.toLocaleString()} lessons</div></div>
@@ -1292,7 +1298,7 @@ function speakable(t){
 /* What each kind of page reads, in the order it appears on the screen. */
 function listenParts(key){
   const [kind, raw] = String(key || "").split(":"), n = Number(raw);
-  if (kind === "advent") { const o = advDay(n); if (!o) return null;
+  if (isSeason(kind)) { const o = seasonDay(kind, n); if (!o) return null;
     return [speakableRef(o.r) + ".", o.x, ...o.teach, "Let's pray.", o.pray, "Today. " + o.do]; }
   if (kind === "rebuild") { const o = rbDay(n); if (!o) return null;
     return [speakableRef(o.r) + ".", o.x, ...o.teach, "Let's pray.", o.pray]; }
@@ -1419,26 +1425,26 @@ function reminderTime(){ const t = String(S.remindAt || ""); return reminderTime
 function reminderAvailable(kind){
   if (typeof IS_NATIVE !== "undefined" && IS_NATIVE) return false;
   if (location.protocol === "file:") return false;   // the single-file build has no reminders/ beside it
-  if (kind === "advent") { const a = advPlan(); return !!a && dayDiff(dayKey(), advDateKey(a.days.length)) >= 0; }
+  if (isSeason(kind)) { const a = seasonPlan(kind); return !!a && dayDiff(dayKey(), seasonDateKey(kind, a.days.length)) >= 0; }
   return true;
 }
 function reminderButton(kind){
   if (!reminderAvailable(kind)) return "";
-  return `<button class="btn block" style="margin-top:9px;border-left-width:1px" data-act="remind" data-id="${esc(kind)}">⏰ ${kind === "advent" ? "Remind me every day of Advent" : "Remind me every day"}</button>`;
+  return `<button class="btn block" style="margin-top:9px;border-left-width:1px" data-act="remind" data-id="${esc(kind)}">⏰ ${isSeason(kind) ? "Remind me every day of " + esc(SEASON_DEFS[kind].name) : "Remind me every day"}</button>`;
 }
 /* Google Calendar wants the first occurrence: today at that time if it is still
-   ahead, otherwise tomorrow; for Advent, never before the first Sunday. */
+   ahead, otherwise tomorrow; for a season, never before its first day. */
 function reminderGoogleUrl(kind, t){
   const now = new Date(), hh = +t.slice(0, 2), mm = +t.slice(2);
   let first = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
   if (first <= now) first = new Date(first.getFullYear(), first.getMonth(), first.getDate() + 1, hh, mm);
-  const a = advPlan();
+  const a = isSeason(kind) ? seasonPlan(kind) : null;
   let rrule = "RRULE:FREQ=DAILY", text = "Flourish: today's reading", link = location.origin + location.pathname;
-  if (kind === "advent" && a) {
+  if (a) {
     const [y, mo, d] = normalizeKey(a.start).split("-").map(Number), begin = new Date(y, mo - 1, d, hh, mm);
     if (first < begin) first = begin;
-    rrule = "RRULE:FREQ=DAILY;UNTIL=" + advDateKey(a.days.length).replace(/-/g, "") + "T235959";
-    text = "Advent: today's reading"; link += "#/advent";
+    rrule = "RRULE:FREQ=DAILY;UNTIL=" + seasonDateKey(kind, a.days.length).replace(/-/g, "") + "T235959";
+    text = SEASON_DEFS[kind].name + ": today's reading"; link += "#/" + kind;
   }
   const stamp = dt => dt.getFullYear() + String(dt.getMonth() + 1).padStart(2, "0") + String(dt.getDate()).padStart(2, "0")
                     + "T" + String(dt.getHours()).padStart(2, "0") + String(dt.getMinutes()).padStart(2, "0") + "00";
@@ -1448,15 +1454,16 @@ function reminderGoogleUrl(kind, t){
        + "&recur=" + encodeURIComponent(rrule) + "&details=" + encodeURIComponent("Open Flourish: " + link);
 }
 function reminderLinksHTML(kind, t){
-  return `<a class="btn gold block" id="remind-ics" style="text-decoration:none" href="reminders/${kind === "advent" ? "advent" : "daily"}-${esc(t)}.ics">📅 Add to iPhone, Mac or Outlook calendar</a>
+  return `<a class="btn gold block" id="remind-ics" style="text-decoration:none" href="reminders/${isSeason(kind) ? kind : "daily"}-${esc(t)}.ics">📅 Add to iPhone, Mac or Outlook calendar</a>
     <a class="btn block" id="remind-google" style="margin-top:9px;text-decoration:none;border-left-width:1px" href="${esc(reminderGoogleUrl(kind, t))}" target="_blank" rel="noopener">Add to Google Calendar</a>`;
 }
 function reminderSheet(kind){
   if (!reminderAvailable(kind)) return;
-  kind = kind === "advent" ? "advent" : "daily";
+  kind = isSeason(kind) ? kind : "daily";
   const t = reminderTime();
-  sheet(`<div class="eyebrow">${kind === "advent" ? "Advent" : "Daily reading"}</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 8px">⏰ ${kind === "advent" ? "A reminder for each day of Advent" : "A reminder every day"}</h3>
+  const sname = isSeason(kind) ? SEASON_DEFS[kind].name : "";
+  sheet(`<div class="eyebrow">${sname ? esc(sname) : "Daily reading"}</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 8px">⏰ ${sname ? "A reminder for each day of " + esc(sname) : "A reminder every day"}</h3>
     <p class="muted" style="margin:0 0 12px;line-height:1.6">Your calendar sends it, so it arrives even when Flourish is closed. You can move or delete it in your calendar any time.</p>
     <label for="remind-time" class="faint" style="font-size:12px">What time?</label>
     <select id="remind-time" data-kind="${kind}" style="width:100%;margin:6px 0 14px">
@@ -1473,76 +1480,100 @@ document.addEventListener("change", ev => {
   if (box) box.innerHTML = reminderLinksHTML(el.dataset.kind, t);
 });
 
-/* ============ ADVENT (seasonal, free) ============
-   A free 27-day plan from the first Sunday of Advent to Christmas Day. Each
-   day: one passage (Berean Standard Bible, public domain), a short teaching, a
-   prayer and one thing to do. Hope, peace, joy, love, then Christmas.
+/* ============ SEASONS (Advent, Lent: free, one reading per date) ============
+   Free seasonal plans. Each day: one passage (Berean Standard Bible, public
+   domain), a short teaching, a prayer and one thing to do.
+
+     Advent  27 days, first Sunday of Advent to Christmas Day   #/advent
+     Lent    47 days, Ash Wednesday to Easter Sunday            #/lent
 
    Days open on their own dates, like an Advent calendar, and never lock again.
-   Day 1 can be read early, so a first visit from a post before 29 November has
-   something to read; after Christmas every day is open.
+   Day 1 can be read early, so a first visit from a post before the season has
+   something to read; after the last day every day is open.
 
-   Like the Rebuild it is never behind the paywall and needs no onboarding: it
-   is the page seasonal posts link to (#/advent). It ships in seasons.js, not in
-   the book, so it never waits for the 2.3 MB curriculum. Content lives in
-   curriculum-data/advent.json; build.py refuses a malformed file and
-   tools/test_advent.py checks every verse against advent-bsb.json.
+   Like the Rebuild they are never behind the paywall and need no onboarding:
+   they are the pages seasonal posts link to. They ship in seasons.js, not in
+   the book, so they never wait for the 2.3 MB curriculum. Content lives in
+   curriculum-data/<id>.json; build.py refuses a malformed calendar and
+   tools/test_seasons.py checks every verse against <id>-bsb.json.
 
-   Progress stays on this device in S.advent. Finishing a day earns XP and the
-   streak, which already sync.                                             */
-const ADVENT_WEEK_NO = { Hope: 1, Peace: 2, Joy: 3, Love: 4 };
-const ADVENT_ICON = { Hope: "🕯️", Peace: "🕊️", Joy: "✨", Love: "❤️", Christmas: "🎄" };
-function advPlan(){ const a = window.ADVENT; return (a && Array.isArray(a.days) && a.days.length && normalizeKey(a.start)) ? a : null; }
-function advDays(){ const a = advPlan(); return a ? a.days : []; }
-function advDay(n){ return advDays().find(x => x.d === n) || null; }
-function advDateKey(n){ const a = advPlan(); return a ? shiftKey(normalizeKey(a.start), n - 1) : ""; }
-function advDateLabel(key, long){
+   Progress stays on this device in S.<id> (S.advent, S.lent). Finishing a day
+   earns XP and the streak, which already sync.                             */
+const SEASON_DEFS = {
+  advent: { global: "ADVENT", name: "Advent", icon: "🕯️", idp: "adv",
+    tagline: "Hope, peace, joy and love, one day at a time, all the way to Christmas.",
+    weekNo: { Hope: 1, Peace: 2, Joy: 3, Love: 4 },
+    weekIcon: { Hope: "🕯️", Peace: "🕊️", Joy: "✨", Love: "❤️", Christmas: "🎄" },
+    last: "Christmas Day", lastIcon: "🎄", like: "like an Advent calendar",
+    over: "Christmas has come. Every day is open, so read the ones you missed or start again from Day 1.",
+    nextEyebrow: "After Christmas" },
+  lent: { global: "LENT", name: "Lent", icon: "✝️", idp: "lent",
+    tagline: "Pray, fast and give: Ash Wednesday to Easter, one day at a time.",
+    weekNo: { Wilderness: 1, Prayer: 2, Fasting: 3, Giving: 4, Mercy: 5 },
+    weekIcon: { Return: "✝️", Wilderness: "🏜️", Prayer: "🙏", Fasting: "🍞", Giving: "🤲", Mercy: "🕊️", "Holy Week": "✝️", Easter: "🌅" },
+    last: "Easter Sunday", lastIcon: "🌅", like: "one step at a time toward Easter",
+    over: "He is risen. Every day is open, so read the ones you missed or start again from Day 1.",
+    nextEyebrow: "After Easter" }
+};
+const SEASON_IDS = Object.keys(SEASON_DEFS);
+const isSeason = id => Object.prototype.hasOwnProperty.call(SEASON_DEFS, String(id || ""));
+function seasonPlan(id){
+  if (!isSeason(id)) return null;
+  const a = window[SEASON_DEFS[id].global];
+  return (a && Array.isArray(a.days) && a.days.length && normalizeKey(a.start)) ? a : null;
+}
+function seasonDays(id){ const a = seasonPlan(id); return a ? a.days : []; }
+function seasonDay(id, n){ return seasonDays(id).find(x => x.d === n) || null; }
+function seasonDateKey(id, n){ const a = seasonPlan(id); return a ? shiftKey(normalizeKey(a.start), n - 1) : ""; }
+function seasonDateLabel(key, long){
   const k = normalizeKey(key); if (!k) return "";
   const [y, m, d] = k.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined,
     long ? { weekday: "long", month: "long", day: "numeric" } : { month: "short", day: "numeric" });
 }
-/* Calendar position: 0 before Advent begins, the day number during it, the
-   last day from Christmas on. */
-function advCalendarDay(){
-  const a = advPlan(); if (!a) return 0;
+/* Calendar position: 0 before the season begins, the day number during it,
+   the last day from then on. */
+function seasonCalendarDay(id){
+  const a = seasonPlan(id); if (!a) return 0;
   return Math.max(0, Math.min(a.days.length, dayDiff(normalizeKey(a.start), dayKey()) + 1));
 }
-function advOpenThrough(){ return advPlan() ? Math.max(1, advCalendarDay()) : 0; }
-function advState(){
-  const a = S.advent;
+function seasonOpenThrough(id){ return seasonPlan(id) ? Math.max(1, seasonCalendarDay(id)) : 0; }
+function seasonState(id){
+  const a = S[id];
   if (!a || typeof a !== "object" || Array.isArray(a)) return null;
   if (!a.done || typeof a.done !== "object" || Array.isArray(a.done)) a.done = {};
   return a;
 }
-function advDone(n){ const a = advState(); return !!(a && a.done[n]); }
-function advDoneCount(){ const N = advDays().length; return Object.keys((advState() || {}).done || {}).filter(k => +k >= 1 && +k <= N).length; }
+function seasonDone(id, n){ const a = seasonState(id); return !!(a && a.done[n]); }
+function seasonDoneCount(id){ const N = seasonDays(id).length; return Object.keys((seasonState(id) || {}).done || {}).filter(k => +k >= 1 && +k <= N).length; }
 /* The day to open: today's reading in season, else the first open day not yet done. */
-function advCurrent(){
-  const cal = advCalendarDay(), N = advDays().length;
+function seasonCurrent(id){
+  const cal = seasonCalendarDay(id), N = seasonDays(id).length;
   if (cal >= 1 && cal < N) return cal;
-  for (let d = 1; d <= advOpenThrough(); d++) if (!advDone(d)) return d;
+  for (let d = 1; d <= seasonOpenThrough(id); d++) if (!seasonDone(id, d)) return d;
   return cal || 1;
 }
 /* Where in the season today falls, for the banners: two weeks of lead-in, the
-   season itself, and the week after Christmas. Null the rest of the year. */
-function advPhase(){
-  const a = advPlan(); if (!a) return null;
-  const today = dayKey(), toStart = dayDiff(today, normalizeKey(a.start)), sinceEnd = dayDiff(advDateKey(a.days.length), today);
+   season itself, its last day, and the week after. Null the rest of the year. */
+function seasonPhase(id){
+  const a = seasonPlan(id); if (!a) return null;
+  const today = dayKey(), toStart = dayDiff(today, normalizeKey(a.start)), sinceEnd = dayDiff(seasonDateKey(id, a.days.length), today);
   if (toStart > 14) return null;
   if (toStart > 0) return "soon";
   if (sinceEnd < 0) return "on";
-  if (sinceEnd === 0) return "christmas";
+  if (sinceEnd === 0) return "last";
   if (sinceEnd <= 6) return "after";
   return null;
 }
-function completeAdventDay(id){
-  const n = Number(id);
-  if (!advDay(n) || n > advOpenThrough()) return;
-  if (!advState()) S.advent = { done: {} };
-  if (!S.advent.done[n]) {
-    S.advent.done[n] = Date.now();
-    addXP(15, "Advent day " + n + " complete");
+function activeSeason(){ return SEASON_IDS.find(id => seasonPhase(id)) || null; }
+function weekLabel(id, w){ const n = SEASON_DEFS[id].weekNo[w]; return (n ? "Week " + n + " · " : "") + w; }
+function completeSeasonDay(id, n){
+  n = Number(n);
+  if (!seasonDay(id, n) || n > seasonOpenThrough(id)) return;
+  if (!seasonState(id)) S[id] = { done: {} };
+  if (!S[id].done[n]) {
+    S[id].done[n] = Date.now();
+    addXP(15, SEASON_DEFS[id].name + " day " + n + " complete");
     touchStreak();
     if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
     if (typeof queueSync === "function") queueSync();
@@ -1551,132 +1582,143 @@ function completeAdventDay(id){
 }
 
 /* seasons.js is async: a deep link can render before it lands. Wait on a card,
-   then fill in what was waiting: the Advent page itself, or the Today banner. */
+   then fill in what was waiting: the season page itself, or the Today banner. */
 window.addEventListener("flourish:seasons", () => {
-  if (typeof render !== "function" || !advPlan()) return;
-  if (document.getElementById("adv-wait")) { render(); return; }
-  const slot = document.getElementById("adv-slot");
-  if (slot) slot.outerHTML = adventBanner();
+  if (typeof render !== "function") return;
+  if (document.querySelector("[data-season-wait]")) { render(); return; }
+  const slot = document.getElementById("season-slot");
+  if (slot) slot.outerHTML = seasonBanner();
 });
-function renderAdvent(id){
-  if (!advPlan()) return `<div class="card" id="adv-wait" role="status" aria-live="polite" style="margin-top:8px;text-align:center">
-      <div style="font-size:30px" aria-hidden="true">🕯️</div>
-      <h3 class="serif" style="font-size:19px;margin:6px 0 4px">Opening Advent…</h3>
+function renderSeason(id, raw){
+  const def = SEASON_DEFS[id];
+  if (!seasonPlan(id)) return `<div class="card" id="${def.idp}-wait" data-season-wait role="status" aria-live="polite" style="margin-top:8px;text-align:center">
+      <div style="font-size:30px" aria-hidden="true">${def.icon}</div>
+      <h3 class="serif" style="font-size:19px;margin:6px 0 4px">Opening ${esc(def.name)}…</h3>
       <p class="muted" style="margin:0">If this doesn't open, check your connection and reload the page.</p></div>`;
-  const n = parseInt(id, 10), N = advDays().length;
-  if (!(n >= 1 && n <= N)) return adventHome();
-  if (n > advOpenThrough()) return adventNotYet(n);
-  return adventDayView(n);
+  const n = parseInt(raw, 10), N = seasonDays(id).length;
+  if (!(n >= 1 && n <= N)) return seasonHome(id);
+  if (n > seasonOpenThrough(id)) return seasonNotYet(id, n);
+  return seasonDayView(id, n);
 }
 
-function adventHome(){
-  const a = advPlan(), N = a.days.length, cal = advCalendarDay(), open = advOpenThrough(), done = advDoneCount();
+function seasonHome(id){
+  const def = SEASON_DEFS[id], a = seasonPlan(id), N = a.days.length, cal = seasonCalendarDay(id), open = seasonOpenThrough(id), done = seasonDoneCount(id);
+  const remind = typeof reminderButton === "function" ? reminderButton(id) : "";
   const lead = cal === 0
-      ? `<div class="card" id="adv-soon" style="margin-top:14px;text-align:center">
-          <div class="eyebrow">Starts ${esc(advDateLabel(a.start, true))}</div>
+      ? `<div class="card" id="${def.idp}-soon" style="margin-top:14px;text-align:center">
+          <div class="eyebrow">Starts ${esc(seasonDateLabel(a.start, true))}</div>
           <p style="margin:8px 0 12px;line-height:1.6">One reading a day, each opening on its date. Day 1 is ready now if you want a head start.</p>
-          <button class="btn gold block lg" data-act="advent-open" data-id="1">Read Day 1</button>
-          ${typeof reminderButton === "function" ? reminderButton("advent") : ""}
+          <button class="btn gold block lg" data-act="${id}-open" data-id="1">Read Day 1</button>
+          ${remind}
         </div>`
     : cal < N
-      ? `<button class="btn gold block lg" id="adv-today" style="margin-top:14px" data-act="advent-open" data-id="${cal}">Today · Day ${cal}: ${esc(advDay(cal).t)}</button>
-         ${typeof reminderButton === "function" ? reminderButton("advent") : ""}`
-      : `<div class="card" id="adv-over" style="margin-top:14px">
-          <p style="margin:0 0 12px;line-height:1.6">Christmas has come. Every day is open, so read the ones you missed or start again from Day 1.</p>
-          <button class="btn primary block" data-act="advent-open" data-id="${N}">🎄 Christmas Day: ${esc(advDay(N).t)}</button></div>`;
+      ? `<button class="btn gold block lg" id="${def.idp}-today" style="margin-top:14px" data-act="${id}-open" data-id="${cal}">Today · Day ${cal}: ${esc(seasonDay(id, cal).t)}</button>
+         ${remind}`
+      : `<div class="card" id="${def.idp}-over" style="margin-top:14px">
+          <p style="margin:0 0 12px;line-height:1.6">${esc(def.over)}</p>
+          <button class="btn primary block" data-act="${id}-open" data-id="${N}">${def.lastIcon} ${esc(def.last)}: ${esc(seasonDay(id, N).t)}</button></div>`;
   const weeks = [];
-  for (const o of a.days) { const last = weeks[weeks.length - 1]; if (last && last.w === o.w) last.days.push(o); else weeks.push({ w: o.w, days: [o] }); }
+  for (const o of a.days) { const lw = weeks[weeks.length - 1]; if (lw && lw.w === o.w) lw.days.push(o); else weeks.push({ w: o.w, days: [o] }); }
   return `
   <div class="hero" style="margin-top:6px">
-    <div class="ref">FREE · ${N} DAYS · ${esc(advDateLabel(a.start).toUpperCase())} – ${esc(advDateLabel(advDateKey(N)).toUpperCase())}</div>
-    <div class="v" style="font-size:27px">Advent</div>
-    <p style="position:relative;z-index:1;margin:4px 0 0;color:var(--text-dim);font-weight:700">Hope, peace, joy and love, one day at a time, all the way to Christmas.</p>
+    <div class="ref">FREE · ${N} DAYS · ${esc(seasonDateLabel(a.start).toUpperCase())} – ${esc(seasonDateLabel(seasonDateKey(id, N)).toUpperCase())}</div>
+    <div class="v" style="font-size:27px">${esc(def.name)}</div>
+    <p style="position:relative;z-index:1;margin:4px 0 0;color:var(--text-dim);font-weight:700">${esc(def.tagline)}</p>
   </div>
   ${lead}
   <p class="faint" style="font-size:12px;margin:10px 4px 0">${done} of ${N} done · free, no account needed · progress is saved on this device</p>
-  ${weeks.map(g => `<div class="shead"><h2 class="serif">${ADVENT_ICON[g.w] || ""} ${ADVENT_WEEK_NO[g.w] ? "Week " + ADVENT_WEEK_NO[g.w] + " · " : ""}${esc(g.w)}</h2></div>
-    ${g.days.map(o => { const ok = o.d <= open, fin = advDone(o.d);
-      return `<button class="list-item" data-act="advent-open" data-id="${o.d}"${ok ? "" : ' aria-label="Day ' + o.d + ' opens ' + esc(advDateLabel(advDateKey(o.d), true)) + '"'}>
+  ${weeks.map(g => `<div class="shead"><h2 class="serif">${def.weekIcon[g.w] || ""} ${esc(weekLabel(id, g.w))}</h2></div>
+    ${g.days.map(o => { const ok = o.d <= open, fin = seasonDone(id, o.d);
+      return `<button class="list-item" data-act="${id}-open" data-id="${o.d}"${ok ? "" : ' aria-label="Day ' + o.d + ' opens ' + esc(seasonDateLabel(seasonDateKey(id, o.d), true)) + '"'}>
         <div class="av">${fin ? "✅" : ok ? o.d : "🔒"}</div>
-        <div class="tx"><b>${esc(o.t)}</b><small>${esc(advDateLabel(advDateKey(o.d)))} · ${esc(o.r)}</small></div>
+        <div class="tx"><b>${esc(o.t)}</b><small>${esc(seasonDateLabel(seasonDateKey(id, o.d)))} · ${esc(o.r)}</small></div>
         <span style="font-size:16px">›</span></button>`; }).join("")}`).join("")}`;
 }
 
-function adventDayView(n){
-  const o = advDay(n), N = advDays().length, open = advOpenThrough(), done = advDone(n), cal = advCalendarDay();
-  const status = done ? "done" : (n === cal ? "today" : (cal === 0 ? "opens " + advDateLabel(advDateKey(n)) : advDateLabel(advDateKey(n))));
+function seasonDayView(id, n){
+  const def = SEASON_DEFS[id], o = seasonDay(id, n), N = seasonDays(id).length, open = seasonOpenThrough(id), done = seasonDone(id, n), cal = seasonCalendarDay(id);
+  const status = done ? "done" : (n === cal ? "today" : (cal === 0 ? "opens " + seasonDateLabel(seasonDateKey(id, n)) : seasonDateLabel(seasonDateKey(id, n))));
   return `
   <div class="row between" style="margin:6px 4px 12px">
-    <div><div class="eyebrow">Advent · ${ADVENT_WEEK_NO[o.w] ? "Week " + ADVENT_WEEK_NO[o.w] + " · " : ""}${esc(o.w)}</div>
+    <div><div class="eyebrow">${esc(def.name)} · ${esc(weekLabel(id, o.w))}</div>
       <div class="serif" style="font-size:24px;font-weight:800">Day ${n} of ${N}</div></div>
-    <button class="btn sm ghost" data-act="advent-home" aria-label="All Advent days">All days</button>
+    <button class="btn sm ghost" data-act="${id}-home" aria-label="All ${esc(def.name)} days">All days</button>
   </div>
   <div class="daynav">
-    <button class="dn" data-act="advent-open" data-id="${n - 1}" ${n <= 1 ? "disabled" : ""} aria-label="Previous Advent day">‹</button>
+    <button class="dn" data-act="${id}-open" data-id="${n - 1}" ${n <= 1 ? "disabled" : ""} aria-label="Previous ${esc(def.name)} day">‹</button>
     <div class="dc"><b>${esc(o.t)}</b><small>${esc(status)}</small></div>
-    <button class="dn" data-act="advent-open" data-id="${n + 1}" ${n >= open || n >= N ? "disabled" : ""} aria-label="Next Advent day">›</button>
+    <button class="dn" data-act="${id}-open" data-id="${n + 1}" ${n >= open || n >= N ? "disabled" : ""} aria-label="Next ${esc(def.name)} day">›</button>
   </div>
   <div class="hero">
     <div class="ref">${esc(o.r)} · BSB</div>
     <div class="v"${String(o.x).length > 170 ? ' style="font-size:18px"' : ""}>${esc(o.x)}</div>
   </div>
   <div class="card glow" style="margin-top:14px">
-    ${typeof listenButton === "function" ? listenButton("advent", n) : ""}
+    ${typeof listenButton === "function" ? listenButton(id, n) : ""}
     ${o.teach.map(p => `<p style="margin:0 0 11px;line-height:1.72">${esc(p)}</p>`).join("")}
     <div class="block" style="border-color:var(--accent)"><div class="bh">🙏 Pray</div>
       <p style="font-style:italic;color:var(--text-dim);margin:0">${esc(o.pray)}</p></div>
     <div class="block app"><div class="bh">✅ Today</div><p style="margin:0">${esc(o.do)}</p></div>
-    <button class="btn primary block" style="margin-top:6px" data-act="advent-done" data-id="${n}">${done ? "✓ Day " + n + " complete" : "Mark Day " + n + " complete (+15 XP)"}</button>
-    ${n < open && n < N ? `<button class="btn ghost block" style="margin-top:9px" data-act="advent-open" data-id="${n + 1}">Day ${n + 1}: ${esc(advDay(n + 1).t)} <span class="arr">→</span></button>` : ""}
+    <button class="btn primary block" style="margin-top:6px" data-act="${id}-done" data-id="${n}">${done ? "✓ Day " + n + " complete" : "Mark Day " + n + " complete (+15 XP)"}</button>
+    ${n < open && n < N ? `<button class="btn ghost block" style="margin-top:9px" data-act="${id}-open" data-id="${n + 1}">Day ${n + 1}: ${esc(seasonDay(id, n + 1).t)} <span class="arr">→</span></button>` : ""}
   </div>
-  ${n === N ? adventNextSteps() : ""}`;
+  ${n === N ? seasonNextSteps(id) : ""}`;
 }
-function adventNotYet(n){
-  const key = advDateKey(n), wait = dayDiff(dayKey(), key), cur = advCurrent();
-  return `<div class="card" style="margin-top:8px;text-align:center" id="adv-notyet">
-    <div style="font-size:30px" aria-hidden="true">🕯️</div>
-    <h3 class="serif" style="font-size:19px;margin:6px 0 4px">Day ${n} opens ${wait === 1 ? "tomorrow" : esc(advDateLabel(key, true))}</h3>
-    <p class="muted" style="margin:0 0 12px">One day at a time, like an Advent calendar.</p>
-    <button class="btn primary block" data-act="advent-open" data-id="${cur}">Go to Day ${cur}</button>
-    <button class="btn ghost block" style="margin-top:9px" data-act="advent-home">See all days</button>
+function seasonNotYet(id, n){
+  const def = SEASON_DEFS[id], key = seasonDateKey(id, n), wait = dayDiff(dayKey(), key), cur = seasonCurrent(id);
+  return `<div class="card" style="margin-top:8px;text-align:center" id="${def.idp}-notyet">
+    <div style="font-size:30px" aria-hidden="true">${def.icon}</div>
+    <h3 class="serif" style="font-size:19px;margin:6px 0 4px">Day ${n} opens ${wait === 1 ? "tomorrow" : esc(seasonDateLabel(key, true))}</h3>
+    <p class="muted" style="margin:0 0 12px">One day at a time, ${esc(def.like)}.</p>
+    <button class="btn primary block" data-act="${id}-open" data-id="${cur}">Go to Day ${cur}</button>
+    <button class="btn ghost block" style="margin-top:9px" data-act="${id}-home">See all days</button>
   </div>`;
 }
-/* Christmas Day hands off to the new year: the daily path starts any day, and
-   January is when most people go looking for one. */
-function adventNextSteps(){
-  return `<div class="card" id="adv-next" style="margin-top:14px">
-    <div class="eyebrow">After Christmas</div>
+/* The last day hands off to the daily path, which starts any day: January
+   (after Christmas) and Easter are when people go looking for a habit. */
+function seasonNextSteps(id){
+  const def = SEASON_DEFS[id];
+  return `<div class="card" id="${def.idp}-next" style="margin-top:14px">
+    <div class="eyebrow">${esc(def.nextEyebrow)}</div>
     <h3 class="serif" style="font-size:20px;margin:6px 0 8px">Keep the habit going</h3>
     <p style="margin:0 0 12px;line-height:1.65">The daily path is one reading a day for three years, across health, wealth and relationships. The first seven days are free.</p>
-    <button class="btn gold block" data-act="advent-path">${S.onboarded ? "Go to today's reading" : "Start the daily path"}</button>
+    <button class="btn gold block" data-act="season-path">${S.onboarded ? "Go to today's reading" : "Start the daily path"}</button>
     <button class="btn block" style="margin-top:9px;border-left-width:1px" data-act="rebuild-church">⛪ Find your church</button>
   </div>`;
 }
-function adventBanner(){
-  if (!advPlan()) return '<div id="adv-slot"></div>';   // filled in when seasons.js lands
-  const ph = advPhase(); if (!ph) return "";
-  const a = advPlan(), cal = advCalendarDay(), toStart = dayDiff(dayKey(), normalizeKey(a.start));
-  const label = ph === "soon" ? "🕯️ Advent starts " + (toStart === 1 ? "tomorrow" : advDateLabel(a.start, true)) + " · free 27-day plan"
-              : ph === "on" ? "🕯️ Advent · Day " + cal + ": " + advDay(cal).t
-              : ph === "christmas" ? "🎄 Christmas Day · today's Advent reading"
-              : "🕯️ Revisit Advent";
-  const act = ph === "on" || ph === "christmas" ? `data-act="advent-open" data-id="${cal}"` : `data-act="advent-home"`;
-  return `<button class="btn block" id="adv-banner" ${act} style="margin:0 0 12px;border-left-width:1px">${esc(label)}</button>`;
+function seasonBanner(){
+  if (SEASON_IDS.some(id => !seasonPlan(id))) return '<div id="season-slot"></div>';   // filled in when seasons.js lands
+  const id = activeSeason(); if (!id) return "";
+  const def = SEASON_DEFS[id], a = seasonPlan(id), ph = seasonPhase(id), cal = seasonCalendarDay(id), toStart = dayDiff(dayKey(), normalizeKey(a.start));
+  const label = ph === "soon" ? def.icon + " " + def.name + " starts " + (toStart === 1 ? "tomorrow" : seasonDateLabel(a.start, true)) + " · free " + a.days.length + "-day plan"
+              : ph === "on" ? def.icon + " " + def.name + " · Day " + cal + ": " + seasonDay(id, cal).t
+              : ph === "last" ? def.lastIcon + " " + def.last + " · today's " + def.name + " reading"
+              : def.icon + " Revisit " + def.name;
+  const act = ph === "on" || ph === "last" ? `data-act="${id}-open" data-id="${cal}"` : `data-act="${id}-home"`;
+  return `<button class="btn block" id="${def.idp}-banner" ${act} style="margin:0 0 12px;border-left-width:1px">${esc(label)}</button>`;
 }
-function advPlansCard(){
-  const a = advPlan(); if (!a) return "";
-  const N = a.days.length, ph = advPhase(), dn = advDoneCount();
-  const sub = ph === "soon" ? "Starts " + advDateLabel(a.start, true) : ph === "on" ? "Day " + advCalendarDay() + " of " + N + " · " + dn + " done"
-            : N + " days · " + advDateLabel(a.start) + " – " + advDateLabel(advDateKey(N)) + " · " + dn + " done";
-  return `<button class="list-item" id="adv-plan" data-act="advent-home">
-      <div class="av">🕯️</div>
-      <div class="tx"><b>Advent <span class="pill" style="margin-left:6px;font-size:10px">FREE</span></b><small>${esc(sub)}</small></div>
+function seasonPlansCard(id){
+  const def = SEASON_DEFS[id], a = seasonPlan(id); if (!a) return "";
+  const N = a.days.length, ph = seasonPhase(id), dn = seasonDoneCount(id);
+  const sub = ph === "soon" ? "Starts " + seasonDateLabel(a.start, true) : ph === "on" ? "Day " + seasonCalendarDay(id) + " of " + N + " · " + dn + " done"
+            : N + " days · " + seasonDateLabel(a.start) + " – " + seasonDateLabel(seasonDateKey(id, N)) + " · " + dn + " done";
+  return `<button class="list-item" id="${def.idp}-plan" data-act="${id}-home">
+      <div class="av">${def.icon}</div>
+      <div class="tx"><b>${esc(def.name)} <span class="pill" style="margin-left:6px;font-size:10px">FREE</span></b><small>${esc(sub)}</small></div>
       <span style="font-size:16px">›</span></button>`;
 }
-function advScrollerCard(){
-  if (!advPhase()) return "";
-  const cal = advCalendarDay();
-  return `<div class="card" style="width:200px" data-act="advent-home"><div style="font-size:30px">🕯️</div><b>Advent</b><div class="faint" style="font-size:12px">${cal ? "Day " + cal + " of " + advDays().length : "Starts " + esc(advDateLabel(advPlan().start))}</div></div>`;
+/* This season's plan first, then the next one coming, so the list follows the year. */
+function seasonPlansSection(){
+  const ids = SEASON_IDS.filter(id => seasonPlan(id));
+  if (!ids.length) return "";
+  const order = ids.slice().sort((x, y) => (seasonPhase(y) ? 1 : 0) - (seasonPhase(x) ? 1 : 0)
+    || dayDiff(normalizeKey(seasonPlan(y).start), normalizeKey(seasonPlan(x).start)));
+  return `<div class="eyebrow" style="margin:6px 4px 6px">Seasons</div>${order.map(seasonPlansCard).join("")}<div class="eyebrow" style="margin:14px 4px 6px">By topic</div>`;
+}
+function seasonScrollerCard(){
+  const id = activeSeason(); if (!id) return "";
+  const def = SEASON_DEFS[id], cal = seasonCalendarDay(id);
+  return `<div class="card" style="width:200px" data-act="${id}-home"><div style="font-size:30px">${def.icon}</div><b>${esc(def.name)}</b><div class="faint" style="font-size:12px">${cal ? "Day " + cal + " of " + seasonDays(id).length : "Starts " + esc(seasonDateLabel(seasonPlan(id).start))}</div></div>`;
 }
 
 /* ============ ME (RETENTION DASHBOARD) ============ */
@@ -2046,7 +2088,7 @@ function renderPlans(){
   return `<div class="subhead"><button class="nb" data-act="church-home">‹</button>
     <div class="st"><b>🗺️ Reading plans</b><small>${TOPIC_PLANS.length} plans by topic</small></div></div>
   <p class="page-sub">Short paths through the book on one subject. A day you finish here counts everywhere.</p>
-  ${advPlan() ? `<div class="eyebrow" style="margin:6px 4px 6px">This season</div>${advPlansCard()}<div class="eyebrow" style="margin:14px 4px 6px">By topic</div>` : ""}
+  ${seasonPlansSection()}
   ${TOPIC_PLANS.map(p=>{const days=planDays(p),dn=doneIn(days);
     return `<button class="list-item" data-act="open-plan" data-id="${esc(p.id)}">
       <div class="av">${p.icon}</div>
