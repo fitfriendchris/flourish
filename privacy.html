@@ -1,77 +1,106 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Flourish — Privacy Policy</title>
-<style>
-body{background:#0d1a11;color:#fff4d0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:800px;margin:0 auto;padding:40px 20px;line-height:1.6}
-h1{color:#dfc07a}h2{color:#dfc07a;margin-top:30px}
-a{color:#9b7bd4}
-.flourish-logo{font-size:1.8em;color:#dfc07a}
-</style>
-</head>
-<body>
-<div class="flourish-logo">🌱 Flourish</div>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flourish — Privacy Policy</title><link rel="stylesheet" href="legal.css"></head><body>
 <h1>Privacy Policy</h1>
-<p><strong>Last updated:</strong> June 18, 2026</p>
+<p class="meta"><b>Effective:</b> 30 August 2026 &middot; <b>Applies to:</b> the Flourish web app and the Flourish iOS app</p>
+<p>Flourish is a daily devotional and life-training app. This policy explains exactly what we hold, why, and how you get it back or get rid of it. It is written to be read, not to be survived.</p>
 
-<h2>1. Information We Collect</h2>
+<div class="box"><b>The short version.</b> Your reading progress lives on your device and only reaches us if you sign in. If you join a church inside Flourish, post a prayer request, RSVP to an event or message a pastor, that is held on our servers too — and some of it is deeply personal, so section 2 explains exactly how it is treated. Payment details never touch our servers. There are no advertising trackers, no data brokers, and nothing is sold — ever.</div>
+
+<h2>1. What we collect</h2>
+<p>This is the complete list. It is the same list the <b>Download my data</b> button produces,
+and an automated check refuses to build the app if the two ever disagree — a privacy policy
+that has quietly fallen behind the code is worse than none, because you relied on it.</p>
+<table>
+  <tr><th>What</th><th>When</th><th>Why</th><th>Where it lives</th></tr>
+  <tr data-holds="account"><td>Email address</td><td>Only if you sign in, or join the devotional email list</td><td>Sign-in link, receipts, restoring a membership on a new device</td><td>Supabase (EU/US), our database</td></tr>
+  <tr data-holds="profile"><td>Profile — display name, avatar, timezone, anything you type in your bio</td><td>Only if you fill it in</td><td>So your church can recognise you</td><td>Our database</td></tr>
+  <tr data-holds="app_state"><td>Reading progress, streak, notes, badges</td><td>As you use the app</td><td>To show your journey</td><td>Your device. Synced to our database only if you sign in.</td></tr>
+  <tr data-holds="reading_progress"><td>Which days you completed, and when</td><td>As you read</td><td>Streaks, and picking up where you left off</td><td>Your device, and our database if you sign in</td></tr>
+  <tr data-holds="plan_progress"><td>Progress through a plan your church assigned</td><td>If you join a plan</td><td>So the plan knows where you are</td><td>Our database</td></tr>
+  <tr data-holds="plan_enrollments"><td>Which plans you joined, and when</td><td>If you join a plan</td><td>Same</td><td>Our database</td></tr>
+  <tr data-holds="church_memberships"><td><b>Which church you belong to, and your role in it</b></td><td>Only if you join a church</td><td>Members-only content, and so your pastor can see who is in the congregation</td><td>Our database — see section 2</td></tr>
+  <tr data-holds="prayer_requests"><td><b>Prayer requests you post, including anonymous ones</b></td><td>Only when you post one</td><td>So people can pray for you</td><td>Our database — see section 2</td></tr>
+  <tr data-holds="prayer_intercessions"><td>Which prayers you have prayed for</td><td>When you tap “I prayed”</td><td>To show the person that someone did</td><td>Our database. The counter is shown; who you are is not.</td></tr>
+  <tr data-holds="messages"><td><b>Messages you send, including to a pastor</b></td><td>Only when you send one</td><td>To deliver them</td><td>Our database — see section 2</td></tr>
+  <tr data-holds="conversations"><td>Which conversations you are part of</td><td>When you join one</td><td>To show you your messages</td><td>Our database</td></tr>
+  <tr data-holds="group_members"><td>Which groups or ministries you joined</td><td><b>Not yet.</b> Groups are not available in the app. The table exists and is listed here so that this page is already correct if they are switched on.</td><td>Group content and rotas</td><td>Our database</td></tr>
+  <tr data-holds="event_rsvps"><td>Events you RSVP to</td><td>When you RSVP</td><td>So the host can plan</td><td>Our database</td></tr>
+  <tr data-holds="event_checkins"><td><b>Events you checked in to</b></td><td>Only if you scan in at an event</td><td>Attendance for the host</td><td>Our database — this records that you attended a religious service, see section 2</td></tr>
+  <tr data-holds="notifications"><td>Notifications we have sent you</td><td>As they are sent</td><td>So you can read them again</td><td>Our database</td></tr>
+  <tr data-holds="push_subscriptions"><td>A push token for this device</td><td><b>Not yet.</b> The app does not ask for notification permission and sends none, so no token is stored. Listed here so that this page is already correct if we add them.</td><td>To send them, if we add them</td><td>Our database. It identifies the device, not you.</td></tr>
+  <tr data-holds="reports_i_made"><td>Content you reported, and why</td><td>When you report something</td><td>So a leader can act on it</td><td>Our database</td></tr>
+  <tr data-holds="people_i_blocked"><td>That you blocked someone</td><td>When you block them</td><td>To keep their posts away from you</td><td>Our database. The person blocked is never told.</td></tr>
+  <tr data-holds="orders"><td>Order details — name, shipping address, items</td><td>Only if you buy a physical item</td><td>To ship it to you</td><td>Our database + Stripe</td></tr>
+  <tr data-holds="giving"><td>Gift amount and campaign</td><td>Only if you give</td><td>Receipt and ministry accounting</td><td>Our database + Stripe</td></tr>
+  <tr data-holds="recurring_gifts"><td>A recurring gift you set up</td><td>Only if you set one up</td><td>To keep it running, and to let you stop it</td><td>Our database + Stripe</td></tr>
+  <tr data-holds="subscriptions"><td>Membership status</td><td>Only if you subscribe</td><td>To unlock your content on any device</td><td>Our database; Apple or Stripe holds the payment</td></tr>
+  <tr data-holds="diagnostics"><td>Crash reports — the error, where in the app it happened, and your device type</td><td>Automatically, if the app breaks</td><td>So a broken release is visible to us instead of only to you</td><td>Our database. Deliberately holds <b>no</b> account id, no email, and no page address — see section 8.</td></tr>
+  <tr data-holds="server_logs"><td>Server logs — the request, its outcome, and how long it took</td><td>Every request</td><td>Security, debugging, and abuse prevention</td><td>Our host. Kept 30 days. Your account id appears only when an export or deletion fails, because we are legally required to finish those.</td></tr>
+</table>
+
+<h2 id="sensitive">2. The personal parts, and how they are treated</h2>
+<p>Flourish is a church app, so some of what it holds is what European law calls
+<b>special category data</b> (GDPR Article 9) and Apple calls <b>sensitive information</b>:</p>
 <ul>
-<li><strong>Account data:</strong> Name, email, church affiliation, password (hashed via Supabase Auth)</li>
-<li><strong>Progress data:</strong> Devotional completion, prayer requests, journal entries, community posts</li>
-<li><strong>Giving data:</strong> Donation amounts, campaign preferences (payment processed by Stripe)</li>
-<li><strong>Store orders:</strong> Shipping name, address, email, order items (payment via Stripe)</li>
-<li><strong>Health data:</strong> Optional — fitness goals, prayer/wellness tracking</li>
+  <li><b>Your religious affiliation</b> — belonging to a church, checking in to a service, joining a ministry.</li>
+  <li><b>What is in a prayer request</b> — people write about illness, bereavement, money trouble, addiction and family breakdown. We do not ask for any of that, and we do not analyse it, but it is what people write and pretending otherwise would be dishonest.</li>
+  <li><b>Pastoral messages</b>, for the same reason.</li>
+</ul>
+<p>We process this only because <b>you chose to give it</b> — you joined a church, you wrote
+the request, you sent the message (GDPR Art. 9(2)(a), explicit consent). You can withdraw
+by deleting the content or your account, and it is deleted for real: see section 6.</p>
+<ul>
+  <li>A prayer request marked <b>private</b> is visible only to you and your church's leaders. Marked <b>pastoral only</b>, only to the pastoral team. Only <b>church-wide</b> ones appear on the wall.</li>
+  <li>An <b>anonymous</b> request hides your name from other members. It is still linked to your account in our database, so that you can delete it — a truly unlinked post is one you could never take back.</li>
+  <li>None of it is used for advertising, sold, shared with another church, or used to train any model.</li>
+  <li>We never write a prayer request, a message or a church name into our server logs or crash reports.</li>
 </ul>
 
-<h2>2. How We Use Your Data</h2>
+<h2>3. What we never collect</h2>
 <ul>
-<li>To provide devotionals, plans, and community features</li>
-<li>To process donations and store orders via Stripe</li>
-<li>To connect you with your church community and leaders</li>
-<li>To send prayer reminders, community updates, and order confirmations</li>
+  <li>No card numbers. Stripe and Apple handle payment; we receive only a confirmation and the last four digits on a receipt.</li>
+  <li>No advertising identifiers, no cross-app tracking, no data sale or sharing for advertising. We do not use the App Tracking Transparency framework because we do not track you.</li>
+  <li>No location, contacts, photos, microphone or camera. Flourish never asks your device for any of them.</li>
+  <li>No health data <i>collected as health data</i> — we have no health fields, ask no health questions, and run no analysis over what you write. If you choose to write about your health in a prayer request, that is your words in your post, treated under section 2.</li>
+  <li>No third-party analytics pixels.</li>
 </ul>
 
-<h2>3. Data Sharing</h2>
+<h2>4. Children</h2>
+<p>Flourish is rated 4+ and contains no objectionable content, but it is designed for adults and is not directed to children under 13. We do not knowingly collect personal information from a child under 13. Families are welcome to read together under a parent's account. If you believe a child has given us personal information, write to <a href="mailto:privacy@flourishapp.online">privacy@flourishapp.online</a> and we will delete it promptly.</p>
+
+<h2>5. Payments</h2>
+<p>Card processing is performed by <b>Stripe</b> (PCI-DSS Level 1) on the web, and by <b>Apple</b> for purchases made inside the iOS app. Their handling of your payment data is governed by their own privacy policies. We receive only what we need to fulfil the order.</p>
+
+<h2>6. Your rights, and how to actually use them</h2>
+<p>Under the GDPR (EU/UK), the CCPA/CPRA (California) and similar laws elsewhere, you may access, correct, export, delete, or restrict our use of your data, and you will never be treated differently for asking.</p>
 <ul>
-<li><strong>Supabase:</strong> Database hosting (RLS-protected, per-user + per-church isolation)</li>
-<li><strong>Stripe:</strong> Payment processing for donations and store orders</li>
+  <li><b>In the app:</b> open <b>Me &rarr; Privacy &amp; data</b> to download everything we hold or delete your account outright. Deletion is immediate and does not require emailing anyone.</li>
+  <li><b>By email:</b> <a href="mailto:privacy@flourishapp.online">privacy@flourishapp.online</a>. We reply within 30 days.</li>
 </ul>
-<p>We do NOT sell your data. We do NOT share data with advertisers. Prayer requests marked "pastoral_only" are visible only to your church pastors (server-verified).</p>
+<p>Deleting your account erases your identity from our records. Completed order and gift records are <em>anonymised</em> rather than destroyed, because financial records must be retained for tax purposes — after deletion they can no longer be connected to you.</p>
 
-<h2>4. Data Security</h2>
+<h2>7. How long we keep things</h2>
 <ul>
-<li>Row-Level Security on all tables — per-user + per-church isolation</li>
-<li>JWT authentication required on all backend endpoints</li>
-<li>Server-side price resolution (no price manipulation)</li>
-<li>Rate limiting on all checkout and donation endpoints</li>
-<li>Stripe webhook signature verification (always enforced)</li>
-<li>CSP headers enabled</li>
-</ul>
-
-<h2>5. Church Data Isolation</h2>
-<p>Your data is isolated by church membership. Church leaders can see church-wide prayer requests and giving records for their church only. Store orders are visible to you and verified church admins.</p>
-
-<h2>6. Your Rights (Self-Service)</h2>
-<ul>
-<li><strong>Access & Export:</strong> Me → Account → <em>📦 Export my data</em> downloads everything Flourish stores about you as JSON, instantly.</li>
-<li><strong>Erasure:</strong> Me → Account → <em>🗑️ Delete account</em> permanently deletes your account and all associated server data (profile, progress, prayer requests, memberships, subscriptions). Effective immediately; logged in our audit trail.</li>
-<li><strong>Notifications:</strong> Daily reminders are opt-in and can be turned off any time in Me → Daily Reminder.</li>
-</ul>
-<p>Contact: <a href="mailto:fitfriendchris@gmail.com">fitfriendchris@gmail.com</a> · Security disclosures: see <a href="/.well-known/security.txt">security.txt</a></p>
-
-<h2>6a. Retention</h2>
-<ul>
-<li>Account data: retained while your account exists; erased on deletion.</li>
-<li>Audit logs: security events retained 400 days, then purged automatically.</li>
-<li>Local/offline data (guest mode): stays on your device only; clear it via your browser or the in-app reset.</li>
+  <li>On-device progress: until you delete the app or clear it.</li>
+  <li>Account and membership: until you delete your account.</li>
+  <li>Financial records: 7 years, anonymised after account deletion, as tax law requires.</li>
+  <li>Prayer requests, messages and church membership: until you delete them or your account. Deleting your account removes them from the church wall too — a deletion that leaves your prayer request in front of your congregation is not a deletion.</li>
+  <li>Server logs: 30 days.</li>
+  <li>Crash reports: until the fault is fixed, then cleared. They hold no account id or email.</li>
 </ul>
 
-<h2>7. Children's Privacy</h2>
-<p>Flourish is for users 13+. Users under 18 require parental consent.</p>
+<h2>8. Security, and what the crash reporter refuses to send</h2>
+<p>Everything travels over TLS. Sign-in uses one-time email links, so there is no password to be stolen or reused. Server credentials are held as environment variables and are never shipped to your browser or bundled into the app; a build check refuses to ship a bundle containing one. The crash reporter sends the error and the screen name only: it deliberately omits your account id, your email, and the part of the address after the <code>#</code>, because that is where church and prayer identifiers live. The server strips anything token-shaped again before storing it.</p>
 
-<h2>8. Changes</h2>
-<p>We will notify users of material changes via email or in-app notification.</p>
-</body>
-</html>
+<h2>9. International transfers</h2>
+<p>We operate from the United States, and our processors (Supabase, Stripe, Railway, Apple) may process data in the US and EU under Standard Contractual Clauses.</p>
+
+<h2>10. Scripture</h2>
+<p>Scripture quotations are from the ESV&reg; Bible (The Holy Bible, English Standard Version&reg;), &copy; 2001 by Crossway, a publishing ministry of Good News Publishers. ESV Text Edition: 2025. The ESV text may not be quoted in any publication made available to the public by a Creative Commons license. The ESV may not be translated in whole or in part into any other language. Used by permission. All rights reserved.</p>
+
+<h2>11. Changes and contact</h2>
+<p>Material changes are announced in the app 14 days before they take effect. Questions: <a href="mailto:privacy@flourishapp.online">privacy@flourishapp.online</a>.</p>
+
+<a class="back" href="javascript:history.back()">&larr; Back to Flourish</a>
+</body></html>
