@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="f6a68424df";
+const APP_VERSION="bf2ef8cb87";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -505,7 +505,7 @@ function lockedDay(){
   if (S.unlocked) return 0;
   if (S.page !== "today" && S.page !== "academy") return 0;
   const r = S.route || {};
-  if (S.page === "today" && r.sub === "rebuild") return 0;   // free to the end
+  if (S.page === "today" && (r.sub === "rebuild" || r.sub === "advent")) return 0;   // free to the end
   const today = dayNumber();
   if (!dayAllowed(today)) return today;
   if (S.page === "today") {
@@ -534,7 +534,7 @@ function lockedView(locked){
     : S.page === "academy" && r.sub === "lesson"
       ? `<button class="btn sm ghost block" style="margin:-4px 0 12px" data-act="go-academy">\u2039 Back to the Academy</button>`
     : "";
-  return `${rbLockedEntry()}${back}<div class="hero">
+  return `${rbLockedEntry()}${adventBanner()}${back}<div class="hero">
       <div class="eyebrow">Year ${arc.y} \u00b7 ${esc(arc.name)} \u00b7 Day ${d}</div>
       <h1 class="serif" style="font-size:26px;margin:8px 0 4px">${esc(o.t || "Today's lesson")}</h1>
       <div class="faint" style="font-size:13px">${esc(o.p || "")}${o.s ? " \u00b7 " + esc(o.s) : ""}</div>
@@ -652,6 +652,12 @@ function applyHash(){
     _applyingHash = true; save(); render(); _applyingHash = false;
     return true;
   }
+  // Seasonal posts link to <site>/#/advent (and #/advent/<day>).
+  if (String(parts[0] || "").split("?")[0].toLowerCase() === "advent") {
+    S.page = "today"; S.route = { sub:"advent", id: parts[1] ? String(parts[1]).split("?")[0] : undefined };
+    _applyingHash = true; save(); render(); _applyingHash = false;
+    return true;
+  }
   if (!PAGES.includes(parts[0])) return false;
 
   S.page = parts[0];
@@ -684,9 +690,10 @@ function render(){
        and the reduced-motion rule flattens it to an instant move. */
     if (on) { const nav = b.parentElement; if (nav) nav.style.setProperty("--nav-i", i); }
   });
-  /* The 30-Day Rebuild is free to the end. The paywall is about the 1,095-day
-     path, so the Rebuild route is exempt even when that path is locked. */
-  const onRebuild = S.page==="today" && !!S.route && S.route.sub==="rebuild";
+  /* The 30-Day Rebuild and Advent are free to the end. The paywall is about the
+     1,095-day path, so their routes are exempt even when that path is locked,
+     and neither waits for the book. */
+  const onRebuild = S.page==="today" && !!S.route && (S.route.sub==="rebuild" || S.route.sub==="advent");
   const bookless = !CURR().length && !onRebuild &&
                    (S.page==="academy" || ((S.page==="today" || !S.page) && S.onboarded));
   let html="";
@@ -704,6 +711,7 @@ function render(){
   m.innerHTML = locked ? lockedView(locked) : html;
   if(!locked && !onRebuild && S.page==="today" && shouldAskForEmail()) m.insertAdjacentHTML("beforeend", emailCaptureCard());
   m.classList.remove("scene");void m.offsetWidth;m.classList.add("scene");
+  if (typeof listenAfterRender === "function") listenAfterRender();
   bindActions();
 }
 
@@ -836,6 +844,14 @@ function handle(act,id,el){
     case"rebuild-tick":rebuildTick(id,el.dataset.k,el);break;
     case"rebuild-join":if(typeof membershipSheet==="function")membershipSheet();break;
     case"rebuild-church":go("church");break;
+    case"advent-home":S.page="today";save();route("advent");break;
+    case"advent-open":S.page="today";save();route("advent",id);break;
+    case"advent-done":completeAdventDay(id);break;
+    case"listen":listenToggle(id);break;
+    case"remind":reminderSheet(id);break;
+    case"listen-stop":listenStop();break;
+    case"listen-rate":listenCycleRate();break;
+    case"advent-path":go("today");break;
     default:break;
   }
 }
@@ -843,6 +859,7 @@ function handle(act,id,el){
 /* ============ TODAY (DEVOTIONAL) ============ */
 function renderToday(){
   if(S.route&&S.route.sub==="rebuild")return renderRebuild(S.route.id);
+  if(S.route&&S.route.sub==="advent")return renderAdvent(S.route.id);
   if(!S.onboarded)return renderOnboard();
   const today=dayNumber();
   if(S.viewDay==null)S.viewDay=today;
@@ -858,6 +875,7 @@ function renderToday(){
     <div class="ring" style="--p:${li.pct}"><span>L${li.lv}</span></div>
   </div>
   ${rbBanner()}
+  ${adventBanner()}
   <div class="daynav">
     <button class="dn" data-act="day-prev" ${d<=1?"disabled":""}>‹</button>
     <div class="dc"><b>Day ${d}</b><small>of ${N.toLocaleString()} · ${d===today?"today":(d<today?"past":"preview")}</small></div>
@@ -865,7 +883,7 @@ function renderToday(){
   </div>
   ${d!==today?`<button class="btn sm ghost block" data-act="today-jump" style="margin:-4px 0 12px">↩ Back to today (Day ${today})</button>`:""}
   ${gardenHero()}
-
+  ${listenButton("day", d)}
   <div class="hero">
     <div class="ref">${esc(o.r)} · ${esc(o.v||"BSB")}</div>
     <div class="v">“${esc(o.x)}”</div>
@@ -904,6 +922,8 @@ function renderToday(){
 
   <div class="shead"><h2 class="serif">Keep going</h2></div>
   <div class="scroll-x">
+    ${reminderAvailable("daily") ? `<div class="card" style="width:200px" data-act="remind" data-id="daily"><div style="font-size:30px">⏰</div><b>Daily reminder</b><div class="faint" style="font-size:12px">Never miss a day</div></div>` : ""}
+    ${advScrollerCard()}
     ${rbScrollerCard()}
     <div class="card" style="width:200px" data-act="play-game" data-id="trivia"><div style="font-size:30px">🎮</div><b>Bible Trivia Duel</b><div class="faint" style="font-size:12px">Challenge a friend</div></div>
     <div class="card" style="width:200px" data-act="go-academy"><div style="font-size:30px">🎓</div><b>Academy</b><div class="faint" style="font-size:12px">${N.toLocaleString()} lessons</div></div>
@@ -1136,6 +1156,7 @@ function rebuildDayView(n){
     <div class="v"${String(o.x).length > 170 ? ' style="font-size:18px"' : ""}>${esc(o.x)}</div>
   </div>
   <div class="card glow" style="margin-top:14px">
+    ${listenButton("rebuild", n)}
     ${o.teach.map(p => `<p style="margin:0 0 11px;line-height:1.72">${esc(p)}</p>`).join("")}
     <div class="block" style="border-color:var(--accent)"><div class="bh">🙏 Pray</div>
       <p style="font-style:italic;color:var(--text-dim);margin:0">${esc(o.pray)}</p></div>
@@ -1234,6 +1255,430 @@ function rbScrollerCard(){
   return `<div class="card" style="width:200px" data-act="rebuild-home"><div style="font-size:30px">🧱</div><b>The 30-Day Rebuild</b><div class="faint" style="font-size:12px">${esc(sub)}</div></div>`;
 }
 
+/* ============ LISTEN (read-aloud) ============
+   Every reading can be heard: the passage, the teaching and the prayer, read by
+   the phone's own voice. On-device speech (speechSynthesis), so it works offline
+   and costs nothing per listen, which is what lets it cover all 1,095 days, the
+   Rebuild and Advent at once.
+
+   The text is spoken a sentence at a time. Long utterances stop dead after about
+   fifteen seconds in Chrome, and a queue of short ones is also what makes pause
+   honest everywhere: pause cancels and remembers the sentence, resume starts it
+   again. speechSynthesis.pause() is a no-op on some Android builds.
+
+   The controls patch #listen-bar in place, because a full render() replays the
+   page's entrance animation. Any render that leaves the page without the
+   reading being heard stops the voice.                                        */
+const LISTEN_RATES = [1, 1.25, 0.85];
+let _listen = null;   // { key, chunks, i, playing }
+function listenSupported(){
+  try { return typeof window.speechSynthesis !== "undefined" && typeof window.SpeechSynthesisUtterance === "function"; }
+  catch (e) { return false; }
+}
+/* "Isaiah 11:1-2" reads as "Isaiah chapter 11, verses 1 to 2", not "eleven one two". */
+function speakableRef(r){
+  return String(r || "")
+    .replace(/^([123]) (?=[A-Z])/, (m, n) => ({ 1: "First ", 2: "Second ", 3: "Third " })[n])
+    .replace(/(\d+):(\d+)\s*[–-]\s*(\d+):(\d+)/g, "chapter $1, verse $2, to chapter $3, verse $4")
+    .replace(/(\d+):(\d+)\s*[–-]\s*(\d+)/g, "chapter $1, verses $2 to $3")
+    .replace(/(\d+):(\d+)/g, "chapter $1, verse $2")
+    .replace(/\s*;\s*/g, ", and ");
+}
+function speakable(t){
+  return String(t || "")
+    .replace(/\bLORD\b/g, "Lord").replace(/\bGOD\b/g, "God")
+    .replace(/[“”"]/g, "").replace(/\s+…\s+/g, ". ").replace(/\s+/g, " ").trim();
+}
+/* What each kind of page reads, in the order it appears on the screen. */
+function listenParts(key){
+  const [kind, raw] = String(key || "").split(":"), n = Number(raw);
+  if (kind === "advent") { const o = advDay(n); if (!o) return null;
+    return [speakableRef(o.r) + ".", o.x, ...o.teach, "Let's pray.", o.pray, "Today. " + o.do]; }
+  if (kind === "rebuild") { const o = rbDay(n); if (!o) return null;
+    return [speakableRef(o.r) + ".", o.x, ...o.teach, "Let's pray.", o.pray]; }
+  if (kind === "day") { const o = CURR()[n - 1]; if (!o) return null; const te = teach(o, S.track);
+    return [speakableRef(o.r) + ".", o.x, o.t || o.wt || "", te.lesson, te.understanding, te.prayer ? "Let's pray." : "", te.prayer]; }
+  return null;
+}
+function listenChunks(parts){
+  const out = [];
+  for (const part of parts) {
+    const t = speakable(part); if (!t) continue;
+    const sentences = t.match(/[^.!?]+[.!?]+["’)]*|[^.!?]+$/g) || [t];
+    let cur = "";
+    for (const raw of sentences) {
+      const x = raw.trim(); if (!x) continue;
+      if ((cur + " " + x).trim().length > 220 && cur) { out.push(cur); cur = x; }
+      else cur = (cur + " " + x).trim();
+    }
+    if (cur) out.push(cur);
+  }
+  return out;
+}
+/* An on-device English voice first: the network voices some browsers offer
+   (Chrome's "Google US English") fail offline, and offline is the point. */
+function listenVoice(){
+  const vs = (window.speechSynthesis.getVoices && window.speechSynthesis.getVoices()) || [];
+  const en = vs.filter(v => /^en(-|_|$)/i.test(v.lang || ""));
+  const pool = en.filter(v => v.localService !== false).length ? en.filter(v => v.localService !== false) : en;
+  const pref = [/Samantha/, /Ava/, /Allison/, /Aria|Jenny|Guy/, /Google US English/, /Daniel/, /Karen/];
+  for (const re of pref) { const v = pool.find(x => re.test(x.name)); if (v) return v; }
+  return pool.find(v => /en[-_]US/i.test(v.lang)) || pool[0] || null;
+}
+function listenRate(){ const r = Number(S.listenRate); return LISTEN_RATES.includes(r) ? r : 1; }
+function listenButton(kind, id){
+  if (!listenSupported()) return "";
+  const key = kind + ":" + id;
+  return `<div id="listen-bar" class="btnrow" data-listen-key="${esc(key)}" style="margin:0 0 12px">${listenBarHTML(key)}</div>`;
+}
+function listenBarHTML(key){
+  const on = _listen && _listen.key === key, playing = on && _listen.playing;
+  const rate = listenRate(), rateLabel = (rate === 1 ? "1" : String(rate)) + "×";
+  return `<button class="btn sm${playing ? " primary" : ""}" data-act="listen" data-id="${esc(key)}" aria-pressed="${playing}" aria-label="${playing ? "Pause reading" : on ? "Resume reading" : "Listen to this reading"}">${playing ? "⏸ Pause" : on ? "▶ Resume" : "🔊 Listen"}</button>
+    ${on ? `<button class="btn sm" data-act="listen-stop" aria-label="Stop reading">■ Stop</button>` : ""}
+    <button class="btn sm ghost" data-act="listen-rate" aria-label="Reading speed ${rateLabel}">${rateLabel}</button>`;
+}
+function listenPaint(){
+  const bar = document.getElementById("listen-bar");
+  if (bar) bar.innerHTML = listenBarHTML(bar.dataset.listenKey);
+}
+function listenSpeak(){
+  const L = _listen; if (!L) return;
+  if (L.i >= L.chunks.length) { listenStop(); return; }
+  const u = new SpeechSynthesisUtterance(L.chunks[L.i]);
+  const v = L.fallback ? null : listenVoice(); if (v) { u.voice = v; u.lang = v.lang; } else u.lang = "en-US";
+  u.rate = listenRate();
+  const token = L.token = (L.token || 0) + 1;
+  u.onend = () => { if (_listen === L && L.playing && L.token === token) { L.i++; listenSpeak(); } };
+  /* A voice that fails (a network voice offline) gets one retry on the
+     browser's default voice, then the sentence is skipped rather than looping. */
+  u.onerror = e => {
+    if (_listen !== L || L.token !== token || !e || e.error === "interrupted" || e.error === "canceled") return;
+    if (!L.fallback) L.fallback = true; else L.i++;
+    listenSpeak();
+  };
+  window.speechSynthesis.speak(u);
+}
+function listenToggle(key){
+  if (!listenSupported()) return;
+  if (_listen && _listen.key === key) {
+    if (_listen.playing) { _listen.playing = false; _listen.token++; window.speechSynthesis.cancel(); }
+    else { _listen.playing = true; listenSpeak(); }
+    listenPaint(); return;
+  }
+  listenStop();
+  const parts = listenParts(key); if (!parts) return;
+  const chunks = listenChunks(parts); if (!chunks.length) return;
+  _listen = { key, chunks, i: 0, playing: true, token: 0 };
+  window.speechSynthesis.cancel();      // anything another page left queued
+  listenSpeak(); listenPaint();
+}
+function listenStop(){
+  if (!_listen) return;
+  _listen = null;
+  try { window.speechSynthesis.cancel(); } catch (e) {}
+  listenPaint();
+}
+function listenCycleRate(){
+  const r = listenRate(); S.listenRate = LISTEN_RATES[(LISTEN_RATES.indexOf(r) + 1) % LISTEN_RATES.length]; save();
+  /* Rate is fixed per utterance; restart the current sentence at the new speed. */
+  if (_listen && _listen.playing) { _listen.token++; window.speechSynthesis.cancel(); listenSpeak(); }
+  listenPaint();
+}
+/* After every render: keep the voice only if the reading it belongs to is still
+   on screen, and show the right controls on the fresh markup. */
+function listenAfterRender(){
+  if (!_listen) return;
+  const bar = document.getElementById("listen-bar");
+  if (!bar || bar.dataset.listenKey !== _listen.key) listenStop(); else listenPaint();
+}
+document.addEventListener("visibilitychange", () => {
+  /* iOS drops queued speech when the page is hidden; showing "Resume" is honest. */
+  if (document.hidden && _listen && _listen.playing) { _listen.playing = false; _listen.token++; try { window.speechSynthesis.cancel(); } catch (e) {} listenPaint(); }
+});
+
+/* ============ DAILY REMINDER ============
+   A web app cannot promise a notification at 7 a.m. tomorrow: once the tab is
+   closed nothing runs. A calendar can, and everyone already has one. The
+   reminder is a repeating calendar event at a floating local time, from a
+   static .ics that build.py writes for every half hour (www/reminders/), plus a
+   Google Calendar link built here. Nothing is sent to a server.
+
+   Not offered inside the native shell: a WKWebView does not hand an .ics to
+   Calendar, and the iOS app will schedule a local notification instead.       */
+function reminderTimes(){
+  const out = [];
+  for (let h = 5; h <= 22; h++) for (const m of [0, 30]) out.push(String(h).padStart(2, "0") + String(m).padStart(2, "0"));
+  return out;
+}
+function reminderLabel(t){
+  const h = +t.slice(0, 2), m = t.slice(2);
+  return new Date(2026, 0, 1, h, +m).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+function reminderTime(){ const t = String(S.remindAt || ""); return reminderTimes().includes(t) ? t : "0700"; }
+function reminderAvailable(kind){
+  if (typeof IS_NATIVE !== "undefined" && IS_NATIVE) return false;
+  if (location.protocol === "file:") return false;   // the single-file build has no reminders/ beside it
+  if (kind === "advent") { const a = advPlan(); return !!a && dayDiff(dayKey(), advDateKey(a.days.length)) >= 0; }
+  return true;
+}
+function reminderButton(kind){
+  if (!reminderAvailable(kind)) return "";
+  return `<button class="btn block" style="margin-top:9px;border-left-width:1px" data-act="remind" data-id="${esc(kind)}">⏰ ${kind === "advent" ? "Remind me every day of Advent" : "Remind me every day"}</button>`;
+}
+/* Google Calendar wants the first occurrence: today at that time if it is still
+   ahead, otherwise tomorrow; for Advent, never before the first Sunday. */
+function reminderGoogleUrl(kind, t){
+  const now = new Date(), hh = +t.slice(0, 2), mm = +t.slice(2);
+  let first = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
+  if (first <= now) first = new Date(first.getFullYear(), first.getMonth(), first.getDate() + 1, hh, mm);
+  const a = advPlan();
+  let rrule = "RRULE:FREQ=DAILY", text = "Flourish: today's reading", link = location.origin + location.pathname;
+  if (kind === "advent" && a) {
+    const [y, mo, d] = normalizeKey(a.start).split("-").map(Number), begin = new Date(y, mo - 1, d, hh, mm);
+    if (first < begin) first = begin;
+    rrule = "RRULE:FREQ=DAILY;UNTIL=" + advDateKey(a.days.length).replace(/-/g, "") + "T235959";
+    text = "Advent: today's reading"; link += "#/advent";
+  }
+  const stamp = dt => dt.getFullYear() + String(dt.getMonth() + 1).padStart(2, "0") + String(dt.getDate()).padStart(2, "0")
+                    + "T" + String(dt.getHours()).padStart(2, "0") + String(dt.getMinutes()).padStart(2, "0") + "00";
+  const end = new Date(first.getTime() + 10 * 60000);
+  return "https://calendar.google.com/calendar/render?action=TEMPLATE"
+       + "&text=" + encodeURIComponent(text) + "&dates=" + stamp(first) + "/" + stamp(end)
+       + "&recur=" + encodeURIComponent(rrule) + "&details=" + encodeURIComponent("Open Flourish: " + link);
+}
+function reminderLinksHTML(kind, t){
+  return `<a class="btn gold block" id="remind-ics" style="text-decoration:none" href="reminders/${kind === "advent" ? "advent" : "daily"}-${esc(t)}.ics">📅 Add to iPhone, Mac or Outlook calendar</a>
+    <a class="btn block" id="remind-google" style="margin-top:9px;text-decoration:none;border-left-width:1px" href="${esc(reminderGoogleUrl(kind, t))}" target="_blank" rel="noopener">Add to Google Calendar</a>`;
+}
+function reminderSheet(kind){
+  if (!reminderAvailable(kind)) return;
+  kind = kind === "advent" ? "advent" : "daily";
+  const t = reminderTime();
+  sheet(`<div class="eyebrow">${kind === "advent" ? "Advent" : "Daily reading"}</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 8px">⏰ ${kind === "advent" ? "A reminder for each day of Advent" : "A reminder every day"}</h3>
+    <p class="muted" style="margin:0 0 12px;line-height:1.6">Your calendar sends it, so it arrives even when Flourish is closed. You can move or delete it in your calendar any time.</p>
+    <label for="remind-time" class="faint" style="font-size:12px">What time?</label>
+    <select id="remind-time" data-kind="${kind}" style="width:100%;margin:6px 0 14px">
+      ${reminderTimes().map(x => `<option value="${x}"${x === t ? " selected" : ""}>${esc(reminderLabel(x))}</option>`).join("")}
+    </select>
+    <div id="remind-links">${reminderLinksHTML(kind, t)}</div>`);
+}
+document.addEventListener("change", ev => {
+  const el = ev.target;
+  if (!el || el.id !== "remind-time") return;
+  const t = reminderTimes().includes(el.value) ? el.value : "0700";
+  S.remindAt = t; save();
+  const box = document.getElementById("remind-links");
+  if (box) box.innerHTML = reminderLinksHTML(el.dataset.kind, t);
+});
+
+/* ============ ADVENT (seasonal, free) ============
+   A free 27-day plan from the first Sunday of Advent to Christmas Day. Each
+   day: one passage (Berean Standard Bible, public domain), a short teaching, a
+   prayer and one thing to do. Hope, peace, joy, love, then Christmas.
+
+   Days open on their own dates, like an Advent calendar, and never lock again.
+   Day 1 can be read early, so a first visit from a post before 29 November has
+   something to read; after Christmas every day is open.
+
+   Like the Rebuild it is never behind the paywall and needs no onboarding: it
+   is the page seasonal posts link to (#/advent). It ships in seasons.js, not in
+   the book, so it never waits for the 2.3 MB curriculum. Content lives in
+   curriculum-data/advent.json; build.py refuses a malformed file and
+   tools/test_advent.py checks every verse against advent-bsb.json.
+
+   Progress stays on this device in S.advent. Finishing a day earns XP and the
+   streak, which already sync.                                             */
+const ADVENT_WEEK_NO = { Hope: 1, Peace: 2, Joy: 3, Love: 4 };
+const ADVENT_ICON = { Hope: "🕯️", Peace: "🕊️", Joy: "✨", Love: "❤️", Christmas: "🎄" };
+function advPlan(){ const a = window.ADVENT; return (a && Array.isArray(a.days) && a.days.length && normalizeKey(a.start)) ? a : null; }
+function advDays(){ const a = advPlan(); return a ? a.days : []; }
+function advDay(n){ return advDays().find(x => x.d === n) || null; }
+function advDateKey(n){ const a = advPlan(); return a ? shiftKey(normalizeKey(a.start), n - 1) : ""; }
+function advDateLabel(key, long){
+  const k = normalizeKey(key); if (!k) return "";
+  const [y, m, d] = k.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined,
+    long ? { weekday: "long", month: "long", day: "numeric" } : { month: "short", day: "numeric" });
+}
+/* Calendar position: 0 before Advent begins, the day number during it, the
+   last day from Christmas on. */
+function advCalendarDay(){
+  const a = advPlan(); if (!a) return 0;
+  return Math.max(0, Math.min(a.days.length, dayDiff(normalizeKey(a.start), dayKey()) + 1));
+}
+function advOpenThrough(){ return advPlan() ? Math.max(1, advCalendarDay()) : 0; }
+function advState(){
+  const a = S.advent;
+  if (!a || typeof a !== "object" || Array.isArray(a)) return null;
+  if (!a.done || typeof a.done !== "object" || Array.isArray(a.done)) a.done = {};
+  return a;
+}
+function advDone(n){ const a = advState(); return !!(a && a.done[n]); }
+function advDoneCount(){ const N = advDays().length; return Object.keys((advState() || {}).done || {}).filter(k => +k >= 1 && +k <= N).length; }
+/* The day to open: today's reading in season, else the first open day not yet done. */
+function advCurrent(){
+  const cal = advCalendarDay(), N = advDays().length;
+  if (cal >= 1 && cal < N) return cal;
+  for (let d = 1; d <= advOpenThrough(); d++) if (!advDone(d)) return d;
+  return cal || 1;
+}
+/* Where in the season today falls, for the banners: two weeks of lead-in, the
+   season itself, and the week after Christmas. Null the rest of the year. */
+function advPhase(){
+  const a = advPlan(); if (!a) return null;
+  const today = dayKey(), toStart = dayDiff(today, normalizeKey(a.start)), sinceEnd = dayDiff(advDateKey(a.days.length), today);
+  if (toStart > 14) return null;
+  if (toStart > 0) return "soon";
+  if (sinceEnd < 0) return "on";
+  if (sinceEnd === 0) return "christmas";
+  if (sinceEnd <= 6) return "after";
+  return null;
+}
+function completeAdventDay(id){
+  const n = Number(id);
+  if (!advDay(n) || n > advOpenThrough()) return;
+  if (!advState()) S.advent = { done: {} };
+  if (!S.advent.done[n]) {
+    S.advent.done[n] = Date.now();
+    addXP(15, "Advent day " + n + " complete");
+    touchStreak();
+    if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
+    if (typeof queueSync === "function") queueSync();
+  }
+  save(); render();
+}
+
+/* seasons.js is async: a deep link can render before it lands. Wait on a card,
+   then fill in what was waiting: the Advent page itself, or the Today banner. */
+window.addEventListener("flourish:seasons", () => {
+  if (typeof render !== "function" || !advPlan()) return;
+  if (document.getElementById("adv-wait")) { render(); return; }
+  const slot = document.getElementById("adv-slot");
+  if (slot) slot.outerHTML = adventBanner();
+});
+function renderAdvent(id){
+  if (!advPlan()) return `<div class="card" id="adv-wait" role="status" aria-live="polite" style="margin-top:8px;text-align:center">
+      <div style="font-size:30px" aria-hidden="true">🕯️</div>
+      <h3 class="serif" style="font-size:19px;margin:6px 0 4px">Opening Advent…</h3>
+      <p class="muted" style="margin:0">If this doesn't open, check your connection and reload the page.</p></div>`;
+  const n = parseInt(id, 10), N = advDays().length;
+  if (!(n >= 1 && n <= N)) return adventHome();
+  if (n > advOpenThrough()) return adventNotYet(n);
+  return adventDayView(n);
+}
+
+function adventHome(){
+  const a = advPlan(), N = a.days.length, cal = advCalendarDay(), open = advOpenThrough(), done = advDoneCount();
+  const lead = cal === 0
+      ? `<div class="card" id="adv-soon" style="margin-top:14px;text-align:center">
+          <div class="eyebrow">Starts ${esc(advDateLabel(a.start, true))}</div>
+          <p style="margin:8px 0 12px;line-height:1.6">One reading a day, each opening on its date. Day 1 is ready now if you want a head start.</p>
+          <button class="btn gold block lg" data-act="advent-open" data-id="1">Read Day 1</button>
+          ${typeof reminderButton === "function" ? reminderButton("advent") : ""}
+        </div>`
+    : cal < N
+      ? `<button class="btn gold block lg" id="adv-today" style="margin-top:14px" data-act="advent-open" data-id="${cal}">Today · Day ${cal}: ${esc(advDay(cal).t)}</button>
+         ${typeof reminderButton === "function" ? reminderButton("advent") : ""}`
+      : `<div class="card" id="adv-over" style="margin-top:14px">
+          <p style="margin:0 0 12px;line-height:1.6">Christmas has come. Every day is open, so read the ones you missed or start again from Day 1.</p>
+          <button class="btn primary block" data-act="advent-open" data-id="${N}">🎄 Christmas Day: ${esc(advDay(N).t)}</button></div>`;
+  const weeks = [];
+  for (const o of a.days) { const last = weeks[weeks.length - 1]; if (last && last.w === o.w) last.days.push(o); else weeks.push({ w: o.w, days: [o] }); }
+  return `
+  <div class="hero" style="margin-top:6px">
+    <div class="ref">FREE · ${N} DAYS · ${esc(advDateLabel(a.start).toUpperCase())} – ${esc(advDateLabel(advDateKey(N)).toUpperCase())}</div>
+    <div class="v" style="font-size:27px">Advent</div>
+    <p style="position:relative;z-index:1;margin:4px 0 0;color:var(--text-dim);font-weight:700">Hope, peace, joy and love, one day at a time, all the way to Christmas.</p>
+  </div>
+  ${lead}
+  <p class="faint" style="font-size:12px;margin:10px 4px 0">${done} of ${N} done · free, no account needed · progress is saved on this device</p>
+  ${weeks.map(g => `<div class="shead"><h2 class="serif">${ADVENT_ICON[g.w] || ""} ${ADVENT_WEEK_NO[g.w] ? "Week " + ADVENT_WEEK_NO[g.w] + " · " : ""}${esc(g.w)}</h2></div>
+    ${g.days.map(o => { const ok = o.d <= open, fin = advDone(o.d);
+      return `<button class="list-item" data-act="advent-open" data-id="${o.d}"${ok ? "" : ' aria-label="Day ' + o.d + ' opens ' + esc(advDateLabel(advDateKey(o.d), true)) + '"'}>
+        <div class="av">${fin ? "✅" : ok ? o.d : "🔒"}</div>
+        <div class="tx"><b>${esc(o.t)}</b><small>${esc(advDateLabel(advDateKey(o.d)))} · ${esc(o.r)}</small></div>
+        <span style="font-size:16px">›</span></button>`; }).join("")}`).join("")}`;
+}
+
+function adventDayView(n){
+  const o = advDay(n), N = advDays().length, open = advOpenThrough(), done = advDone(n), cal = advCalendarDay();
+  const status = done ? "done" : (n === cal ? "today" : (cal === 0 ? "opens " + advDateLabel(advDateKey(n)) : advDateLabel(advDateKey(n))));
+  return `
+  <div class="row between" style="margin:6px 4px 12px">
+    <div><div class="eyebrow">Advent · ${ADVENT_WEEK_NO[o.w] ? "Week " + ADVENT_WEEK_NO[o.w] + " · " : ""}${esc(o.w)}</div>
+      <div class="serif" style="font-size:24px;font-weight:800">Day ${n} of ${N}</div></div>
+    <button class="btn sm ghost" data-act="advent-home" aria-label="All Advent days">All days</button>
+  </div>
+  <div class="daynav">
+    <button class="dn" data-act="advent-open" data-id="${n - 1}" ${n <= 1 ? "disabled" : ""} aria-label="Previous Advent day">‹</button>
+    <div class="dc"><b>${esc(o.t)}</b><small>${esc(status)}</small></div>
+    <button class="dn" data-act="advent-open" data-id="${n + 1}" ${n >= open || n >= N ? "disabled" : ""} aria-label="Next Advent day">›</button>
+  </div>
+  <div class="hero">
+    <div class="ref">${esc(o.r)} · BSB</div>
+    <div class="v"${String(o.x).length > 170 ? ' style="font-size:18px"' : ""}>${esc(o.x)}</div>
+  </div>
+  <div class="card glow" style="margin-top:14px">
+    ${typeof listenButton === "function" ? listenButton("advent", n) : ""}
+    ${o.teach.map(p => `<p style="margin:0 0 11px;line-height:1.72">${esc(p)}</p>`).join("")}
+    <div class="block" style="border-color:var(--accent)"><div class="bh">🙏 Pray</div>
+      <p style="font-style:italic;color:var(--text-dim);margin:0">${esc(o.pray)}</p></div>
+    <div class="block app"><div class="bh">✅ Today</div><p style="margin:0">${esc(o.do)}</p></div>
+    <button class="btn primary block" style="margin-top:6px" data-act="advent-done" data-id="${n}">${done ? "✓ Day " + n + " complete" : "Mark Day " + n + " complete (+15 XP)"}</button>
+    ${n < open && n < N ? `<button class="btn ghost block" style="margin-top:9px" data-act="advent-open" data-id="${n + 1}">Day ${n + 1}: ${esc(advDay(n + 1).t)} <span class="arr">→</span></button>` : ""}
+  </div>
+  ${n === N ? adventNextSteps() : ""}`;
+}
+function adventNotYet(n){
+  const key = advDateKey(n), wait = dayDiff(dayKey(), key), cur = advCurrent();
+  return `<div class="card" style="margin-top:8px;text-align:center" id="adv-notyet">
+    <div style="font-size:30px" aria-hidden="true">🕯️</div>
+    <h3 class="serif" style="font-size:19px;margin:6px 0 4px">Day ${n} opens ${wait === 1 ? "tomorrow" : esc(advDateLabel(key, true))}</h3>
+    <p class="muted" style="margin:0 0 12px">One day at a time, like an Advent calendar.</p>
+    <button class="btn primary block" data-act="advent-open" data-id="${cur}">Go to Day ${cur}</button>
+    <button class="btn ghost block" style="margin-top:9px" data-act="advent-home">See all days</button>
+  </div>`;
+}
+/* Christmas Day hands off to the new year: the daily path starts any day, and
+   January is when most people go looking for one. */
+function adventNextSteps(){
+  return `<div class="card" id="adv-next" style="margin-top:14px">
+    <div class="eyebrow">After Christmas</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 8px">Keep the habit going</h3>
+    <p style="margin:0 0 12px;line-height:1.65">The daily path is one reading a day for three years, across health, wealth and relationships. The first seven days are free.</p>
+    <button class="btn gold block" data-act="advent-path">${S.onboarded ? "Go to today's reading" : "Start the daily path"}</button>
+    <button class="btn block" style="margin-top:9px;border-left-width:1px" data-act="rebuild-church">⛪ Find your church</button>
+  </div>`;
+}
+function adventBanner(){
+  if (!advPlan()) return '<div id="adv-slot"></div>';   // filled in when seasons.js lands
+  const ph = advPhase(); if (!ph) return "";
+  const a = advPlan(), cal = advCalendarDay(), toStart = dayDiff(dayKey(), normalizeKey(a.start));
+  const label = ph === "soon" ? "🕯️ Advent starts " + (toStart === 1 ? "tomorrow" : advDateLabel(a.start, true)) + " · free 27-day plan"
+              : ph === "on" ? "🕯️ Advent · Day " + cal + ": " + advDay(cal).t
+              : ph === "christmas" ? "🎄 Christmas Day · today's Advent reading"
+              : "🕯️ Revisit Advent";
+  const act = ph === "on" || ph === "christmas" ? `data-act="advent-open" data-id="${cal}"` : `data-act="advent-home"`;
+  return `<button class="btn block" id="adv-banner" ${act} style="margin:0 0 12px;border-left-width:1px">${esc(label)}</button>`;
+}
+function advPlansCard(){
+  const a = advPlan(); if (!a) return "";
+  const N = a.days.length, ph = advPhase(), dn = advDoneCount();
+  const sub = ph === "soon" ? "Starts " + advDateLabel(a.start, true) : ph === "on" ? "Day " + advCalendarDay() + " of " + N + " · " + dn + " done"
+            : N + " days · " + advDateLabel(a.start) + " – " + advDateLabel(advDateKey(N)) + " · " + dn + " done";
+  return `<button class="list-item" id="adv-plan" data-act="advent-home">
+      <div class="av">🕯️</div>
+      <div class="tx"><b>Advent <span class="pill" style="margin-left:6px;font-size:10px">FREE</span></b><small>${esc(sub)}</small></div>
+      <span style="font-size:16px">›</span></button>`;
+}
+function advScrollerCard(){
+  if (!advPhase()) return "";
+  const cal = advCalendarDay();
+  return `<div class="card" style="width:200px" data-act="advent-home"><div style="font-size:30px">🕯️</div><b>Advent</b><div class="faint" style="font-size:12px">${cal ? "Day " + cal + " of " + advDays().length : "Starts " + esc(advDateLabel(advPlan().start))}</div></div>`;
+}
+
 /* ============ ME (RETENTION DASHBOARD) ============ */
 function renderMe(){
   const li=levelInfo();const d=dayNumber();
@@ -1289,6 +1734,11 @@ function accountCard(){
   const email = (typeof authEmail === "function" && authEmail()) || "";
   const plan = S.unlocked ? (S.plan ? String(S.plan) : "member") : null;
   return `
+  ${reminderAvailable("daily") ? `<div class="card" style="margin-top:14px" id="me-remind">
+    <div class="card-hd"><h3 class="serif">Daily reminder</h3></div>
+    <p class="muted" style="font-size:13px;margin:6px 0 10px">Get a nudge at the same time every day, from your own calendar.</p>
+    <button class="btn sm block" data-act="remind" data-id="daily">⏰ Set a reminder</button>
+  </div>` : ""}
   <div class="card" style="margin-top:14px">
     <div class="card-hd"><h3 class="serif">Account</h3>
       <span class="faint">${signedIn ? (email ? esc(email) : "signed in") : "not signed in"}</span></div>
@@ -1596,6 +2046,7 @@ function renderPlans(){
   return `<div class="subhead"><button class="nb" data-act="church-home">‹</button>
     <div class="st"><b>🗺️ Reading plans</b><small>${TOPIC_PLANS.length} plans by topic</small></div></div>
   <p class="page-sub">Short paths through the book on one subject. A day you finish here counts everywhere.</p>
+  ${advPlan() ? `<div class="eyebrow" style="margin:6px 4px 6px">This season</div>${advPlansCard()}<div class="eyebrow" style="margin:14px 4px 6px">By topic</div>` : ""}
   ${TOPIC_PLANS.map(p=>{const days=planDays(p),dn=doneIn(days);
     return `<button class="list-item" data-act="open-plan" data-id="${esc(p.id)}">
       <div class="av">${p.icon}</div>
@@ -1677,6 +2128,7 @@ function renderRealLesson(g){
   return `
   <div class="subhead"><button class="nb" data-act="open-sub" data-id="${esc(o.p)}|${esc(o.s)}">‹</button>
     <div class="st"><b>${esc(o.t||"Lesson")}</b><small>${esc(o.p)} · ${esc(subLabel(o.s))} · Day ${g}</small></div></div>
+  ${listenButton("day", g)}
   <div class="hero"><div class="ref">${esc(o.r)} · ${esc(o.v||"BSB")}</div><div class="v">“${esc(o.x)}”</div></div>
   <div class="card glow" style="margin-top:14px">
     <div class="row between"><span class="pill ${pillarCls(o.p)}">${pillarEmoji(o.p)} ${esc(o.p)} · ${esc(subLabel(o.s))}</span>${done?'<span class="tag">✓ done</span>':""}</div>
@@ -2240,34 +2692,58 @@ function initSky(){
   try {
     if (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   } catch (e) { /* no matchMedia: fall through and animate */ }
+  /* Visual performance, 4 Nov 2026. This drew up to 100 radial gradients per
+     frame at the screen's full refresh rate, forever: Lighthouse on a
+     throttled phone counted ~30 s of main-thread work in the first 45 s and
+     never once found the page idle, so taps queued behind falling light.
+     Now each mote is a sprite painted once, the loop draws at ~30 fps with
+     time-based motion (the same speeds), the canvas is CSS-pixel sized (soft
+     glows gain nothing from retina pixels, and it is a quarter of the fill),
+     it starts only after the page has loaded and gone idle, and a phone in
+     Data Saver or with 2 GB of memory or less skips it. */
+  const nav = window.navigator || {}, conn = nav.connection || {};
+  if (conn.saveData || (nav.deviceMemory && nav.deviceMemory <= 2)) return;
   const c=document.getElementById("sky"); if(!c) return;
   const x=c.getContext && c.getContext("2d"); if(!x) return;
-  let W,H; const DPR=Math.min(2,(window.devicePixelRatio||1));
-  function size(){W=c.width=window.innerWidth*DPR;H=c.height=window.innerHeight*DPR;c.style.width=window.innerWidth+"px";c.style.height=window.innerHeight+"px";}
+  let W,H;
+  function size(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;c.style.width=W+"px";c.style.height=H+"px";}
   size(); window.addEventListener("resize",size);
-  // feature detection: no matchMedia means no preference to honour, animate normally
-  let reduce=false; try{reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion:reduce)").matches;}catch(e){}
-  if(reduce) return;
-  const N=window.innerWidth<480?34:50, P=[];
-  const spawn=r=>({x:Math.random()*W,y:r?Math.random()*H:-20*DPR,r:(1+Math.random()*2.4)*DPR,
-    vy:(.25+Math.random()*.75)*DPR,vx:(-.18+Math.random()*.36)*DPR,a:.28+Math.random()*.5,sw:Math.random()*6.28});
-  for(let i=0;i<N;i++)P.push(spawn(true));
-  function frame(){
-    if(!x)return; x.clearRect(0,0,W,H);
-    for(const p of P){
-      p.y+=p.vy; p.sw+=.012; p.x+=p.vx+Math.sin(p.sw)*.25*DPR;
-      if(p.y>H+12) Object.assign(p,spawn(false));
-      const R=p.r*4, g=x.createRadialGradient(p.x,p.y,0,p.x,p.y,R);
-      g.addColorStop(0,"rgba(246,223,156,"+p.a+")");
-      g.addColorStop(.45,"rgba(236,196,81,"+(p.a*.35)+")");
-      g.addColorStop(1,"rgba(236,196,81,0)");
-      x.fillStyle=g; x.beginPath(); x.arc(p.x,p.y,R,0,6.283); x.fill();
-      x.fillStyle="rgba(255,251,238,"+Math.min(1,p.a+.25)+")";
-      x.beginPath(); x.arc(p.x,p.y,p.r,0,6.283); x.fill();
-    }
-    requestAnimationFrame(frame);
+  const N=window.innerWidth<480?34:50, P=[], CELL=32;
+  let atlas=null;
+  /* Every mote's sprite -- the glow and the bright core at full strength,
+     drawn each frame with the mote's own alpha -- painted once into ONE
+     canvas. A canvas per mote cost a 2D context each, and making 34 of those
+     was itself a long task on a slow phone. */
+  function paintAtlas(){
+    atlas=document.createElement("canvas"); atlas.width=CELL*N; atlas.height=CELL;
+    const g2=atlas.getContext("2d");
+    P.forEach((p,i)=>{
+      const m=i*CELL+CELL/2, R=p.r*4, g=g2.createRadialGradient(m,CELL/2,0,m,CELL/2,R);
+      g.addColorStop(0,"rgba(246,223,156,1)"); g.addColorStop(.45,"rgba(236,196,81,.35)"); g.addColorStop(1,"rgba(236,196,81,0)");
+      g2.fillStyle=g; g2.beginPath(); g2.arc(m,CELL/2,R,0,6.283); g2.fill();
+      g2.fillStyle="rgba(255,251,238,1)"; g2.beginPath(); g2.arc(m,CELL/2,p.r,0,6.283); g2.fill();
+    });
   }
-  requestAnimationFrame(frame);
+  const place=(p,anywhere)=>Object.assign(p,{x:Math.random()*W,y:anywhere?Math.random()*H:-20,
+    vy:.25+Math.random()*.75,vx:-.18+Math.random()*.36,a:.28+Math.random()*.5,sw:Math.random()*6.28});
+  for(let i=0;i<N;i++) P.push(place({r:1+Math.random()*2.4},true));   // glow radius r*4 fits a 32 px cell
+  let last=0;
+  function frame(ts){
+    requestAnimationFrame(frame);
+    if(last && ts-last<31) return;                     // ~30 fps is plenty for drifting light
+    const k=last?Math.min(4,(ts-last)/16.67):1; last=ts;  // move as far as 60 fps would have
+    x.clearRect(0,0,W,H);
+    for(let i=0;i<P.length;i++){
+      const p=P[i];
+      p.y+=p.vy*k; p.sw+=.012*k; p.x+=(p.vx+Math.sin(p.sw)*.25)*k;
+      if(p.y>H+12) place(p,false);
+      x.globalAlpha=p.a; x.drawImage(atlas,i*CELL,0,CELL,CELL,p.x-CELL/2,p.y-CELL/2,CELL,CELL);
+    }
+    x.globalAlpha=1;
+  }
+  const start=()=>{ paintAtlas(); requestAnimationFrame(frame); };
+  const idle=()=>(window.requestIdleCallback ? requestIdleCallback(start,{timeout:2500}) : setTimeout(start,1200));
+  if(document.readyState==="complete") idle(); else window.addEventListener("load",idle,{once:true});
 }
 
 /* Growth model — plant grows & bears fruit with progress */

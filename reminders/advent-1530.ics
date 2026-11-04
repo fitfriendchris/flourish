@@ -1,0 +1,22 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Flourish//Reminders//EN
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+UID:advent-2026-1530@flourish
+DTSTAMP:20261101T000000Z
+DTSTART:20261129T153000
+DURATION:PT10M
+RRULE:FREQ=DAILY;COUNT=27
+SUMMARY:Advent: today's reading
+DESCRIPTION:Open Flourish: https://fitfriendchris.github.io/flourish/#/adve
+ nt
+URL:https://fitfriendchris.github.io/flourish/#/advent
+BEGIN:VALARM
+ACTION:DISPLAY
+DESCRIPTION:Advent: today's reading
+TRIGGER:PT0M
+END:VALARM
+END:VEVENT
+END:VCALENDAR

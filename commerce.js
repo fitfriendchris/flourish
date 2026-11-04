@@ -25,16 +25,34 @@ const PLANS = [
   { id:"lifetime", name:"Lifetime", price:"$497", per:"",     note:"One payment, forever",   best:false }
 ];
 
+/* The web trial (board: free-trial gap). The server decides who gets it -- a
+   signed-in member's first membership, monthly or yearly -- and tells Checkout,
+   which shows the free days and the first charge date. This copy only repeats
+   the rule, and only when the server has said a trial is on. In the iOS app a
+   trial is an App Store introductory offer and Apple's own sheet states it. */
+function trialDays(){
+  if (IS_NATIVE) return 0;
+  let cfg = (typeof CFG !== "undefined" && CFG) || null;
+  if (!cfg) { try { cfg = JSON.parse(localStorage.getItem("flourish_cfg") || "null"); } catch (e) { cfg = null; } }
+  const n = Number(cfg && cfg.trial_days);
+  return Number.isInteger(n) && n > 0 && n <= 30 ? n : 0;
+}
 function membershipSheet(reason){
   PLANS.forEach(p => newAttempt("sub-" + p.id));
   const why = reason
     ? `<div class="note" style="margin-bottom:12px">🔒 ${esc(reason)}</div>` : "";
+  const td = trialDays(), signedIn = typeof isSignedIn === "function" && isSignedIn();
+  const trialNote = p => td && p.id !== "lifetime" ? `${td} days free, then ${p.price}${p.per}` : p.note;
+  const trialLine = !td ? ""
+    : signedIn ? `<div class="note" id="trial-line" style="margin-bottom:12px">🎁 Your first membership starts with <b>${td} days free</b>. Cancel before day ${td + 1} and you won't be charged.</div>`
+    : `<div class="note" id="trial-line" style="margin-bottom:12px">🎁 New members get <b>${td} days free</b> on Monthly or Yearly. <button class="btn sm" style="margin-left:6px" data-act="sign-in-sheet">Sign in to start free</button></div>`;
   sheet(`
     <div class="eyebrow">Flourish Membership</div>
     <h3 class="serif" style="font-size:21px;margin:6px 0 4px">Unlock all 1,095 days</h3>
     <p class="muted" style="margin:0 0 14px;font-size:13px">
       Three years through Health, Wealth &amp; Relationships — every lesson, both tracks, the full academy.</p>
     ${why}
+    ${trialLine}
     <div style="display:grid;gap:10px">
       ${PLANS.map(p => `
         <button class="btn ${p.best ? "gold" : ""} block"
@@ -42,7 +60,7 @@ function membershipSheet(reason){
                 data-act="join-membership" data-id="${esc(p.id)}">
           <span>
             <b style="font-size:15px">${p.name}</b>
-            <span class="faint" style="display:block;font-size:12px">${p.note}</span>
+            <span class="faint" style="display:block;font-size:12px">${esc(signedIn ? trialNote(p) : p.note)}</span>
           </span>
           <span class="serif" style="font-size:20px;color:var(--gold)">${p.price}<small style="font-size:12px">${p.per}</small></span>
         </button>`).join("")}
@@ -55,6 +73,7 @@ function membershipSheet(reason){
     <div class="note" style="margin-top:12px;text-align:left;line-height:1.65">
       <b>Monthly</b> — $29.00/month, renews monthly. &nbsp;<b>Yearly</b> — $197.00/year, renews yearly.
       &nbsp;<b>Lifetime</b> — $497.00 once, never renews.<br>
+      ${td ? `<b>Free trial</b> — a signed-in member's first Monthly or Yearly membership on the web starts with ${td} days free. You're charged on day ${td + 1} unless you cancel before then; one trial per person.<br>` : ""}
       Subscriptions renew automatically unless auto-renew is turned off at least 24 hours
       before the period ends. ${IS_NATIVE
         ? "Payment is charged to your Apple ID at confirmation of purchase. Manage or cancel in your Apple ID Account Settings."
