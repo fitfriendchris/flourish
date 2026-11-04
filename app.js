@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="4cc67864f3";
+const APP_VERSION="52f58057f1";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -473,23 +473,51 @@ function touchStreak(){const today=dayKey();
   if(S.streak===7)earn("week-1");if(S.streak===30)earn("month");}
 
 /* ============ DAY MAPPING ============ */
-function CURR(){return window.CURRICULUM||[];}
-/* The book arrives in the background (board item 38): curriculum.js is async and
-   fires `flourish:curriculum` when it lands, so the welcome screen, the Rebuild,
-   Play, Church and Me never wait for 2.3 MB. Today and the Academy show
-   bookWaitView() until then; when the book arrives, caches built from the empty
-   book are dropped and the waiting view is replaced in place. */
+/* The book arrives in the background, one year per file (board item 38).
+   book.js loads the member's own year first (0.9 MB gzipped instead of 2.4 MB
+   for the whole book), then the other two. Each part fires `flourish:curriculum`
+   when it lands; the last one also assembles window.CURRICULUM, the whole book.
+   Until then CURR() is the book so far, with gaps where a year has not arrived:
+   it is always BOOK_TOTAL long, so day numbers and totals never change, and a
+   reading screen asks bookHasDay() before it shows a day. The welcome screen,
+   the Rebuild, the seasons, Play, Church and Me never wait for any of it. */
+let _bookKey = "", _bookSoFar = [];
+function CURR(){
+  if (Array.isArray(window.CURRICULUM)) return window.CURRICULUM;
+  const P = window.CURRICULUM_PARTS;
+  const keys = P ? Object.keys(P).sort() : [];
+  if (!keys.length) return [];
+  const key = keys.join(",");
+  if (key !== _bookKey) {
+    const C = new Array(window.CURRICULUM_TOTAL || 1095);
+    keys.forEach(k => { const part = P[k]; if (part && Array.isArray(part.days)) part.days.forEach((o, i) => { C[part.from - 1 + i] = o; }); });
+    _bookSoFar = C; _bookKey = key;
+  }
+  return _bookSoFar;
+}
+function bookComplete(){ return Array.isArray(window.CURRICULUM) && window.CURRICULUM.length > 0; }
+function bookHasDay(d){ const C = CURR(); d = Math.round(+d) || 0; return d >= 1 && d <= C.length && !!C[d - 1]; }
+/* A part landing drops the caches built from a smaller book, and replaces a
+   waiting screen in place if the day it was waiting for is now here. */
 window.addEventListener("flourish:curriculum", () => {
   window._AI = undefined;
+  Object.keys(window).forEach(k => { if (k.indexOf("_PD_") === 0) window[k] = undefined; });
   if (typeof render === "function" && document.getElementById("book-wait")) render();
 });
 function bookWaitView(){
   return `<div class="card" id="book-wait" role="status" aria-live="polite" style="text-align:center;padding:28px 18px;margin-top:8px">
     <div style="font-size:30px" aria-hidden="true">📖</div>
     <b class="serif" style="font-size:18px;display:block;margin-top:8px">Opening the book…</b>
-    <p class="muted" style="font-size:13px;margin:6px 0 0">All 1,095 days download once, then they work offline.</p></div>`;
+    <p class="muted" style="font-size:13px;margin:6px 0 0">Your year comes first and the rest follows. Once it is here, it works offline.</p></div>`;
 }
 function totalDays(){return CURR().length||1095;}
+/* The day the current screen reads: an Academy lesson, or on Today the day in
+   view (S.viewDay) or today's. */
+function dayInView(){
+  const r = S.route || {};
+  if (S.page === "academy" && r.sub === "lesson") return Math.max(1, Math.min(totalDays(), Number(r.id) || 1));
+  return Math.max(1, Math.min(totalDays(), Number(S.viewDay) || dayNumber()));
+}
 function dayNumber(){const n=totalDays();const d=dayDiff(S.startDate,dayKey())+1;return Math.max(1,Math.min(n,d));}
 function yearArc(d){return d<=365?{y:1,name:"Foundation"}:d<=730?{y:2,name:"Deepening"}:{y:3,name:"Multiplication"};}
 function lessonForDay(d){const C=CURR();return C[Math.max(0,Math.min(C.length-1,d-1))]||{};}
@@ -498,8 +526,8 @@ function dayAllowed(d){return d<=7||!!S.unlocked;}
 /* The gate asks about the day being READ, not only today's day number. It used
    to ask only about today, so a free member on Day 3 could tap Next day through
    to Day 13, or open Academy lesson 900, and read either in full. Returns the
-   locked day to show the wall for, or 0. Every day ships in curriculum.js for
-   offline reading, so this is a reading gate, not a vault: it closes the path
+   locked day to show the wall for, or 0. Every day ships in the book files
+   (curriculum-1/2/3.js) for offline reading, so this is a reading gate, not a vault: it closes the path
    a member actually takes, and entitlement itself stays server-side. */
 function lockedDay(){
   if (S.unlocked) return 0;
@@ -695,7 +723,11 @@ function render(){
      1,095-day path, so their routes are exempt even when that path is locked,
      and neither waits for the book. */
   const onRebuild = S.page==="today" && !!S.route && (S.route.sub==="rebuild" || isSeason(S.route.sub));
-  const bookless = !CURR().length && !onRebuild &&
+  /* A reading screen waits for the year it reads; the Academy's lists, search
+     and plans span the whole book, so they wait for all of it. */
+  const r_ = S.route || {};
+  const haveIt = S.page==="academy" ? (r_.sub==="lesson" ? bookHasDay(dayInView()) : bookComplete()) : bookHasDay(dayInView());
+  const bookless = !haveIt && !onRebuild &&
                    (S.page==="academy" || ((S.page==="today" || !S.page) && S.onboarded));
   let html="";
   if (bookless) html=bookWaitView();
@@ -997,8 +1029,8 @@ function openQuiz(dn){
    work on a first visit with no onboarding, and it is never behind the paywall:
    the paywall belongs to the 1,095-day path, and render() exempts this route.
 
-   Content lives in curriculum-data/rebuild.json and ships inside curriculum.js
-   as window.REBUILD; build.py refuses a malformed file and
+   Content lives in curriculum-data/rebuild.json and ships as rebuild.js
+   (window.REBUILD); build.py refuses a malformed file and
    tools/test_rebuild.py checks every verse against curriculum-data/bsb-source.json.
 
    Progress stays on this device, in S.rebuild, and is deliberately NOT in
@@ -2268,7 +2300,7 @@ function academyIndex(){
     if(!idx[p]){idx[p]={};order.push(p);}(idx[p][s]=idx[p][s]||[]).push(g);});
   const pref=["Health","Wealth","Relationships","Integration"];
   order.sort((a,b)=>{const ia=pref.indexOf(a),ib=pref.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
-  if(C.length)window._AI={idx,order};
+  if(bookComplete())window._AI={idx,order};
   return {idx,order};
 }
 /* The eleven sub-pillars are all single words now (Spiritual, Income, Commission …).
@@ -2336,7 +2368,7 @@ function planDays(plan){
     if(ok)hits.push(i+1);});
   const n=Math.min(plan.n,hits.length),out=[];
   for(let k=0;k<n;k++){const g=hits[n===1?0:Math.round(k*(hits.length-1)/(n-1))];if(out.indexOf(g)<0)out.push(g);}
-  if(C.length)window[key]=out;
+  if(bookComplete())window[key]=out;
   return out;
 }
 const planById=id=>TOPIC_PLANS.find(p=>p.id===id);
@@ -2374,7 +2406,7 @@ function renderPlan(id){
 function searchLessons(q){
   q=String(q||"").trim().toLowerCase();if(q.length<2)return [];
   const terms=q.split(/\s+/).filter(Boolean),C=CURR(),out=[];
-  for(let i=0;i<C.length&&out.length<40;i++){const o=C[i];
+  for(let i=0;i<C.length&&out.length<40;i++){const o=C[i];if(!o)continue;
     const head=[o.t,o.r,o.wt,o.p,o.s].join(" ").toLowerCase();
     const body=[o.ml,o.wl,o.mu,o.wu,o.x].join(" ").toLowerCase();
     if(!terms.every(t=>head.includes(t)||body.includes(t)))continue;

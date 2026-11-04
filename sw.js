@@ -13,10 +13,11 @@
    mid-session leaves the page running old JS while new assets are served —
    intermittent, and worse than being stale. It waits; the page offers a
    reload; the user decides.                                                */
-const VERSION = "flourish-6295baa8b3c3";
+const VERSION = "flourish-c7b2df1596a9";
 const SHELL = [
   "./",
-  "./app.js?v=3321f519",
+  "./app.js?v=73dcc102",
+  "./book.js?v=f3a5e4ca",
   "./boot.js?v=875f8247",
   "./church.js?v=d71ff98b",
   "./commerce.js?v=754f577d",
@@ -40,7 +41,7 @@ const SHELL = [
   "./fonts/playfair.woff2?v=1d1889ac",
   "./vendor/qrcode.min.js?v=c541ef06"
 ];
-const CURRICULUM = "./curriculum.js?v=eac823bf";
+const CURRICULUM = ["./curriculum-1.js?v=af5f4994", "./curriculum-2.js?v=d79c224c", "./curriculum-3.js?v=24cde8de"];
 
 self.addEventListener("install", e => {
   e.waitUntil((async () => {
@@ -64,12 +65,15 @@ self.addEventListener("install", e => {
       await c.add(new Request(u, { cache: "reload" }))
              .catch(err => console.warn("[sw] skip", u, err));
     }));
-    // ~254 KB gzipped and the whole point of the app offline. Best-effort, and
-    // the one most worth reusing rather than re-downloading.
-    try {
-      if (!(await reuse(CURRICULUM)))
-        await c.add(new Request(CURRICULUM, { cache: "reload" })).catch(() => {});
-    } catch (_) {}
+    // The book, one file per year (~2.4 MB gzipped together) and the whole
+    // point of the app offline. Best-effort, and the files most worth reusing
+    // rather than re-downloading: a year that did not change keeps its url.
+    await Promise.all(CURRICULUM.map(async u => {
+      try {
+        if (!(await reuse(u)))
+          await c.add(new Request(u, { cache: "reload" })).catch(() => {});
+      } catch (_) {}
+    }));
     // NOTE: no skipWaiting() here. See the header.
   })());
 });
