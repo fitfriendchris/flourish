@@ -13,10 +13,10 @@
    mid-session leaves the page running old JS while new assets are served —
    intermittent, and worse than being stale. It waits; the page offers a
    reload; the user decides.                                                */
-const VERSION = "flourish-d2814367fb3b";
+const VERSION = "flourish-c4c77cca063e";
 const SHELL = [
   "./",
-  "./app.js?v=2cdcc3d4",
+  "./app.js?v=b473e127",
   "./boot.js?v=875f8247",
   "./church.js?v=a126e445",
   "./commerce.js?v=fed37b67",
@@ -31,6 +31,7 @@ const SHELL = [
   "./manifest.json",
   "./og.png",
   "./privacy.html",
+  "./rebuild.js?v=f9a78c01",
   "./refund.html",
   "./sync.js?v=040aeee2",
   "./terms.html",
@@ -38,7 +39,7 @@ const SHELL = [
   "./fonts/playfair.woff2?v=1d1889ac",
   "./vendor/qrcode.min.js?v=c541ef06"
 ];
-const CURRICULUM = "./curriculum.js?v=9646533e";
+const CURRICULUM = "./curriculum.js?v=eac823bf";
 
 self.addEventListener("install", e => {
   e.waitUntil((async () => {

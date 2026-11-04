@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="3ec5b9c195";
+const APP_VERSION="f6a68424df";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -474,6 +474,21 @@ function touchStreak(){const today=dayKey();
 
 /* ============ DAY MAPPING ============ */
 function CURR(){return window.CURRICULUM||[];}
+/* The book arrives in the background (board item 38): curriculum.js is async and
+   fires `flourish:curriculum` when it lands, so the welcome screen, the Rebuild,
+   Play, Church and Me never wait for 2.3 MB. Today and the Academy show
+   bookWaitView() until then; when the book arrives, caches built from the empty
+   book are dropped and the waiting view is replaced in place. */
+window.addEventListener("flourish:curriculum", () => {
+  window._AI = undefined;
+  if (typeof render === "function" && document.getElementById("book-wait")) render();
+});
+function bookWaitView(){
+  return `<div class="card" id="book-wait" role="status" aria-live="polite" style="text-align:center;padding:28px 18px;margin-top:8px">
+    <div style="font-size:30px" aria-hidden="true">📖</div>
+    <b class="serif" style="font-size:18px;display:block;margin-top:8px">Opening the book…</b>
+    <p class="muted" style="font-size:13px;margin:6px 0 0">All 1,095 days download once, then they work offline.</p></div>`;
+}
 function totalDays(){return CURR().length||1095;}
 function dayNumber(){const n=totalDays();const d=dayDiff(S.startDate,dayKey())+1;return Math.max(1,Math.min(n,d));}
 function yearArc(d){return d<=365?{y:1,name:"Foundation"}:d<=730?{y:2,name:"Deepening"}:{y:3,name:"Multiplication"};}
@@ -669,8 +684,14 @@ function render(){
        and the reduced-motion rule flattens it to an instant move. */
     if (on) { const nav = b.parentElement; if (nav) nav.style.setProperty("--nav-i", i); }
   });
+  /* The 30-Day Rebuild is free to the end. The paywall is about the 1,095-day
+     path, so the Rebuild route is exempt even when that path is locked. */
+  const onRebuild = S.page==="today" && !!S.route && S.route.sub==="rebuild";
+  const bookless = !CURR().length && !onRebuild &&
+                   (S.page==="academy" || ((S.page==="today" || !S.page) && S.onboarded));
   let html="";
-  switch(S.page){
+  if (bookless) html=bookWaitView();
+  else switch(S.page){
     case"today":html=renderToday();break;
     case"academy":html=renderAcademy();break;
     case"play":html=renderPlay();break;
@@ -679,10 +700,7 @@ function render(){
     default:html=renderToday();
   }
   const m=main();
-  /* The 30-Day Rebuild is free to the end. The paywall is about the 1,095-day
-     path, so the Rebuild route is exempt even when that path is locked. */
-  const onRebuild = S.page==="today" && !!S.route && S.route.sub==="rebuild";
-  const locked = lockedDay();
+  const locked = bookless ? 0 : lockedDay();
   m.innerHTML = locked ? lockedView(locked) : html;
   if(!locked && !onRebuild && S.page==="today" && shouldAskForEmail()) m.insertAdjacentHTML("beforeend", emailCaptureCard());
   m.classList.remove("scene");void m.offsetWidth;m.classList.add("scene");
@@ -1502,7 +1520,8 @@ function academyIndex(){
     if(!idx[p]){idx[p]={};order.push(p);}(idx[p][s]=idx[p][s]||[]).push(g);});
   const pref=["Health","Wealth","Relationships","Integration"];
   order.sort((a,b)=>{const ia=pref.indexOf(a),ib=pref.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);});
-  window._AI={idx,order};return window._AI;
+  if(C.length)window._AI={idx,order};
+  return {idx,order};
 }
 /* The eleven sub-pillars are all single words now (Spiritual, Income, Commission …).
    This carried a lookup for FamilySocial and SelfCharacter, which the remap dissolved —
