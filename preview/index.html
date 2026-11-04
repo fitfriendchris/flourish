@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://flourish-backend.onrender.com https://rdnlorxsmyufaboftzus.supabase.co https://api.stripe.com; frame-src https://checkout.stripe.com https://js.stripe.com; form-action 'self' https://checkout.stripe.com; base-uri 'self'; object-src 'none'">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon-512.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<!-- maximum-scale / user-scalable=no actively blocked pinch-zoom. The audience for a
+     devotional skews older, so that is a usage problem long before a compliance one. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Flourish — Biblical Life Mastery</title>
+<meta name="description" content="A 3-year academy of biblical life mastery across Health, Wealth, and Relationships — devotionals, character school, games, and your church community.">
+<!-- Link previews (board #22). Church group chats are where Flourish gets shared,
+     and a link with no card gets scrolled past. Scrapers need ABSOLUTE urls, so
+     these name the public site; change both if Flourish moves to its own domain.
+     og.png is made by tools/make_og.py. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Flourish">
+<meta property="og:title" content="Flourish — Biblical Life Mastery">
+<meta property="og:description" content="1,095 days across Health, Wealth and Relationships. Days 1–7 are free.">
+<meta property="og:url" content="https://fitfriendchris.github.io/flourish/">
+<meta property="og:image" content="https://fitfriendchris.github.io/flourish/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Flourish: biblical life mastery, 1,095 days. Days 1–7 free.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#091410" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f1ebdb" media="(prefers-color-scheme: light)">
+<!-- Self-hosted variable fonts.
+     The Google Fonts <link> was render-blocking on a third-party origin: browser
+     testing measured 12,474 ms of a 12,592 ms load waiting on it, and in the offline
+     iOS shell it never resolves at all. Two local woff2 files (86 KB) cover every
+     weight, load from our own origin, and work with no network. -->
+<style>
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;
+  src:url(fonts/inter.woff2?v=3100e775) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+@font-face{font-family:'Playfair Display';font-style:normal;font-weight:400 900;font-display:swap;
+  src:url(fonts/playfair.woff2?v=1d1889ac) format('woff2');
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+</style>
+<style>
+:root{
+  --brand-900:#0a1810;--brand-800:#0f241a;--brand-700:#163623;--brand-600:#1f4a31;
+  --brand-500:#2e6b46;--brand-400:#41956220;--brand-400s:#419562;--brand-300:#74c096;
+  --gold-600:#b8860b;--gold-500:#d9a921;--gold-400:#ecc451;--gold-300:#f6df9c;
+  --radius:20px;--radius-sm:13px;--radius-lg:28px;--radius-xl:34px;
+  --header:60px;--nav:80px;--maxw:560px;
+  --ease:cubic-bezier(.22,1,.36,1);--spring:cubic-bezier(.34,1.56,.64,1);
+  --sh-sm:0 1px 2px rgba(0,0,0,.2);--sh:0 10px 30px rgba(0,0,0,.22);--sh-lg:0 22px 60px rgba(0,0,0,.36);
+}
+html[data-theme="dark"]{
+  --bg:#091410;--bg2:#0d1d15;--bg3:#0a1912;--surface:#122418;--surface2:#172f1f;--surface3:#1e3b28;
+  --line:#264133;--line2:#32543f;--text:#ecf5ee;--text-dim:#a7c4b2;--text-faint:#7c977f;
+  --accent:#74c096;--accent-strong:#419562;--gold:#ecc451;
+  --health:#5cc2b0;--wealth:#ecc451;--rel:#ea93b1;--intg:#a99bf0;
+  --health-bg:#0f3a32;--wealth-bg:#3b3210;--rel-bg:#3c2029;--intg-bg:#241f3d;--glass:rgba(12,24,18,.72);
+}
+html[data-theme="light"]{
+  --bg:#f1ebdb;--bg2:#ece3cf;--bg3:#f5efe1;--surface:#fffdf7;--surface2:#f9f3e7;--surface3:#f1e8d4;
+  --line:#e2d6bb;--line2:#d3c4a0;--text:#172419;--text-dim:#4c5d51;--text-faint:#7a887c;
+  --accent:#1f6e45;--accent-strong:#16532f;--gold:#a8780a;
+  --health:#15897a;--wealth:#9a6e08;--rel:#b34068;--intg:#5b46c4;
+  --health-bg:#dff0ea;--wealth-bg:#f5ebcc;--rel-bg:#f7e2ea;--intg-bg:#e9e5fa;--glass:rgba(250,246,236,.8);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+/* Opaque page ground straight from the token. The body background is a stack of
+   gradients whose final layer uses background-attachment:fixed; WKWebView renders that
+   unreliably, and CSS background propagation was the only thing painting the overscroll
+   area. One solid colour underneath makes the ground correct in both themes regardless
+   of either — otherwise iOS rubber-band scrolling flashes white on a dark app. */
+html{background-color:var(--bg)}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);line-height:1.55;overflow-x:hidden;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(140% 70% at 100% -10%,color-mix(in srgb,var(--gold-500) 9%,transparent),transparent 60%),
+    radial-gradient(130% 60% at 0% 0%,color-mix(in srgb,var(--brand-500) 22%,transparent),transparent 55%),
+    linear-gradient(180deg,var(--bg2),var(--bg)) fixed;}
+h1,h2,h3,h4,.serif{font-family:'Playfair Display',Georgia,serif;letter-spacing:-.01em}
+#app{max-width:var(--maxw);margin:0 auto;min-height:100vh;position:relative}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:var(--accent);text-decoration:none;font-weight:600}
+.muted{color:var(--text-dim)}.faint{color:var(--text-faint)}.center{text-align:center}.hidden{display:none!important}
+/* The hidden attribute is only a UA-stylesheet display:none, so any element that
+   sets display inline (the privacy notice is display:flex) ignores it entirely. */
+[hidden]{display:none!important}
+::-webkit-scrollbar{width:0;height:0}
+
+/* HEADER */
+.app-header{position:sticky;top:0;z-index:60;height:var(--header);display:flex;align-items:center;justify-content:space-between;
+  padding:0 16px;background:var(--glass);backdrop-filter:blur(18px) saturate(1.3);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800}
+.brand .logo{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;font-size:18px;
+  background:linear-gradient(145deg,var(--brand-400s),var(--brand-700));box-shadow:var(--sh-sm),inset 0 1px 0 rgba(255,255,255,.15)}
+.brand .title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700}
+.hicons{display:flex;align-items:center;gap:7px}
+.iconbtn{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:17px;color:var(--text-dim);transition:.2s var(--ease);border:1px solid transparent}
+.iconbtn:hover{background:var(--surface2);color:var(--text)}.iconbtn:active{transform:scale(.9)}
+.chip{padding:8px 13px;border-radius:999px;background:linear-gradient(145deg,var(--surface2),var(--surface));border:1px solid var(--line);font-size:13px;font-weight:800;display:inline-flex;gap:6px;align-items:center}
+.chip:active{transform:scale(.94)}
+
+/* MAIN + NAV */
+main{padding:14px 15px calc(var(--nav) + 40px);animation:pageIn .4s var(--ease)}
+@keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+.bottom-nav{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;width:min(var(--maxw),95vw);height:var(--nav);
+  display:flex;justify-content:space-around;align-items:center;z-index:55;padding:0 6px;
+  background:var(--glass);backdrop-filter:blur(22px) saturate(1.4);border:1px solid var(--line2);border-radius:24px;box-shadow:var(--sh-lg)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--text-faint);font-size:11px;font-weight:700;padding:9px 2px;border-radius:16px;transition:.25s var(--ease);position:relative}
+.nav-btn .ni{font-size:21px;line-height:1;transition:.25s var(--spring);filter:grayscale(.3)}
+.nav-btn.active{color:var(--accent)}
+.nav-btn.active .ni{transform:translateY(-3px) scale(1.15);filter:none}
+.nav-btn.active{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.nav-btn:active{transform:scale(.92)}
+
+/* SUB-PAGE HEADER (nav architecture) */
+.subhead{position:sticky;top:var(--header);z-index:30;display:flex;align-items:center;gap:10px;margin:-14px -15px 14px;padding:11px 15px;
+  background:var(--glass);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.subhead .nb{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);font-size:17px;font-weight:800;transition:.18s}
+.subhead .nb:active{transform:scale(.88)}.subhead .nb:hover{border-color:var(--accent)}
+.subhead .st{flex:1;min-width:0}.subhead .st b{font-family:'Playfair Display',serif;font-size:17px;display:block;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subhead .st small{font-size:11.5px;color:var(--text-faint);font-weight:600}
+.crumb{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin:2px 2px 6px}
+
+/* CARDS */
+.card{background:linear-gradient(180deg,var(--surface),color-mix(in srgb,var(--surface) 88%,var(--bg)));border:1px solid var(--line);border-radius:var(--radius);padding:17px;box-shadow:var(--sh-sm);margin-bottom:14px;transition:.2s var(--ease);animation:pop .35s var(--ease)}
+button.card{display:block;width:100%;text-align:left}
+.card:active{transform:scale(.99)}
+.card.glow{background:linear-gradient(165deg,color-mix(in srgb,var(--accent) 10%,var(--surface2)),var(--surface));border-color:color-mix(in srgb,var(--accent) 34%,var(--line));box-shadow:var(--sh),0 0 0 1px color-mix(in srgb,var(--accent) 14%,transparent)}
+.card-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-hd h3{font-size:17px}.divider{height:1px;background:linear-gradient(90deg,transparent,var(--line),transparent);margin:15px 0}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:1.6px;text-transform:uppercase;color:var(--accent)}
+.grid{display:grid;gap:12px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:1fr 1fr 1fr}
+.row{display:flex;gap:10px;align-items:center}.between{justify-content:space-between}.wrap{flex-wrap:wrap}
+
+/* BUTTONS — bigger, tactile, with press feedback */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:52px;padding:14px 20px;border-radius:15px;font-weight:800;font-size:15px;letter-spacing:.1px;
+  transition:transform .12s var(--ease),box-shadow .2s,filter .2s;background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line2);color:var(--text);position:relative;overflow:hidden}
+.btn:hover{filter:brightness(1.06)}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:linear-gradient(180deg,var(--brand-400s),var(--brand-600));border:none;color:#fff;box-shadow:0 8px 20px color-mix(in srgb,var(--brand-500) 40%,transparent),inset 0 1px 0 rgba(255,255,255,.18)}
+.btn.gold{background:linear-gradient(180deg,var(--gold-400),var(--gold-600));border:none;color:#211603;box-shadow:0 8px 20px color-mix(in srgb,var(--gold-500) 38%,transparent),inset 0 1px 0 rgba(255,255,255,.4)}
+.btn.ghost{background:transparent;border:1px solid var(--line2)}
+.btn.sm{min-height:40px;padding:9px 15px;font-size:13.5px;border-radius:12px}
+.btn.lg{min-height:58px;font-size:16.5px;border-radius:17px}
+.btn.block{width:100%}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn .arr{font-size:18px;transition:transform .2s}
+.btn:hover .arr{transform:translateX(3px)}
+.btnrow{display:flex;gap:10px}.btnrow>.btn{flex:1}
+.btnrow>.btn.back{flex:0 0 auto;min-width:56px;padding:14px 16px}
+.pill{padding:7px 12px;border-radius:999px;font-size:12px;font-weight:800;background:var(--surface3);border:1px solid var(--line);display:inline-flex;gap:5px;align-items:center}
+.pill.health{color:var(--health);background:var(--health-bg);border-color:transparent}
+.pill.wealth{color:var(--wealth);background:var(--wealth-bg);border-color:transparent}
+.pill.rel{color:var(--rel);background:var(--rel-bg);border-color:transparent}
+.pill.intg{color:var(--intg);background:var(--intg-bg);border-color:transparent}
+.tag{font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;padding:5px 9px;border-radius:7px;background:var(--surface3);color:var(--text-dim)}
+
+/* PROGRESS */
+.ring{--p:0;width:66px;height:66px;border-radius:50%;display:grid;place-items:center;position:relative;
+  background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--surface3) 0)}
+.ring::before{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--surface)}
+.ring span{position:relative;font-weight:900;font-size:14px}
+.bar{height:11px;border-radius:999px;background:var(--surface3);overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.2)}
+.bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--accent),var(--accent-strong));transition:width .7s var(--ease)}
+.bar.gold>i{background:linear-gradient(90deg,var(--gold-400),var(--gold-600))}
+
+/* STATS */
+.stat{background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 10px;text-align:center}
+.stat .n{font-size:26px;font-weight:800;font-family:'Playfair Display',serif;line-height:1}
+.stat .l{font-size:11px;color:var(--text-faint);margin-top:5px;font-weight:700}
+.stat .ic{font-size:20px;margin-bottom:2px}
+
+/* HERO */
+.hero{position:relative;border-radius:var(--radius-lg);padding:24px;overflow:hidden;color:#fff;
+  background:linear-gradient(155deg,var(--brand-500),var(--brand-800) 75%);box-shadow:var(--sh),inset 0 1px 0 rgba(255,255,255,.1)}
+.hero::after{content:"";position:absolute;right:-40px;top:-40px;width:190px;height:190px;border-radius:50%;
+  background:radial-gradient(circle,color-mix(in srgb,var(--gold-400) 45%,transparent),transparent 70%)}
+.hero::before{content:"✦";position:absolute;left:16px;bottom:8px;font-size:60px;opacity:.07;font-family:serif}
+.hero .ref{color:var(--gold-300);font-weight:800;font-size:12.5px;letter-spacing:.8px;position:relative;z-index:1}
+.hero .v{font-family:'Playfair Display',serif;font-size:22px;line-height:1.38;margin:9px 0 4px;position:relative;z-index:1;font-weight:600}
+
+/* LISTS */
+.list-item{display:flex;align-items:center;gap:13px;padding:13px;border-radius:var(--radius-sm);background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line);margin-bottom:10px;transition:.18s var(--ease);width:100%;text-align:left}
+.list-item:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateX(2px)}
+.list-item:active{transform:scale(.99)}
+.list-item .av{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:21px;background:var(--surface3);flex:none}
+.list-item .tx{flex:1;min-width:0}.list-item .tx b{display:block;font-size:14.5px}.list-item .tx small{color:var(--text-faint);font-size:12px}
+
+.shead{display:flex;align-items:baseline;justify-content:space-between;margin:20px 4px 11px}
+.shead h2{font-size:21px}.shead a{font-size:12.5px;font-weight:800}
+.page-title{font-size:30px;margin:8px 4px 2px;font-weight:800}
+.page-sub{color:var(--text-dim);font-size:14px;margin:0 4px 16px;line-height:1.45}
+
+/* BADGES / XP */
+.badge{width:62px;height:62px;border-radius:18px;display:grid;place-items:center;font-size:27px;margin:0 auto;
+  background:radial-gradient(circle at 30% 25%,var(--surface3),var(--surface2));border:1px solid var(--line)}
+.badge.earned{background:linear-gradient(150deg,var(--gold-400),var(--gold-600));color:#211603;border:none;box-shadow:0 8px 20px color-mix(in srgb,var(--gold-500) 42%,transparent)}
+.badge.locked{opacity:.4;filter:grayscale(1)}
+.lvl{width:44px;height:44px;border-radius:13px;background:linear-gradient(145deg,var(--brand-400s),var(--brand-700));color:#fff;display:grid;place-items:center;font-weight:900;flex:none;box-shadow:var(--sh-sm)}
+
+/* TABS / SEG */
+.tabs{display:flex;gap:6px;background:var(--surface2);border:1px solid var(--line);border-radius:15px;padding:5px;margin-bottom:15px;overflow-x:auto}
+.tabs button{flex:1;white-space:nowrap;min-height:38px;padding:9px 13px;border-radius:11px;font-weight:800;font-size:13px;color:var(--text-dim);transition:.2s}
+.tabs button.active{background:var(--surface);color:var(--text);box-shadow:var(--sh-sm)}
+.seg{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:4px}
+.seg button{min-height:34px;padding:7px 14px;border-radius:9px;font-weight:800;font-size:12.5px;color:var(--text-dim)}
+.seg button.active{background:var(--surface);color:var(--text);box-shadow:var(--sh-sm)}
+
+/* MODAL / SHEET */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:90;display:grid;place-items:end center;animation:fade .22s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.sheet{width:100%;max-width:var(--maxw);max-height:92vh;overflow-y:auto;position:relative;
+  background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line2);border-radius:26px 26px 0 0;
+  padding:16px 17px calc(env(safe-area-inset-bottom) + 26px);animation:up .4s var(--spring);box-shadow:var(--sh-lg)}
+@keyframes up{from{transform:translateY(60px)}to{transform:none}}
+.sheet .grab{width:44px;height:5px;border-radius:9px;background:var(--line2);margin:0 auto 10px}
+.sheet-x{position:absolute;right:14px;top:13px;width:34px;height:34px;border-radius:10px;background:var(--surface3);display:grid;place-items:center;font-size:15px;font-weight:800;color:var(--text-dim);z-index:2}
+.sheet-x:active{transform:scale(.9)}
+
+/* DEVOTIONAL BLOCKS */
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line);border-radius:16px;padding:8px;margin-bottom:14px}
+.daynav .dn{width:46px;height:46px;border-radius:13px;background:var(--surface3);display:grid;place-items:center;font-size:20px;font-weight:800;transition:.18s}
+.daynav .dn:active{transform:scale(.88)}.daynav .dn:disabled{opacity:.3}
+.daynav .dc{text-align:center;line-height:1.15}.daynav .dc b{font-family:'Playfair Display',serif;font-size:16px}.daynav .dc small{display:block;font-size:11px;color:var(--text-faint);font-weight:700}
+.block{border-left:3px solid var(--line2);padding:6px 0 6px 15px;margin:16px 0}
+.block .bh{font-size:11.5px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:var(--accent);margin-bottom:6px;display:flex;gap:7px;align-items:center}
+.block.app{border-color:var(--health)}.block.app .bh{color:var(--health)}
+.block.wis{border-color:var(--gold)}.block.wis .bh{color:var(--gold)}
+.block.refl{border-color:var(--rel)}.block.refl .bh{color:var(--rel)}
+.wisquote{background:linear-gradient(160deg,var(--surface3),var(--surface2));border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 15px;margin:9px 0;position:relative}
+.wisquote::before{content:"\201C";position:absolute;left:8px;top:-6px;font-size:42px;color:var(--gold);opacity:.3;font-family:Georgia,serif}
+.wisquote .q{font-family:'Playfair Display',serif;font-size:16px;font-style:italic;line-height:1.45}
+.wisquote .src{font-size:12px;color:var(--gold);font-weight:800;margin-top:8px}
+.checklist label{display:flex;gap:11px;align-items:flex-start;padding:12px;border-radius:12px;background:var(--surface2);border:1px solid var(--line);margin-bottom:8px;cursor:pointer;transition:.15s}
+.checklist label:active{transform:scale(.99)}
+.checklist input{margin-top:2px;width:20px;height:20px;accent-color:var(--accent);flex:none}
+.note{background:linear-gradient(160deg,color-mix(in srgb,var(--gold-400) 16%,var(--surface)),var(--surface));border:1px solid color-mix(in srgb,var(--gold-500) 35%,var(--line));border-radius:14px;padding:13px 14px;font-size:13.5px;display:flex;gap:10px;line-height:1.5}
+
+/* GAMES */
+.game-card{position:relative;border-radius:var(--radius);padding:17px;overflow:hidden;color:#fff;min-height:128px;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:var(--sh);transition:.2s var(--ease);text-align:left}
+.game-card:active{transform:scale(.97)}
+.game-card::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 80% 0%,rgba(255,255,255,.16),transparent 60%)}
+.game-card .gt{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;position:relative}
+.game-card .gd{font-size:12px;opacity:.92;position:relative}
+.game-card .gi{position:absolute;top:13px;right:15px;font-size:32px;opacity:.95;filter:drop-shadow(0 2px 4px rgba(0,0,0,.3))}
+.opt{display:block;width:100%;text-align:left;min-height:54px;padding:15px;border-radius:15px;background:linear-gradient(180deg,var(--surface2),var(--surface));border:2px solid var(--line2);font-weight:700;font-size:15px;margin-bottom:11px;transition:.15s var(--ease)}
+.opt:hover{border-color:var(--accent)}.opt:active{transform:scale(.98)}
+.opt.correct{background:color-mix(in srgb,var(--health) 24%,var(--surface));border-color:var(--health)}
+.opt.wrong{background:color-mix(in srgb,#e0556a 22%,var(--surface));border-color:#e0556a}
+.opt.pick{border-color:var(--accent)}
+.score-big{font-family:'Playfair Display',serif;font-size:52px;font-weight:800;color:var(--gold)}
+.lb-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;background:linear-gradient(180deg,var(--surface2),var(--surface));border:1px solid var(--line);margin-bottom:8px}
+.lb-rank{width:28px;font-weight:900;text-align:center;color:var(--text-faint);font-size:15px}
+.lb-row.me{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,var(--surface))}
+.mem-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+.mem-card{aspect-ratio:3/4;border-radius:13px;background:linear-gradient(150deg,var(--brand-400s),var(--brand-700));display:grid;place-items:center;color:#fff;font-size:11px;text-align:center;padding:6px;cursor:pointer;transition:.25s var(--spring);font-weight:700;box-shadow:var(--sh-sm)}
+.mem-card:active{transform:scale(.95)}
+.mem-card.flip{background:linear-gradient(180deg,var(--surface),var(--surface2));color:var(--text);border:2px solid var(--accent)}
+.mem-card.done{opacity:.3}
+
+/* MAP */
+.map{position:relative;height:210px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--line2);
+  background:radial-gradient(100% 100% at 50% 0%,var(--surface3),var(--surface2));margin-bottom:13px;box-shadow:inset 0 2px 10px rgba(0,0,0,.18)}
+.map .grid-bg{position:absolute;inset:0;background-image:linear-gradient(color-mix(in srgb,var(--line) 70%,transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb,var(--line) 70%,transparent) 1px,transparent 1px);background-size:36px 36px;opacity:.5}
+.map .pin{position:absolute;transform:translate(-50%,-100%);font-size:26px;filter:drop-shadow(0 4px 5px rgba(0,0,0,.45));cursor:pointer;transition:.2s var(--spring)}
+.map .pin:active{transform:translate(-50%,-100%) scale(1.25)}
+.map .me-pin{width:20px;height:20px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 30%,transparent);transform:translate(-50%,-50%)}
+
+/* SHOP */
+.prod{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:linear-gradient(180deg,var(--surface),var(--surface2));transition:.2s var(--ease)}
+.prod:active{transform:scale(.98)}
+.prod .ph{height:112px;display:grid;place-items:center;font-size:44px;background:radial-gradient(90% 90% at 50% 20%,var(--surface3),var(--surface2))}
+.prod .pb{padding:12px}.prod .pn{font-weight:800;font-size:13.5px;line-height:1.3}.prod .pp{color:var(--gold);font-weight:900;margin-top:5px;font-size:15px}
+
+.empty{text-align:center;padding:38px 16px;color:var(--text-faint)}.empty .e-ic{font-size:44px;opacity:.6;margin-bottom:10px}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav) + 30px);transform:translateX(-50%);z-index:120;
+  background:linear-gradient(180deg,var(--brand-500),var(--brand-700));color:#fff;padding:13px 20px;border-radius:15px;font-weight:700;font-size:14px;box-shadow:var(--sh-lg);animation:up .35s var(--spring);max-width:90vw;border:1px solid var(--line2)}
+.avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(145deg,var(--brand-400s),var(--brand-700));display:grid;place-items:center;color:#fff;font-weight:900;flex:none;box-shadow:var(--sh-sm)}
+.scroll-x{display:flex;gap:12px;overflow-x:auto;padding:2px 0 8px;scroll-snap-type:x mandatory}
+.scroll-x>*{scroll-snap-align:start;flex:none;margin-bottom:0}
+input,select,textarea{width:100%;min-height:50px;padding:13px;border-radius:13px;background:var(--surface2);border:1px solid var(--line2);color:var(--text);font-family:inherit;font-size:15px}
+textarea{min-height:auto}
+label.fl{font-size:12px;font-weight:800;color:var(--text-dim);margin:12px 0 6px;display:block;text-transform:uppercase;letter-spacing:.5px}
+
+/* ============ CINEMATIC LAYERS ============ */
+#sky{position:fixed;inset:0;z-index:0;pointer-events:none}
+#app{position:relative;z-index:3;background:transparent}
+.ambient{position:fixed;left:-20%;right:-20%;top:-25%;height:80vh;z-index:1;pointer-events:none;opacity:.6;
+  background:radial-gradient(50% 60% at 50% 0%,color-mix(in srgb,var(--gold-400) 26%,transparent),transparent 70%),
+  conic-gradient(from 200deg at 50% -10%,transparent,color-mix(in srgb,var(--brand-300) 16%,transparent),transparent 42%);
+  filter:blur(8px);animation:sheen 13s ease-in-out infinite alternate}
+@keyframes sheen{from{opacity:.4;transform:translateY(-10px)}to{opacity:.78;transform:translateY(8px)}}
+.vignette{position:fixed;inset:0;z-index:2;pointer-events:none;background:radial-gradient(125% 95% at 50% 28%,transparent 52%,rgba(0,0,0,.5))}
+html[data-theme="light"] .vignette{background:radial-gradient(125% 95% at 50% 28%,transparent 60%,rgba(60,45,5,.12))}
+
+/* movie-style scene transition on every screen change */
+main.scene{animation:scene .58s var(--ease)}
+@keyframes scene{0%{opacity:0;transform:translateY(18px) scale(.984);filter:blur(9px)}55%{filter:blur(0)}100%{opacity:1;transform:none;filter:none}}
+
+/* hero cinematic ambience */
+.hero{will-change:transform}
+.hero::after{animation:halo 9s ease-in-out infinite alternate}
+@keyframes halo{from{opacity:.7;transform:scale(1)}to{opacity:1;transform:scale(1.12)}}
+
+/* GARDEN / GROWTH */
+.garden{position:relative;border-radius:var(--radius-lg);overflow:hidden;padding:18px 16px 20px;text-align:center;margin-bottom:14px;
+  background:linear-gradient(180deg,#0b2c3e 0%,#0f3a31 52%,#0d2419 100%);box-shadow:var(--sh),inset 0 1px 0 rgba(255,255,255,.08);border:1px solid var(--line2)}
+html[data-theme="light"] .garden{background:linear-gradient(180deg,#bfe2ec 0%,#d8efda 52%,#eef7e7 100%)}
+.garden .gsky{position:absolute;inset:0;z-index:0;overflow:hidden}
+.garden .m{position:absolute;top:-12px;width:5px;height:5px;border-radius:50%;background:radial-gradient(circle,#fff,rgba(246,223,156,.25));
+  box-shadow:0 0 9px 2px rgba(236,196,81,.55);animation:fall linear infinite}
+@keyframes fall{0%{transform:translateY(-12px);opacity:0}12%{opacity:1}100%{transform:translateY(250px);opacity:.08}}
+.garden .stage{position:relative;z-index:1}
+.garden svg{display:block;margin:0 auto;filter:drop-shadow(0 8px 12px rgba(0,0,0,.4))}
+.leaf,.fruit{transform-box:fill-box}
+.sway{transform-box:fill-box;transform-origin:50% 100%;animation:sway 5.5s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-2.2deg)}to{transform:rotate(2.2deg)}}
+.fruit{transform-origin:center;animation:fruitpop .7s var(--spring) both}
+@keyframes fruitpop{0%{transform:scale(0)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
+/* Gradient text, but never invisible text.
+   This set color:transparent unconditionally. Where background-clip:text is
+   unsupported, disabled, or simply fails to paint, the result is not "less
+   pretty" — it is a heading nobody can read, with nothing to fall back to.
+   The gold is the real colour; the gradient is an enhancement layered on top
+   only where the browser can actually clip it. */
+.shimmer{color:var(--gold-400);background:linear-gradient(90deg,var(--gold-400),#fff7e2 45%,var(--gold-500));background-size:220% auto;animation:shim 3.4s linear infinite}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .shimmer{-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+}
+@keyframes shim{to{background-position:220% center}}
+/* Item 65 — a visible focus ring. Nothing indicated keyboard focus anywhere. */
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:spin 1.4s linear infinite}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+.scrim .sheet:focus{outline:none}
+.scrim .sheet:focus-visible{outline:2px solid var(--gold);outline-offset:-4px}
+@keyframes streakPop{0%{transform:scale(1)}38%{transform:scale(1.28)}100%{transform:scale(1)}}
+.pulse{animation:streakPop .5s var(--spring)}
+
+/* ── item 67: a way past the chrome ──────────────────────────────────────
+   Off-screen until focused. For someone tabbing, not someone looking. */
+.skip-link{position:absolute;left:-9999px;top:0;z-index:200;
+  background:var(--gold,#c9a227);color:#0b1a12;padding:10px 16px;border-radius:0 0 10px 0;
+  font-weight:600;text-decoration:none}
+.skip-link:focus{left:0}
+#main:focus{outline:none}
+
+/* ── SPACING SCALE ───────────────────────────────────────────────────────
+   Radii and shadows were already tokenised; gutters were not, so every new
+   block picked a number by eye. That inconsistency is the thing people read
+   as "unfinished" without being able to name it. One 4px-based ramp. */
+/* visible only to assistive tech */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+:root{--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px}
+
+/* ── SKELETONS ───────────────────────────────────────────────────────────
+   A spinner says "a web page is fetching". A skeleton says "your content is
+   arriving and it will be shaped like this". Same wait, different feeling.
+   Built from the surface tokens so it is correct in both themes. */
+.sk{position:relative;overflow:hidden;border-radius:var(--radius-sm);
+  background:color-mix(in srgb,var(--surface3) 70%,var(--surface));
+  /* a skeleton must never be read aloud as content */
+  color:transparent;user-select:none}
+.sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);
+  background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--text) 7%,transparent),transparent);
+  animation:skShim 1.25s var(--ease) infinite}
+@keyframes skShim{to{transform:translateX(100%)}}
+.sk-line{height:12px;margin-bottom:var(--sp-2)}
+.sk-line.t{height:18px;width:62%;margin-bottom:var(--sp-3)}
+.sk-line.s{height:10px;width:40%}
+.sk-block{height:104px;border-radius:var(--radius)}
+.sk-avatar{width:44px;height:44px;border-radius:50%;flex:0 0 auto}
+.sk-card{background:linear-gradient(180deg,var(--surface),color-mix(in srgb,var(--surface) 88%,var(--bg)));
+  border:1px solid var(--line);border-radius:var(--radius);padding:var(--sp-4);margin-bottom:var(--sp-3)}
+@media(prefers-reduced-motion:reduce){.sk::after{display:none}}
+
+/* ── NAV: ONE INDICATOR THAT MOVES ───────────────────────────────────────
+   Five separate tinted backgrounds cut on and off. A single pill that travels
+   between tabs is what every shipped iOS app does, and it is the difference
+   between "the state changed" and "I moved". --nav-i is the active index,
+   set by the tab handler. */
+.bottom-nav{--nav-i:0}
+.bottom-nav::before{content:"";position:absolute;z-index:0;pointer-events:none;
+  top:9px;bottom:9px;left:6px;width:calc((100% - 12px)/5);
+  transform:translateX(calc(var(--nav-i) * 100%));
+  background:color-mix(in srgb,var(--accent) 14%,transparent);
+  border-radius:16px;transition:transform .34s var(--spring)}
+.nav-btn{z-index:1}
+/* the travelling pill replaces the per-button fill */
+.nav-btn.active{background:transparent}
+
+/* ── BUTTONS: THE STATE BETWEEN TAPPED AND DONE ──────────────────────────
+   Every button that starts a network call needs a third state. Without one a
+   person taps twice, and the second tap is the bug report. */
+.btn.is-loading{pointer-events:none;color:transparent!important}
+.btn.is-loading .arr{opacity:0}
+.btn.is-loading::after{content:"";position:absolute;top:50%;left:50%;width:19px;height:19px;
+  margin:-9.5px 0 0 -9.5px;border-radius:50%;
+  border:2px solid color-mix(in srgb,currentColor 25%,transparent);
+  border-top-color:#fff;animation:spin .7s linear infinite}
+.btn.ghost.is-loading::after,.btn:not(.primary):not(.gold).is-loading::after{border-top-color:var(--accent)}
+.btn.gold.is-loading::after{border-top-color:#211603}
+/* .btn had no keyboard-visible press state; :active is pointer-only */
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+
+/* ── item 69: honour reduced motion EVERYWHERE ───────────────────────────
+   The two rules that were here named eight selectors by hand, so every
+   animation added since — the streak pop, the card scene, the sheet slide —
+   played anyway. A person who has asked their operating system to stop
+   animation has usually asked for a reason: vestibular disorders, migraine,
+   or simply being unable to read text that is moving.
+
+   The blanket rule is deliberate. Naming selectors is how the first version
+   went stale, and it will go stale again the next time someone adds a
+   keyframe. Anything that genuinely needs to move despite the setting can opt
+   back in with .motion-ok, and will have to say why.                       */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.001ms!important;
+    scroll-behavior:auto!important;
+  }
+  .motion-ok,.motion-ok *{animation-duration:revert!important;transition-duration:revert!important}
+  /* The ambient canvas is decorative and its whole content is movement. */
+  #sky,.ambient{display:none!important}
+}
+</style>
+<script defer src="vendor/qrcode.min.js?v=c541ef06"></script>
+<script defer src="config.js"></script>
+<script defer src="curriculum.js?v=ca47a764"></script>
+<script defer src="app.js?v=dc082d1d"></script>
+<script defer src="entitlement.js?v=b3487d65"></script>
+<script defer src="sync.js?v=040aeee2"></script>
+<script defer src="church.js?v=a126e445"></script>
+<script defer src="commerce.js?v=fed37b67"></script>
+<script defer src="boot.js?v=875f8247"></script>
+</head>
+<body>
+<!-- Item 67: a way past the chrome. Visually hidden until focused, which is the
+     point — it is for someone tabbing, not someone looking. -->
+<a href="#main" class="skip-link">Skip to today's reading</a>
+<canvas id="sky" aria-hidden="true"></canvas>
+<div class="ambient" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div id="app">
+  <header class="app-header" role="banner">
+    <div class="brand"><span class="logo" aria-hidden="true">🌱</span><span class="title">Flourish</span></div>
+    <div class="hicons">
+      <!-- Item 68: an emoji is announced as the emoji. "fire, 0, button" is not
+           a streak. The label carries the meaning; aria-hidden hides the glyph;
+           the live count is updated in aria-label by updateHeader(). -->
+      <button class="chip" id="cart-chip" hidden aria-label="Cart, 0 items">
+        <span aria-hidden="true">🛒</span> <b id="cart-n" aria-hidden="true">0</b></button>
+      <button class="chip" id="streak-chip" aria-label="Your streak, 0 days. Go to Me">
+        <span aria-hidden="true">🔥</span> <b id="streak-n" aria-hidden="true">0</b></button>
+      <button class="iconbtn" id="theme-toggle" aria-label="Switch to light theme">
+        <span aria-hidden="true">🌙</span></button>
+      <button class="iconbtn" id="track-toggle" aria-label="Reading track: men's. Switch to women's">
+        <span aria-hidden="true">♂</span></button>
+    </div>
+  </header>
+  <main id="main" role="main" tabindex="-1"></main>
+  <!-- Item 66: a tablist with a roving tabindex. One stop in the tab order,
+       arrow keys between the five — the pattern a screen-reader user expects,
+       and it costs one Tab press to skip rather than five. -->
+  <nav class="bottom-nav" role="tablist" aria-label="Main sections">
+    <button class="nav-btn active" data-page="today"    role="tab" aria-selected="true"  tabindex="0"><span class="ni" aria-hidden="true">📖</span>Today</button>
+    <button class="nav-btn"        data-page="academy"  role="tab" aria-selected="false" tabindex="-1"><span class="ni" aria-hidden="true">🎓</span>Academy</button>
+    <button class="nav-btn"        data-page="play"     role="tab" aria-selected="false" tabindex="-1"><span class="ni" aria-hidden="true">🎮</span>Play</button>
+    <button class="nav-btn"        data-page="church"   role="tab" aria-selected="false" tabindex="-1"><span class="ni" aria-hidden="true">⛪</span>Church</button>
+    <button class="nav-btn"        data-page="me"       role="tab" aria-selected="false" tabindex="-1"><span class="ni" aria-hidden="true">🌿</span>Me</button>
+  </nav>
+</div>
+<!-- Privacy notice.
+     Positioned ABOVE the bottom nav: the previous version sat at bottom:0 with
+     z-index 9998 and covered the whole navigation bar, so no one could tap
+     Today/Academy/Play/Church/Me until they dismissed it. Caught by browser test.
+     Storage here is strictly necessary (your progress), which is consent-exempt
+     under ePrivacy — so this is a notice, not a consent gate. -->
+<div id="flourish-compliance-bar" hidden
+     style="position:fixed;left:10px;right:10px;bottom:calc(var(--nav, 80px) + 10px);
+            background:var(--glass,rgba(10,20,15,.94));backdrop-filter:blur(14px);
+            border:1px solid var(--line,#264133);border-radius:var(--radius-sm,13px);
+            padding:11px 14px;display:flex;gap:10px;align-items:center;justify-content:center;
+            flex-wrap:wrap;font-size:12.5px;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.35);
+            max-width:540px;margin:0 auto">
+  <span style="opacity:.85">🔒 Your progress is stored on this device. No trackers, no ads.</span>
+  <span><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="refund.html">Refunds</a></span>
+  <button class="btn sm" style="padding:4px 14px" data-act="dismiss-notice">Got it</button>
+</div>
+
+<!-- ESV attribution is a Crossway licence condition. Padded clear of the nav so it
+     is actually readable — it was previously hidden behind it. -->
+<div style="text-align:center;font-size:11px;opacity:.5;padding:18px 18px calc(var(--nav, 80px) + 24px);line-height:1.6">
+  Scripture quotations are from the ESV® Bible (The Holy Bible, English Standard Version®),
+  © 2001 by Crossway, a publishing ministry of Good News Publishers.
+  ESV Text Edition: 2025. The ESV text may not be quoted in any publication made
+  available to the public by a Creative Commons license. The ESV may not be
+  translated in whole or in part into any other language.
+  Used by permission. All rights reserved.
+  <br>The 30-Day Rebuild quotes the Berean Standard Bible (BSB), which is in the public domain.
+</div>
+
