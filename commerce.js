@@ -88,8 +88,13 @@ function membershipSheet(reason){
 async function joinMembership(plan){
   if (IS_NATIVE) return iapPurchase(plan);
   try {
+    /* The member's token goes with the request. Without it the server sees a
+       guest: no free trial (trial_eligible needs a handle) and no user id on
+       the membership row, only the email Stripe collects. */
+    const t = typeof authToken === "function" ? await authToken() : "";
     const j = await flourishFetch("/api/create-checkout-session", {
       method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, t ? { Authorization: "Bearer " + t } : {}),
       body: JSON.stringify({
         plan,
         idempotency_key: attemptKey("sub-" + plan),

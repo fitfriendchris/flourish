@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Flourish — Privacy Policy</title><link rel="stylesheet" href="legal.css"></head><body>
 <h1>Privacy Policy</h1>
-<p class="meta"><b>Effective:</b> 30 August 2026 &middot; <b>Applies to:</b> the Flourish web app and the Flourish iOS app</p>
+<p class="meta"><b>Effective:</b> 4 November 2026 &middot; <b>Applies to:</b> the Flourish web app and the Flourish iOS app</p>
 <p>Flourish is a daily devotional and life-training app. This policy explains exactly what we hold, why, and how you get it back or get rid of it. It is written to be read, not to be survived.</p>
 
 <div class="box"><b>The short version.</b> Your reading progress lives on your device and only reaches us if you sign in. If you join a church inside Flourish, post a prayer request, RSVP to an event or message a pastor, that is held on our servers too — and some of it is deeply personal, so section 2 explains exactly how it is treated. Payment details never touch our servers. There are no advertising trackers, no data brokers, and nothing is sold — ever.</div>
@@ -72,6 +72,9 @@ by deleting the content or your account, and it is deleted for real: see section
 <h2>5. Payments</h2>
 <p>Card processing is performed by <b>Stripe</b> (PCI-DSS Level 1) on the web, and by <b>Apple</b> for purchases made inside the iOS app. Their handling of your payment data is governed by their own privacy policies. We receive only what we need to fulfil the order.</p>
 
+<h3>Ask Flourish (AI answers)</h3>
+<p>When you use <b>Ask</b>, your question, the earlier questions and answers in that same window, and the reference of the reading you were on are sent to <b>Anthropic</b>, the AI provider that writes the answer, along with the Bible verses we chose for it. Anthropic processes them to produce the answer under its commercial API terms. <b>We do not store your questions or the answers</b>: our server keeps only a count of how many questions were asked today, and its logs record the length of a question, never its words. Don't include anyone's private details in a question.</p>
+
 <h2>6. Your rights, and how to actually use them</h2>
 <p>Under the GDPR (EU/UK), the CCPA/CPRA (California) and similar laws elsewhere, you may access, correct, export, delete, or restrict our use of your data, and you will never be treated differently for asking.</p>
 <ul>
@@ -94,7 +97,7 @@ by deleting the content or your account, and it is deleted for real: see section
 <p>Everything travels over TLS. Sign-in uses one-time email links, so there is no password to be stolen or reused. Server credentials are held as environment variables and are never shipped to your browser or bundled into the app; a build check refuses to ship a bundle containing one. The crash reporter sends the error and the screen name only: it deliberately omits your account id, your email, and the part of the address after the <code>#</code>, because that is where church and prayer identifiers live. The server strips anything token-shaped again before storing it.</p>
 
 <h2>9. International transfers</h2>
-<p>We operate from the United States, and our processors (Supabase, Stripe, Railway, Apple) may process data in the US and EU under Standard Contractual Clauses.</p>
+<p>We operate from the United States, and our processors (Supabase, Stripe, Render, Apple and, for Ask, Anthropic) may process data in the US and EU under Standard Contractual Clauses.</p>
 
 <h2>10. Scripture</h2>
 <p>Scripture quotations are from the Berean Standard Bible (BSB), which has been dedicated to the public domain.</p>

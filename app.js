@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="12109a4c96";
+const APP_VERSION="5cd9d78774";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -850,6 +850,8 @@ function handle(act,id,el){
     case"listen-stop":listenStop();break;
     case"listen-rate":listenCycleRate();break;
     case"season-path":go("today");break;
+    case"ask-open":askSheet(id);break;
+    case"ask-send":askSend();break;
     default: {
       /* <season>-home, <season>-open, <season>-done for every season in SEASON_DEFS */
       const m = /^([a-z]+)-(home|open|done)$/.exec(String(act || ""));
@@ -915,6 +917,7 @@ function renderToday(){
 
     ${o.cc?`<div class="note">✝️ <div><b>Christ Connection.</b> ${esc(o.cc)}</div></div>`:""}
     ${o.cp?`<p class="muted" style="font-size:12.5px;margin-top:10px"><b>Cross-pillar:</b> ${esc(o.cp)}</p>`:""}
+    ${askEntry(o.r, "Ask a question about today's reading")}
 
     <div class="row" style="margin-top:14px">
       <button class="btn primary block" data-act="complete-lesson" data-id="day${d}">${doneToday?"✓ Completed — Amen":"Mark Day Complete (+20 XP)"}</button>
@@ -928,6 +931,7 @@ function renderToday(){
 
   <div class="shead"><h2 class="serif">Keep going</h2></div>
   <div class="scroll-x">
+    ${askAvailable() ? `<div class="card" style="width:200px" data-act="ask-open" data-id=""><div style="font-size:30px">💬</div><b>Ask the Bible</b><div class="faint" style="font-size:12px">Answers from Scripture</div></div>` : ""}
     ${reminderAvailable("daily") ? `<div class="card" style="width:200px" data-act="remind" data-id="daily"><div style="font-size:30px">⏰</div><b>Daily reminder</b><div class="faint" style="font-size:12px">Never miss a day</div></div>` : ""}
     ${seasonScrollerCard()}
     ${rbScrollerCard()}
@@ -1480,6 +1484,79 @@ document.addEventListener("change", ev => {
   if (box) box.innerHTML = reminderLinksHTML(el.dataset.kind, t);
 });
 
+/* ============ ASK FLOURISH (AI Bible chat) ============
+   A question about the Bible or about life, answered by a language model from
+   the Berean Standard Bible. The verses are chosen by the server (ask.py) and
+   come back with the answer, so every quotation can be checked against them
+   right under it. Shown only when the server says it is configured
+   (/api/public-config "ask"), so the app never offers what cannot answer.
+
+   Nothing is saved: the conversation lives in this sheet and is gone when it
+   closes. The server keeps no question text either (see main.py).         */
+let _ask = { history: [], busy: false, ref: "" };
+function askAvailable(){
+  let cfg = (typeof CFG !== "undefined" && CFG) || null;
+  if (!cfg) { try { cfg = JSON.parse(localStorage.getItem("flourish_cfg") || "null"); } catch (e) { cfg = null; } }
+  return !!(cfg && cfg.ask === true);
+}
+function askEntry(ref, label){
+  if (!askAvailable()) return "";
+  return `<button class="btn ghost block" style="margin-top:9px" data-act="ask-open" data-id="${esc(ref || "")}">💬 ${esc(label || "Ask a question about this reading")}</button>`;
+}
+function askSheet(ref){
+  _ask = { history: [], busy: false, ref: String(ref || "").slice(0, 60) };
+  sheet(`<div class="eyebrow">Ask Flourish</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 6px">💬 Ask the Bible</h3>
+    <p class="faint" style="font-size:12px;margin:0 0 10px;line-height:1.5">Answers are written by AI and quote the Berean Standard Bible. AI can be wrong: read the verses under each answer, and take big decisions to your pastor or a professional. Nothing you ask is saved.</p>
+    <div id="ask-log" aria-live="polite"></div>
+    <label for="ask-q" class="faint" style="font-size:12px">Your question${_ask.ref ? " about " + esc(_ask.ref) : ""}</label>
+    <textarea id="ask-q" rows="3" maxlength="500" style="width:100%;margin:6px 0 8px" placeholder="${_ask.ref ? "What does " + esc(_ask.ref) + " mean for my life?" : "How do I stop worrying about money?"}"></textarea>
+    <button class="btn gold block" id="ask-send" data-act="ask-send">Ask</button>
+    <p class="faint" id="ask-left" style="font-size:12px;text-align:center;margin:8px 0 0"></p>`);
+}
+function askAppend(kind, text, verses, crisis){
+  const log = document.getElementById("ask-log"); if (!log) return;
+  let html;
+  if (kind === "user") html = `<div class="ask-q" style="margin:10px 0 6px;text-align:right"><span class="pill" style="display:inline-block;white-space:normal;text-align:left;max-width:85%">${esc(text)}</span></div>`;
+  else if (kind === "error") html = `<div class="note ask-err" style="margin:8px 0">⚠ ${esc(text)}${/membership/i.test(text) ? ' <button class="btn sm gold" style="margin-left:6px" data-act="membership">See membership</button>' : ""}</div>`;
+  else html = `<div class="card ask-a" style="margin:6px 0 10px">
+      ${crisis ? `<div class="note" style="margin:0 0 10px">☎️ <div><b>If you're thinking about ending your life,</b> call or text 988 now (in the US), or your local emergency number. You are wanted here.</div></div>` : ""}
+      ${String(text || "").split(/\n{2,}/).map(p => `<p style="margin:0 0 9px;line-height:1.65">${esc(p).replace(/\n/g, "<br>")}</p>`).join("")}
+      ${verses && verses.length ? `<details class="ask-verses" style="margin-top:6px"><summary class="faint" style="font-size:12px;cursor:pointer">📖 The verses, Berean Standard Bible (${verses.length})</summary>
+        ${verses.map(v => `<p style="margin:8px 0 0;font-size:13px;line-height:1.55"><b>${esc(v.ref)}</b> ${esc(v.text)}</p>`).join("")}</details>` : ""}
+    </div>`;
+  log.insertAdjacentHTML("beforeend", html);
+  const last = log.lastElementChild;
+  if (last && last.scrollIntoView) last.scrollIntoView({ block: "nearest" });
+}
+async function askSend(){
+  if (_ask.busy) return;
+  const box = document.getElementById("ask-q"), q = String((box && box.value) || "").trim();
+  if (q.length < 2) { toast("Type a question first"); return; }
+  _ask.busy = true;
+  const btn = document.getElementById("ask-send");
+  if (btn) { btn.disabled = true; btn.textContent = "Reading the Scriptures…"; }
+  askAppend("user", q);
+  try {
+    const t = typeof authToken === "function" ? await authToken() : "";
+    const j = await flourishFetch("/api/ask", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, t ? { Authorization: "Bearer " + t } : {}),
+      body: JSON.stringify({ question: q, history: _ask.history.slice(-6), context_ref: _ask.ref || undefined })
+    });
+    _ask.history.push({ role: "user", content: q }, { role: "assistant", content: String(j.answer || "").slice(0, 1500) });
+    askAppend("assistant", j.answer, j.verses, j.crisis);
+    const left = document.getElementById("ask-left");
+    if (left && typeof j.remaining === "number") left.textContent = j.remaining + " question" + (j.remaining === 1 ? "" : "s") + " left today";
+    if (box) box.value = "";
+  } catch (e) {
+    askAppend("error", (e && e.message) || "Ask isn't available right now.");
+  } finally {
+    _ask.busy = false;
+    if (btn) { btn.disabled = false; btn.textContent = "Ask"; }
+  }
+}
+
 /* ============ SEASONS (Advent, Lent: free, one reading per date) ============
    Free seasonal plans. Each day: one passage (Berean Standard Bible, public
    domain), a short teaching, a prayer and one thing to do.
@@ -1659,6 +1736,7 @@ function seasonDayView(id, n){
     <div class="block" style="border-color:var(--accent)"><div class="bh">🙏 Pray</div>
       <p style="font-style:italic;color:var(--text-dim);margin:0">${esc(o.pray)}</p></div>
     <div class="block app"><div class="bh">✅ Today</div><p style="margin:0">${esc(o.do)}</p></div>
+    ${askEntry(o.r)}
     <button class="btn primary block" style="margin-top:6px" data-act="${id}-done" data-id="${n}">${done ? "✓ Day " + n + " complete" : "Mark Day " + n + " complete (+15 XP)"}</button>
     ${n < open && n < N ? `<button class="btn ghost block" style="margin-top:9px" data-act="${id}-open" data-id="${n + 1}">Day ${n + 1}: ${esc(seasonDay(id, n + 1).t)} <span class="arr">→</span></button>` : ""}
   </div>
@@ -2183,6 +2261,7 @@ function renderRealLesson(g){
     ${o.rq&&o.rq.length?`<div class="block refl"><div class="bh">🪞 Reflect</div>${o.rq.map(r=>`<p style="margin:5px 0">• ${esc(r)}</p>`).join("")}</div>`:""}
     ${te.prayer?`<div class="block" style="border-color:var(--accent)"><div class="bh">🙏 Prayer</div><p style="font-style:italic;color:var(--text-dim)">${esc(te.prayer)}</p></div>`:""}
     ${o.cc?`<div class="note">✝️ <div><b>Christ Connection.</b> ${esc(o.cc)}</div></div>`:""}
+    ${askEntry(o.r)}
     <button class="btn ${passed?"":"primary"} block" data-act="open-quiz" data-id="${g}" style="margin-top:12px">🧠 ${passed?"Quiz passed — retake":"Take the check (+15 XP)"}</button>
     <button class="btn ${done?"":"gold"} block" style="margin-top:9px" data-act="finish-lesson" data-id="${g}">${done?"✓ Lesson complete":"Mark lesson complete (+25 XP)"}</button>
   </div>
