@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="5cd9d78774";
+const APP_VERSION="6be04fb313";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -703,7 +703,7 @@ function render(){
     case"today":html=renderToday();break;
     case"academy":html=renderAcademy();break;
     case"play":html=renderPlay();break;
-    case"church":html=renderChurch();break;
+    case"church":html=(typeof discovery==="function")?renderChurch():laterModuleView();break;
     case"me":html=renderMe();break;
     default:html=renderToday();
   }
@@ -714,6 +714,18 @@ function render(){
   m.classList.remove("scene");void m.offsetWidth;m.classList.add("scene");
   if (typeof listenAfterRender === "function") listenAfterRender();
   bindActions();
+}
+
+/* church.js runs after this file, and boot() renders as soon as this file has
+   run. A cold start straight onto the Church tab -- the QR invite link
+   #/join/<id>, a shared #/church -- used to throw "discovery is not defined"
+   and leave the page blank. Show a loading card instead; boot() renders again
+   once every deferred script has run (4 Nov 2026, found by the CH checks). */
+let _laterModulesPending = false;
+function laterModuleView(){
+  _laterModulesPending = true;
+  return `<div class="card" id="module-wait" role="status" aria-live="polite" style="margin-top:8px;text-align:center">
+    <div style="font-size:30px" aria-hidden="true">⛪</div><p class="muted" style="margin:6px 0 0">Opening…</p></div>`;
 }
 
 /* ============ ACTION DELEGATION ============
@@ -851,6 +863,8 @@ function handle(act,id,el){
     case"listen-rate":listenCycleRate();break;
     case"season-path":go("today");break;
     case"ask-open":askSheet(id);break;
+    case"church-enquiry":churchEnquirySheet();break;
+    case"church-enquiry-send":churchEnquirySend();break;
     case"ask-send":askSend();break;
     default: {
       /* <season>-home, <season>-open, <season>-done for every season in SEASON_DEFS */
@@ -1484,6 +1498,68 @@ document.addEventListener("change", ev => {
   if (box) box.innerHTML = reminderLinksHTML(el.dataset.kind, t);
 });
 
+/* ============ FOR CHURCHES (licence enquiry) ============
+   Hallow's parish and school licences are a business in themselves. Flourish
+   already gives a church its page, events, a moderated prayer wall, groups,
+   pastoral messages, giving and invite QR codes for free; what a church buys is
+   membership for its people. There is no price to show yet, so this asks rather
+   than pretends: the details go to support@flourishapp.online by email (the
+   address the Terms and Privacy Policy already publish), and the email is also
+   added to the leads list as source "church-licence" so it is not lost if the
+   mail never gets sent.                                                   */
+const SUPPORT_EMAIL = "support@flourishapp.online";
+const CHURCH_SIZES = [["under-100", "Under 100"], ["100-300", "100–300"], ["300-1000", "300–1,000"], ["1000-plus", "1,000+"]];
+function churchLicenceCard(){
+  return `<div class="card" id="church-licence" style="margin-top:14px">
+    <div class="eyebrow">For churches</div>
+    <h3 class="serif" style="font-size:19px;margin:6px 0 6px">Flourish for your whole congregation</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 10px;line-height:1.6">Your church page, events, prayer wall, groups, pastoral messages, giving and invite QR codes are free. Ask about group membership so every member gets the full three-year path.</p>
+    <button class="btn block" style="border-left-width:1px" data-act="church-enquiry">Ask about a church licence</button>
+  </div>`;
+}
+function churchEnquirySheet(){
+  const email = typeof authEmail === "function" ? authEmail() : "";
+  sheet(`<div class="eyebrow">For churches</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 6px">Ask about a church licence</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 12px;line-height:1.6">Tell us about your church and we'll reply with group pricing by email.</p>
+    <label class="faint" for="ce-name" style="font-size:12px">Your name</label>
+    <input id="ce-name" maxlength="80" autocomplete="name" style="width:100%;margin:4px 0 10px">
+    <label class="faint" for="ce-email" style="font-size:12px">Email</label>
+    <input id="ce-email" type="email" maxlength="254" autocomplete="email" value="${esc(email)}" style="width:100%;margin:4px 0 10px">
+    <label class="faint" for="ce-church" style="font-size:12px">Church</label>
+    <input id="ce-church" maxlength="120" style="width:100%;margin:4px 0 10px">
+    <label class="faint" for="ce-role" style="font-size:12px">Your role</label>
+    <select id="ce-role" style="width:100%;margin:4px 0 10px">${["Pastor", "Church staff", "Volunteer leader", "Member"].map(r => `<option>${r}</option>`).join("")}</select>
+    <label class="faint" for="ce-size" style="font-size:12px">Weekly attendance</label>
+    <select id="ce-size" style="width:100%;margin:4px 0 10px">${CHURCH_SIZES.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
+    <label class="faint" for="ce-msg" style="font-size:12px">Anything else (optional)</label>
+    <textarea id="ce-msg" rows="3" maxlength="1000" style="width:100%;margin:4px 0 12px"></textarea>
+    <button class="btn gold block" id="ce-send" data-act="church-enquiry-send">Send</button>
+    <div id="ce-done"></div>`);
+}
+function churchEnquiryMailto(f){
+  const size = (CHURCH_SIZES.find(([v]) => v === f.size) || [0, f.size])[1];
+  const body = ["Name: " + f.name, "Email: " + f.email, "Church: " + f.church, "Role: " + f.role,
+                "Weekly attendance: " + size, "", f.msg || ""].join("\n");
+  return "mailto:" + SUPPORT_EMAIL + "?subject=" + encodeURIComponent("Church licence: " + f.church)
+       + "&body=" + encodeURIComponent(body);
+}
+async function churchEnquirySend(){
+  const v = id => String((document.getElementById(id) || {}).value || "").trim();
+  const f = { name: v("ce-name"), email: v("ce-email").toLowerCase(), church: v("ce-church"), role: v("ce-role"), size: v("ce-size"), msg: v("ce-msg") };
+  if (!f.name || !f.church) { toast("Add your name and your church"); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) { toast("Enter a valid email address"); return; }
+  /* Best effort: the email reaches the leads list even if the mail is never sent. */
+  try {
+    await fetch(FLOURISH_API + "/api/subscribe", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: f.email, source: "church-licence" }) });
+  } catch (e) { /* offline: the email below still carries everything */ }
+  const href = churchEnquiryMailto(f);
+  const done = document.getElementById("ce-done");
+  if (done) done.innerHTML = `<div class="note" style="margin-top:12px">✉️ <div>Your email app should open with everything filled in: send it and we'll reply. If it didn't open, <a id="ce-mail" href="${esc(href)}">open it here</a> or write to <b>${SUPPORT_EMAIL}</b>.</div></div>`;
+  try { location.href = href; } catch (e) { /* the link above is the fallback */ }
+}
+
 /* ============ ASK FLOURISH (AI Bible chat) ============
    A question about the Bible or about life, answered by a language model from
    the Berean Standard Bible. The verses are chosen by the server (ask.py) and
@@ -1895,8 +1971,7 @@ function accountCard(){
     <button class="btn sm block" data-act="unblock-all">Unblock everyone I've blocked</button>
     <p class="muted" style="font-size:12.5px;margin-top:10px;line-height:1.6">
       Something urgent, or a report that isn't being handled?<br>
-      Email <a href="mailto:safety@flourish.app"><b>safety@flourish.app</b></a> — a person reads it.<br>
-      General support: <a href="mailto:support@flourish.app">support@flourish.app</a></p>
+      Email <a href="mailto:support@flourishapp.online"><b>support@flourishapp.online</b></a> — a person reads it.</p>
   </div>
 
   <p class="faint center" style="font-size:11px;margin-top:14px;line-height:1.7">
@@ -2658,7 +2733,7 @@ function openQR(id){const c=churchById(id||(typeof myChurchId==="function"?myChu
   // "flourish.app/join/<id>", which routed nowhere — the app advertised a
   // feature it had no way to honour.
   const base = (location.protocol === "file:" || !location.origin || location.origin === "null")
-             ? "https://flourish.app/" : (location.origin + location.pathname);
+             ? "https://fitfriendchris.github.io/flourish/" : (location.origin + location.pathname);
   const url = base + "#/join/" + encodeURIComponent(c.id);
   sheet(`<div class="center"><div class="eyebrow">Invite QR</div><h3 class="serif" style="font-size:19px;margin:6px 0 12px">${esc(c.name)}</h3>
   ${qrMarkup(url)}<p class="muted" style="margin-top:12px;font-size:13px">${esc(url)}</p>
@@ -2944,5 +3019,11 @@ function boot(){
      renders when it recognises the hash, so only fall through to a plain
      render when it does not. */
   if (!applyHash()) { render(); syncHash(true); }
+  if (_laterModulesPending) {
+    let done = false;
+    const again = () => { if (done) return; done = true; _laterModulesPending = false; render(); };
+    document.addEventListener("DOMContentLoaded", again, { once: true });
+    window.addEventListener("load", again, { once: true });
+  }
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();

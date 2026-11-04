@@ -241,7 +241,8 @@ function discovery(){
   setTimeout(() => fillView("church-list", discoveryBody), 0);
   return `<div class="page-title serif">Churches</div>
     <p class="page-sub">Find your congregation, or browse what other churches nearby are doing.</p>
-    <div id="church-list">${viewLoading("churches")}</div>`;
+    <div id="church-list">${viewLoading("churches")}</div>
+    ${typeof churchLicenceCard === "function" ? churchLicenceCard() : ""}`;
 }
 async function discoveryBody(){
   try {
@@ -582,7 +583,7 @@ function reportPrayerSheet(prayerId){
     <p class="muted" style="font-size:12.5px;margin-top:8px">Blocking hides everything they post,
       including anonymous requests. They are not told. You can undo this in Settings.</p>
     <p class="muted" style="font-size:12.5px;margin-top:10px">Urgent concern?
-      Email <b>safety@flourish.app</b> and a person will answer.</p>`);
+      Email <b>support@flourishapp.online</b> and a person will answer.</p>`);
 }
 async function doReportPrayer(prayerId, reason){
   try {
