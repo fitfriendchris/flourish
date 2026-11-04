@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="c2a23575d0";
+const APP_VERSION="3ec5b9c195";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -849,7 +849,7 @@ function renderToday(){
   ${gardenHero()}
 
   <div class="hero">
-    <div class="ref">${esc(o.r)} · ${esc(o.v||"ESV")}</div>
+    <div class="ref">${esc(o.r)} · ${esc(o.v||"BSB")}</div>
     <div class="v">“${esc(o.x)}”</div>
   </div>
 
@@ -1658,7 +1658,7 @@ function renderRealLesson(g){
   return `
   <div class="subhead"><button class="nb" data-act="open-sub" data-id="${esc(o.p)}|${esc(o.s)}">‹</button>
     <div class="st"><b>${esc(o.t||"Lesson")}</b><small>${esc(o.p)} · ${esc(subLabel(o.s))} · Day ${g}</small></div></div>
-  <div class="hero"><div class="ref">${esc(o.r)} · ${esc(o.v||"ESV")}</div><div class="v">“${esc(o.x)}”</div></div>
+  <div class="hero"><div class="ref">${esc(o.r)} · ${esc(o.v||"BSB")}</div><div class="v">“${esc(o.x)}”</div></div>
   <div class="card glow" style="margin-top:14px">
     <div class="row between"><span class="pill ${pillarCls(o.p)}">${pillarEmoji(o.p)} ${esc(o.p)} · ${esc(subLabel(o.s))}</span>${done?'<span class="tag">✓ done</span>':""}</div>
     <h2 class="serif" style="font-size:22px;margin:11px 0 8px">${esc(o.t||o.wt||"Lesson")}</h2>
