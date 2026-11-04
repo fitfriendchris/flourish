@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="6be04fb313";
+const APP_VERSION="4cc67864f3";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -859,6 +859,8 @@ function handle(act,id,el){
     case"rebuild-church":go("church");break;
     case"listen":listenToggle(id);break;
     case"remind":reminderSheet(id);break;
+    case"remind-on":nativeRemindSet(true);break;
+    case"remind-off":nativeRemindSet(false);break;
     case"listen-stop":listenStop();break;
     case"listen-rate":listenCycleRate();break;
     case"season-path":go("today");break;
@@ -1428,8 +1430,19 @@ document.addEventListener("visibilitychange", () => {
    static .ics that build.py writes for every half hour (www/reminders/), plus a
    Google Calendar link built here. Nothing is sent to a server.
 
-   Not offered inside the native shell: a WKWebView does not hand an .ics to
-   Calendar, and the iOS app will schedule a local notification instead.       */
+   Inside the iOS app a WKWebView will not hand an .ics to Calendar, so there
+   the reminder is a local notification instead: the phone schedules it
+   (@capacitor/local-notifications, reached through the native bridge like
+   Haptics), it repeats every day at the chosen time with the app closed, and
+   nothing is sent to a server. One notification covers every plan: tapping it
+   opens Advent's or Lent's day while a season is on, otherwise Today.          */
+const NATIVE_REMIND_ID = 7001;
+function nativeNotes(){
+  try {
+    return (typeof IS_NATIVE !== "undefined" && IS_NATIVE && window.Capacitor && window.Capacitor.Plugins
+            && window.Capacitor.Plugins.LocalNotifications) || null;
+  } catch (e) { return null; }
+}
 function reminderTimes(){
   const out = [];
   for (let h = 5; h <= 22; h++) for (const m of [0, 30]) out.push(String(h).padStart(2, "0") + String(m).padStart(2, "0"));
@@ -1441,13 +1454,17 @@ function reminderLabel(t){
 }
 function reminderTime(){ const t = String(S.remindAt || ""); return reminderTimes().includes(t) ? t : "0700"; }
 function reminderAvailable(kind){
-  if (typeof IS_NATIVE !== "undefined" && IS_NATIVE) return false;
+  if (typeof IS_NATIVE !== "undefined" && IS_NATIVE) return !!nativeNotes();   // one daily notification, also offered on season pages
   if (location.protocol === "file:") return false;   // the single-file build has no reminders/ beside it
   if (isSeason(kind)) { const a = seasonPlan(kind); return !!a && dayDiff(dayKey(), seasonDateKey(kind, a.days.length)) >= 0; }
   return true;
 }
 function reminderButton(kind){
   if (!reminderAvailable(kind)) return "";
+  if (nativeNotes()) {
+    const label = S.remindOn ? "Daily reminder on · " + reminderLabel(reminderTime()) : "Remind me every day";
+    return `<button class="btn block" id="remind-open" style="margin-top:9px;border-left-width:1px" data-act="remind" data-id="daily">⏰ ${esc(label)}</button>`;
+  }
   return `<button class="btn block" style="margin-top:9px;border-left-width:1px" data-act="remind" data-id="${esc(kind)}">⏰ ${isSeason(kind) ? "Remind me every day of " + esc(SEASON_DEFS[kind].name) : "Remind me every day"}</button>`;
 }
 /* Google Calendar wants the first occurrence: today at that time if it is still
@@ -1475,18 +1492,94 @@ function reminderLinksHTML(kind, t){
   return `<a class="btn gold block" id="remind-ics" style="text-decoration:none" href="reminders/${isSeason(kind) ? kind : "daily"}-${esc(t)}.ics">📅 Add to iPhone, Mac or Outlook calendar</a>
     <a class="btn block" id="remind-google" style="margin-top:9px;text-decoration:none;border-left-width:1px" href="${esc(reminderGoogleUrl(kind, t))}" target="_blank" rel="noopener">Add to Google Calendar</a>`;
 }
+function reminderTimeSelect(kind, t){
+  return `<label for="remind-time" class="faint" style="font-size:12px">What time?</label>
+    <select id="remind-time" data-kind="${esc(kind)}" style="width:100%;margin:6px 0 14px">
+      ${reminderTimes().map(x => `<option value="${x}"${x === t ? " selected" : ""}>${esc(reminderLabel(x))}</option>`).join("")}
+    </select>`;
+}
+function nativeRemindControls(msg){
+  const note = msg ? `<p class="muted" id="remind-msg" role="status" style="margin:0 0 12px;line-height:1.55">${esc(msg)}</p>` : "";
+  return note + (S.remindOn
+    ? `<p id="remind-status" style="margin:0 0 10px;line-height:1.5">✓ On: every day at ${esc(reminderLabel(reminderTime()))}</p>
+       <button class="btn block" id="remind-off" data-act="remind-off" style="border-left-width:1px">Turn off</button>`
+    : `<button class="btn gold block" id="remind-on" data-act="remind-on">Turn on the daily reminder</button>`);
+}
+function nativeReminderSheet(){
+  sheet(`<div class="eyebrow">Daily reading</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 8px">⏰ A reminder every day</h3>
+    <p class="muted" style="margin:0 0 12px;line-height:1.6">Your phone sends it at the time you choose, even when Flourish is closed. Tap it and today's reading opens (during Advent and Lent, that day's reading).</p>
+    ${reminderTimeSelect("daily", reminderTime())}
+    <div id="remind-native">${nativeRemindControls()}</div>`);
+}
+async function nativeRemindSchedule(t){
+  const LN = nativeNotes();
+  if (!LN) throw new Error("unavailable");
+  let perm = await LN.checkPermissions();
+  if (!perm || perm.display !== "granted") perm = await LN.requestPermissions();
+  if (!perm || perm.display !== "granted") { const e = new Error("denied"); e.denied = true; throw e; }
+  try { await LN.cancel({ notifications: [{ id: NATIVE_REMIND_ID }] }); } catch (e) { /* nothing scheduled yet */ }
+  await LN.schedule({ notifications: [{
+    id: NATIVE_REMIND_ID,
+    title: "Flourish",
+    body: "Today's reading is ready. A few quiet minutes with God.",
+    schedule: { on: { hour: +t.slice(0, 2), minute: +t.slice(2) }, repeats: true, allowWhileIdle: true },
+    extra: { flourish: "daily" }
+  }] });
+}
+async function nativeRemindSet(on){
+  const LN = nativeNotes();
+  if (!LN) return;
+  const box = () => document.getElementById("remind-native");
+  const busy = document.querySelector("#remind-on, #remind-off");
+  if (busy) busy.disabled = true;
+  try {
+    if (on) await nativeRemindSchedule(reminderTime());
+    else await LN.cancel({ notifications: [{ id: NATIVE_REMIND_ID }] });
+    S.remindOn = !!on; save();
+    if (box()) box().innerHTML = nativeRemindControls(on ? "" : "The daily reminder is off.");
+    if (on) { toast("Daily reminder set for " + reminderLabel(reminderTime())); if (window.flourishHaptic) window.flourishHaptic("success"); }
+  } catch (e) {
+    const msg = e && e.denied
+      ? "Notifications are turned off for Flourish. Turn them on in Settings → Notifications → Flourish, then try again."
+      : "That didn't work. Please try again.";
+    if (box()) box().innerHTML = nativeRemindControls(msg);
+  }
+}
+/* On launch: route a tapped reminder, and put the reminder back if the phone
+   lost it (a restore from backup drops pending notifications). Never asks for
+   permission here; if notifications were turned off in Settings, that stands. */
+async function nativeRemindBoot(){
+  const LN = nativeNotes();
+  if (!LN) return;
+  try {
+    if (typeof LN.addListener === "function") LN.addListener("localNotificationActionPerformed", a => {
+      const n = a && a.notification;
+      if (!n || String(n.id) !== String(NATIVE_REMIND_ID)) return;
+      const id = activeSeason(), ph = id ? seasonPhase(id) : null;
+      if (ph === "on" || ph === "last") { S.page = "today"; save(); route(id, String(seasonCalendarDay(id))); }
+      else go("today");
+    });
+  } catch (e) {}
+  if (!S.remindOn) return;
+  try {
+    const perm = await LN.checkPermissions();
+    if (!perm || perm.display !== "granted") return;
+    const pend = await LN.getPending();
+    const have = ((pend && pend.notifications) || []).some(n => String(n.id) === String(NATIVE_REMIND_ID));
+    if (!have) await nativeRemindSchedule(reminderTime());
+  } catch (e) { /* tried; the sheet still shows the switch */ }
+}
 function reminderSheet(kind){
   if (!reminderAvailable(kind)) return;
+  if (nativeNotes()) return nativeReminderSheet();
   kind = isSeason(kind) ? kind : "daily";
   const t = reminderTime();
   const sname = isSeason(kind) ? SEASON_DEFS[kind].name : "";
   sheet(`<div class="eyebrow">${sname ? esc(sname) : "Daily reading"}</div>
     <h3 class="serif" style="font-size:20px;margin:6px 0 8px">⏰ ${sname ? "A reminder for each day of " + esc(sname) : "A reminder every day"}</h3>
     <p class="muted" style="margin:0 0 12px;line-height:1.6">Your calendar sends it, so it arrives even when Flourish is closed. You can move or delete it in your calendar any time.</p>
-    <label for="remind-time" class="faint" style="font-size:12px">What time?</label>
-    <select id="remind-time" data-kind="${kind}" style="width:100%;margin:6px 0 14px">
-      ${reminderTimes().map(x => `<option value="${x}"${x === t ? " selected" : ""}>${esc(reminderLabel(x))}</option>`).join("")}
-    </select>
+    ${reminderTimeSelect(kind, t)}
     <div id="remind-links">${reminderLinksHTML(kind, t)}</div>`);
 }
 document.addEventListener("change", ev => {
@@ -1494,6 +1587,16 @@ document.addEventListener("change", ev => {
   if (!el || el.id !== "remind-time") return;
   const t = reminderTimes().includes(el.value) ? el.value : "0700";
   S.remindAt = t; save();
+  if (nativeNotes()) {
+    const nb = document.getElementById("remind-native");
+    if (!S.remindOn) { if (nb) nb.innerHTML = nativeRemindControls(); return; }
+    nativeRemindSchedule(t)
+      .then(() => { if (nb) nb.innerHTML = nativeRemindControls(); })
+      .catch(err => { if (nb) nb.innerHTML = nativeRemindControls(err && err.denied
+        ? "Notifications are turned off for Flourish. Turn them on in Settings → Notifications → Flourish, then try again."
+        : "That didn't work. Please try again."); });
+    return;
+  }
   const box = document.getElementById("remind-links");
   if (box) box.innerHTML = reminderLinksHTML(el.dataset.kind, t);
 });
@@ -1932,7 +2035,7 @@ function accountCard(){
   return `
   ${reminderAvailable("daily") ? `<div class="card" style="margin-top:14px" id="me-remind">
     <div class="card-hd"><h3 class="serif">Daily reminder</h3></div>
-    <p class="muted" style="font-size:13px;margin:6px 0 10px">Get a nudge at the same time every day, from your own calendar.</p>
+    <p class="muted" style="font-size:13px;margin:6px 0 10px">${nativeNotes() ? (S.remindOn ? "On: a notification every day at " + esc(reminderLabel(reminderTime())) + "." : "Get a notification at the same time every day.") : "Get a nudge at the same time every day, from your own calendar."}</p>
     <button class="btn sm block" data-act="remind" data-id="daily">⏰ Set a reminder</button>
   </div>` : ""}
   <div class="card" style="margin-top:14px">
@@ -3025,5 +3128,6 @@ function boot(){
     document.addEventListener("DOMContentLoaded", again, { once: true });
     window.addEventListener("load", again, { once: true });
   }
+  if (nativeNotes()) nativeRemindBoot();   // iOS app only: the daily reminder's tap and self-repair
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
