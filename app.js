@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="47d6bf624f";
+const APP_VERSION="ed46558d5a";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -687,6 +687,12 @@ function applyHash(){
     _applyingHash = true; save(); render(); _applyingHash = false;
     return true;
   }
+  if (String(parts[0] || "").split("?")[0].toLowerCase() === "give") {
+    S.page = "me"; S.route = {};
+    _applyingHash = true; save(); render(); _applyingHash = false;
+    openGive();
+    return true;
+  }
   if (!PAGES.includes(parts[0])) return false;
 
   S.page = parts[0];
@@ -830,7 +836,8 @@ function handle(act,id,el){
     case"place-order":if(typeof placeOrder==="function")placeOrder(Number(el.dataset.n));break;
     case"pay-cart":if(typeof payCart==="function")payCart();break;
     case"pay-gift":if(typeof payGift==="function")payGift();break;
-    case"record-gift":if(typeof recordGift==="function")recordGift();break;
+    case"give-church":openExternal(el.dataset.url);break;
+    case"give-flourish-web":openExternal(PUBLIC_SITE+"#/give");break;
     case"open-orders":if(typeof openOrders==="function")openOrders();break;
     case"submit-email":if(typeof submitEmailCapture==="function")submitEmailCapture();break;
     case"dismiss-email":if(typeof dismissEmailCapture==="function")dismissEmailCapture();break;
@@ -986,7 +993,7 @@ function renderToday(){
     ${rbScrollerCard()}
     <div class="card" style="width:200px" data-act="play-game" data-id="trivia"><div style="font-size:30px">🎮</div><b>Bible Trivia Duel</b><div class="faint" style="font-size:12px">Challenge a friend</div></div>
     <div class="card" style="width:200px" data-act="go-academy"><div style="font-size:30px">🎓</div><b>Academy</b><div class="faint" style="font-size:12px">${N.toLocaleString()} lessons</div></div>
-    <div class="card" style="width:200px" data-act="give" data-id=""><div style="font-size:30px">💝</div><b>Give / Tithe</b><div class="faint" style="font-size:12px">Bless your church</div></div>
+    <div class="card" style="width:200px" data-act="give" data-id=""><div style="font-size:30px">💝</div><b>Give</b><div class="faint" style="font-size:12px">Your church · Flourish</div></div>
   </div>`;
 }
 
@@ -2776,58 +2783,79 @@ function prayFor(id){if(!S.prayed[id]){S.prayed[id]=true;addXP(5,"Interceded");c
    The code is in church.js. */
 function openPastoral(){ if (typeof openPastoralThread === "function") openPastoralThread(); }
 
-/* ---- GIVING (payments LAST) ---- */
+/* ---- GIVING ----
+   Two different gifts, never mixed (4 Nov 2026).
+
+   1. To your church. The button opens the church's OWN giving page
+      (churches.giving_url), so the church receives the money directly and
+      Flourish never holds it. This sheet used to say "Give / Tithe · <church>"
+      and "Bless your church" while /api/create-giving-session charged
+      Flourish's Stripe account (church_id null, no Connect): a member tithing
+      "to their church" was paying Flourish.
+   2. To Flourish. A separate, labelled gift to the ministry that builds the
+      app: Stripe on the web. Inside the iOS app it opens the website instead:
+      App Review 3.2.1(vi) and 3.2.2(iv) let only Apple-approved nonprofits take
+      gifts in an app (with Apple Pay); everyone else collects them in Safari.
+
+   Tax wording comes from FLOURISH_CONFIG.nonprofit and stays "not
+   tax-deductible" until Chris sets taxDeductible with a valid EIN, which he
+   does only after the IRS determination letter (docs/NONPROFIT.md). */
+const PUBLIC_SITE = "https://fitfriendchris.github.io/flourish/";
+function nonprofitCfg(){
+  const n = (window.FLOURISH_CONFIG && window.FLOURISH_CONFIG.nonprofit) || {};
+  const ein = String(n.ein || "");
+  return { legalName: String(n.legalName || "Flourish"), ein, taxDeductible: n.taxDeductible === true && /^\d{2}-\d{7}$/.test(ein) };
+}
+function giftTaxLine(){
+  const n = nonprofitCfg();
+  return n.taxDeductible
+    ? `${esc(n.legalName)} is a 501(c)(3) nonprofit, EIN ${esc(n.ein)}. Gifts to Flourish are tax-deductible to the extent the law allows; your receipt comes by email.`
+    : "Flourish is not a registered charity yet, so gifts to Flourish are not tax-deductible.";
+}
+function openExternal(url){
+  if (!/^https:\/\//i.test(String(url || ""))) return;
+  try { const w = window.open(url, "_blank", "noopener"); if (!w) location.href = url; } catch (e) { location.href = url; }
+}
 function openGive(){
   newAttempt("gift");   // a fresh attempt: a second gift must not dedupe into the first
-  const c=churchById(typeof myChurchId==="function"?myChurchId():null)||{name:"your church"};
-  sheet(`<div class="eyebrow">Give / Tithe · ${esc(c.name)}</div>
-  <h3 class="serif" style="font-size:21px;margin:6px 0 4px">Bless your church 💝</h3>
+  const cid = typeof myChurchId === "function" ? myChurchId() : null;
+  const amounts = [10, 25, 50, 100];
+  sheet(`<div class="eyebrow">Give</div>
+  <h3 class="serif" style="font-size:21px;margin:6px 0 4px">Generosity 💝</h3>
   <p class="faint" style="font-size:12px;margin-bottom:12px">"Each one as he has decided in his heart" — 2 Cor 9:7</p>
-  <div class="row wrap" style="gap:8px" id="amts">${[25,50,100,250].map(a=>`<button class="btn" style="flex:1" data-act="pick-amt" data-n="${a}">$${a}</button>`).join("")}</div>
-  <label class="fl">Custom amount</label><input id="giveamt" type="number" placeholder="$ other amount">
-  <label class="fl">Designation</label>
-  <select id="givecamp">${GIVING_DESIGNATIONS.map(d=>`<option>${esc(d)}</option>`).join("")}</select>
-  <label class="row" style="margin-top:12px;gap:8px"><input type="checkbox" style="width:18px" id="giverec"> <span>Make this a recurring monthly gift</span></label>
-  <div class="note" style="margin-top:12px">🔒 Secure card/ACH via Stripe. Gifts support the Flourish mission — receipts emailed by Stripe. and your giving statement.</div>
-  <button class="btn gold block lg" style="margin-top:12px" id="givepay" data-act="pay-gift">Give now — secure Stripe checkout</button>
-  <button class="btn sm block" style="margin-top:8px" data-act="record-gift">Pledge only (pay later)</button>
-  ${S.gifts.length?`<div class="divider"></div><b style="font-size:13px">Your giving (${S.gifts.length})</b>${S.gifts.slice(-3).reverse().map(g=>`<div class="row between" style="font-size:13px;margin-top:6px"><span class="muted">${g.camp}${g.rec?" · monthly":""}</span><b>$${g.amt}</b></div>`).join("")}`:""}`);
-  fillGivingCampaigns();   // appends the church's real campaigns, if it has any
+  <div class="card" id="give-church">${cid ? `<p class="muted" style="margin:0">Finding your church's giving page…</p>`
+    : `<b>Give to your church</b><p class="muted" style="font-size:13px;margin:6px 0 0">Join your church in the Church tab and its giving page appears here. Your gift goes straight to the church.</p>`}</div>
+  <div class="card" id="give-flourish" style="margin-top:10px">
+    <b>Support Flourish</b>
+    <p class="muted" style="font-size:13px;margin:6px 0 10px">A gift to the ministry that builds this app. It does not go to your church.</p>
+    ${IS_NATIVE
+      ? `<button class="btn gold block" id="give-flourish-web" data-act="give-flourish-web">Give on the Flourish website ↗</button>`
+      : `<div class="row wrap" style="gap:8px" id="amts">${amounts.map(a=>`<button class="btn" style="flex:1" data-act="pick-amt" data-n="${a}">$${a}</button>`).join("")}</div>
+    <label class="fl">Custom amount</label><input id="giveamt" type="number" min="1" placeholder="$ other amount">
+    <label class="row" style="margin-top:12px;gap:8px"><input type="checkbox" style="width:18px" id="giverec"> <span>Make this a monthly gift</span></label>
+    <button class="btn gold block lg" style="margin-top:12px" id="givepay" data-act="pay-gift">Give to Flourish — secure Stripe checkout</button>`}
+    <p class="faint" id="give-tax" style="font-size:12px;margin:10px 0 0">${giftTaxLine()}</p>
+  </div>
+  ${S.gifts.length?`<div class="divider"></div><b style="font-size:13px">Your gifts to Flourish (${S.gifts.length})</b>${S.gifts.slice(-3).reverse().map(g=>`<div class="row between" style="font-size:13px;margin-top:6px"><span class="muted">$${esc(String(g.amt))}${g.rec?" monthly":""}</span><span class="faint">${esc(new Date(g.when).toLocaleDateString())}</span></div>`).join("")}`:""}`);
+  if (cid) fillChurchGiving(cid);
 }
-/* Giving designations.
-
-   This select used to be filled from three campaigns baked into the app --
-   a building fund six figures toward its goal -- for every church, whether
-   or not that church had ever run such a campaign. A member picked one and paid
-   Stripe for real, against a fundraiser that did not exist.
-
-   So the default list is designations, not campaigns: a tithe is a tithe
-   wherever you give it, and naming one claims nothing about money anyone else
-   has given. Real campaigns are then loaded from giving_campaigns and appended
-   if the church actually has any. If that request fails, the honest default
-   stands rather than an invented fundraiser. */
-const GIVING_DESIGNATIONS = ["Tithe", "General offering", "Missions", "Benevolence / Deacon fund"];
-
-async function fillGivingCampaigns(){
-  const sel = document.getElementById("givecamp");
-  if (!sel || typeof loadCampaigns !== "function") return;
+async function fillChurchGiving(cid){
+  let row = null;
   try {
-    const id = typeof myChurchId === "function" ? myChurchId() : null;
-    const rows = await loadCampaigns(id);
-    if (!rows || !rows.length) return;
-    const group = document.createElement("optgroup");
-    group.label = "Current campaigns";
-    rows.forEach(c => {
-      const o = document.createElement("option");
-      o.textContent = c.title;
-      group.appendChild(o);
-    });
-    if (document.getElementById("givecamp") === sel) sel.appendChild(group);
-  } catch (e) {
-    /* Offline, or the table is unreachable. The designation list above is
-       already correct and complete on its own -- there is nothing to show the
-       user and nothing to apologise for. */
-  }
+    const r = typeof sbRest === "function" ? await sbRest("/churches?id=eq." + encodeURIComponent(cid) + "&select=name,giving_url,giving_note") : [];
+    row = Array.isArray(r) ? r[0] : null;
+  } catch (e) { row = null; }
+  const el = document.getElementById("give-church"); if (!el) return;
+  const name = (row && row.name) || (churchById(cid) || {}).name || "your church";
+  const url = row && /^https:\/\//i.test(String(row.giving_url || "")) ? row.giving_url : "";
+  const leader = typeof isLeaderOf === "function" && isLeaderOf(cid);
+  el.innerHTML = url
+    ? `<b>Give to ${esc(name)}</b>
+       <p class="muted" style="font-size:13px;margin:6px 0 10px">${esc(row.giving_note || "Tithes and offerings go straight to your church through its own giving page.")}</p>
+       <button class="btn gold block" id="give-church-go" data-act="give-church" data-url="${esc(url)}">Open ${esc(name)}'s giving page ↗</button>
+       <p class="faint" style="font-size:12px;margin:8px 0 0">Your church receives the gift directly. Flourish never handles it.</p>`
+    : `<b>Give to ${esc(name)}</b>
+       <p class="muted" style="font-size:13px;margin:6px 0 0">${esc(name)} hasn't added a giving page yet.${leader ? " Add its link in the church page editor." : ""}</p>`;
 }
 
 let GAMT=0;
@@ -2839,20 +2867,18 @@ async function payGift(){
     const j=await flourishFetch("/api/create-giving-session",{method:"POST",body:JSON.stringify({
       idempotency_key:attemptKey("gift"),
       amount_cents:Math.round(amt*100),
-      designation:document.querySelector("#givecamp").value,
+      designation:"Gift to Flourish",
       recurring:document.querySelector("#giverec").checked,
       success_url:location.origin+location.pathname+"#pay=success&type=gift",
       cancel_url:location.origin+location.pathname+"#pay=cancel"
     })});
-    sessionStorage.setItem("flourish_pending_gift", JSON.stringify({amt, camp:document.querySelector("#givecamp").value, rec:document.querySelector("#giverec").checked}));
+    sessionStorage.setItem("flourish_pending_gift", JSON.stringify({amt, camp:"Flourish", rec:document.querySelector("#giverec").checked}));
     flourishCheckoutRedirect(j.url);
-  }catch(e){ toast("⚠ "+e.message+" — gift recorded as pledge"); if(btn){btn.disabled=false;btn.textContent="Give now";} }
+  }catch(e){ toast("⚠ "+e.message); if(btn){btn.disabled=false;btn.textContent="Give to Flourish — secure Stripe checkout";} }
 }
 
 function pickAmt(a,el){GAMT=a;$("#giveamt").value="";$$("#amts .btn").forEach(b=>b.classList.remove("primary"));el.classList.add("primary");}
-function recordGift(){const amt=+($("#giveamt").value)||GAMT;if(!amt){toast("Pick an amount");return;}
-  S.gifts.push({amt,camp:$("#givecamp").value,rec:$("#giverec").checked,when:Date.now()});earn("giver");addXP(amt>=50?20:10,"Generosity");save();
-  closeSheet();toast(`💝 $${amt} gift recorded — thank you!`);}
+
 
 
 /* ── flourish-commerce: live backend bridge (2026-08-28) ── */
