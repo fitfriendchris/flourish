@@ -198,32 +198,50 @@ async function doVerifyCode(email){
     return;
   }
   closeSheet();
+  await iapBindPending();
   await refreshUnlock();
   if (typeof restoreProgress === "function") await restoreProgress();
   toast("Signed in ✓");
   if (window.render) render();
 }
 
-function signOut(){ setAuthSession(null); S.unlocked = false; save(); closeSheet(); toast("Signed out"); render(); }
+/* Signing out of the iOS app does not take back what Apple sold to this
+   device: a purchase verified here stays (iapGrantValid). */
+function signOut(){ setAuthSession(null); S.unlocked = IS_NATIVE && iapGrantValid(); save(); closeSheet(); toast("Signed out"); render(); }
 
 /* ---- entitlement: the server decides, never the client ---- */
 async function refreshUnlock(){
   const t = await authToken();
-  if (!t) { S.unlocked = false; save(); return false; }
+  // Signed out: the web has nothing to check against. The iOS app keeps the
+  // server's answer for a purchase Apple signed (plan and expiry), because
+  // Apple does not let an app require an account to buy (5.1.1).
+  if (!t) { S.unlocked = IS_NATIVE && iapGrantValid(); save(); return S.unlocked; }
   try {
     const r = await fetch(FLOURISH_API + "/api/subscription-status", { headers: { Authorization: "Bearer " + t } });
     if (!r.ok) return S.unlocked;                      // network blip: keep cached grant
     const j = await r.json();
-    S.unlocked = !!j.active;
-    S.plan = j.plan || null;
+    S.unlocked = !!j.active || (IS_NATIVE && iapGrantValid());
+    S.plan = j.plan || (S.unlocked && S.iap && S.iap.plan) || null;
     save();
     return S.unlocked;
   } catch (e) { return S.unlocked; }
 }
 
 /* ---- Apple In-App Purchase (App Store Guideline 3.1.1) ----
-   Uses cordova-plugin-purchase (CdvPurchase), which wraps StoreKit 2.
-   Server verifies the receipt with the App Store Server API before granting. */
+   cordova-plugin-purchase (CdvPurchase) runs StoreKit 2 through its Capacitor
+   bridge, so every transaction carries Apple's signed JWS. store.validator
+   hands that JWS to /api/iap/verify, which checks Apple's certificate chain
+   and signature and binds the purchase to the signed-in account; only then
+   does the plugin fire .verified() and the transaction get finished.
+
+   This used to pass the plugin's VerifiedReceipt OBJECT as "receipt". The
+   server expects the JWS string, so every purchase answered 422 and nothing
+   was granted: the App Store build charged and unlocked nothing. And with no
+   validator set, the plugin "verified" every receipt locally.
+
+   A purchase made signed out is still granted (Apple 5.1.1: buying must not
+   need an account). The server's answer is kept on the device in S.iap with
+   its expiry, and is bound to an account the moment the member signs in. */
 const IAP_PRODUCTS = { monthly: "flourish_monthly_29", yearly: "flourish_yearly_197", lifetime: "flourish_lifetime_497" };
 
 function iapStore(){ return window.CdvPurchase && window.CdvPurchase.store; }
@@ -240,36 +258,104 @@ async function iapPurchase(plan){
   try { await offer.order(); } catch (e) { toast("Purchase cancelled"); }
 }
 
-async function iapVerifyAndGrant(receipt){
+/* POST Apple's signed transaction (a JWS string) to the server. */
+async function iapVerify(jws){
   const t = await authToken();
-  const r = await fetch(FLOURISH_API + "/api/iap/verify", {
-    method: "POST",
-    headers: Object.assign({ "Content-Type": "application/json" }, t ? { Authorization: "Bearer " + t } : {}),
-    body: JSON.stringify({ receipt })
+  try {
+    const r = await fetch(FLOURISH_API + "/api/iap/verify", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, t ? { Authorization: "Bearer " + t } : {}),
+      body: JSON.stringify({ receipt: jws })
+    });
+    const body = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, body: body || {} };
+  } catch (e) { return { ok: false, status: 0, body: {} }; }
+}
+
+/* The server's answer for a verified purchase, kept with its expiry. */
+function iapGrant(j, jws){
+  if (!j || !j.active) return false;
+  const was = !!S.unlocked;
+  S.iap = { plan: j.plan || null, until: j.current_period_end || null, jws: jws || (S.iap && S.iap.jws) || null };
+  S.unlocked = true;
+  S.plan = j.plan || S.plan || null;
+  save();
+  return !was;
+}
+
+function iapGrantValid(){
+  const g = S.iap;
+  if (!g || !g.plan) return false;
+  if (g.plan === "lifetime") return true;
+  const until = g.until ? Date.parse(g.until) : NaN;
+  return Number.isFinite(until) && until > Date.now();
+}
+
+/* A purchase made signed out, bound to the account just signed in to. */
+async function iapBindPending(){
+  if (!IS_NATIVE || !S.iap || !S.iap.jws) return;
+  const res = await iapVerify(S.iap.jws);
+  if (res.ok && res.body.active) iapGrant(res.body, S.iap.jws);
+  else if (res.status === 409) toast("⚠ " + (res.body.detail || "That purchase is linked to another account"));
+}
+
+let iapNewGrant = false;
+/* store.validator: the plugin hands us the receipt body; we answer in its format. */
+function iapValidator(body, callback){
+  const E = (window.CdvPurchase && window.CdvPurchase.ErrorCode) || {};
+  const tx = body && body.transaction;
+  const jws = tx && tx.jwsRepresentation;
+  if (!jws) { callback({ ok: false, code: E.VERIFICATION_FAILED, message: "No signed transaction to verify" }); return; }
+  iapVerify(jws).then(res => {
+    if (res.ok && res.body.active) {
+      if (iapGrant(res.body, jws)) iapNewGrant = true;
+      callback({ ok: true, data: { id: String(body.id || "online.flourishapp"), latest_receipt: true, transaction: tx } });
+    } else if (res.ok) {
+      callback({ ok: false, code: E.VALIDATOR_SUBSCRIPTION_EXPIRED, message: "This membership has ended", status: 200 });
+    } else {
+      callback({ ok: false, code: E.VERIFICATION_FAILED, status: res.status,
+                 message: (res.body && res.body.detail) || "Could not verify the purchase" });
+    }
   });
-  if (!r.ok) return false;
-  const j = await r.json();
-  if (j.active) { S.unlocked = true; S.plan = j.plan; save(); }
-  return !!j.active;
 }
 
 function initIAP(){
   const store = iapStore();
-  if (!store) return;
+  // deviceready and the 1.5 s fallback both call this: register once.
+  if (!store || initIAP.done) return;
+  initIAP.done = true;
   const P = window.CdvPurchase.Platform.APPLE_APPSTORE, T = window.CdvPurchase.ProductType;
   store.register([
     { id: IAP_PRODUCTS.monthly,  type: T.PAID_SUBSCRIPTION, platform: P },
     { id: IAP_PRODUCTS.yearly,   type: T.PAID_SUBSCRIPTION, platform: P },
     { id: IAP_PRODUCTS.lifetime, type: T.NON_CONSUMABLE,    platform: P }
   ]);
+  store.validator = iapValidator;
   store.when()
     .approved(tx => tx.verify())
-    .verified(async receipt => {
-      const ok = await iapVerifyAndGrant(receipt);
+    .verified(receipt => {
+      // Finished only once the server has verified it, so StoreKit redelivers
+      // anything that failed to verify (offline, server down) on next launch.
       receipt.finish();
-      if (ok) { toast("Membership active — welcome 🌱"); closeSheet(); render(); }
+      if (iapNewGrant) { iapNewGrant = false; toast("Membership active — welcome 🌱"); closeSheet(); }
+      render();
+    })
+    .unverified(r => {
+      const p = r && r.payload;
+      if (p && p.status === 409) toast("⚠ " + p.message);
     });
   store.initialize([P]);
+}
+
+/* Restore asks StoreKit again; each restored purchase is verified through the
+   validator above, which takes a moment, so wait for a grant to land. */
+async function iapSettle(ms){
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (iapGrantValid()) return true;
+    await new Promise(r => setTimeout(r, 300));
+  }
+  return iapGrantValid();
 }
 
 /* ---- restore: required by App Store 3.1.1, and plain good manners on web ---- */
@@ -277,7 +363,8 @@ async function restorePurchase(){
   if (IS_NATIVE && iapStore()) {
     toast("Restoring…");
     try { await iapStore().restorePurchases(); } catch (e) {}
-    const ok = await refreshUnlock();
+    const viaApple = await iapSettle(6000);
+    const ok = (await refreshUnlock()) || viaApple;
     toast(ok ? "Membership restored ✓" : "No purchase found on this Apple ID");
     if (ok) { closeSheet(); render(); }
     return;
@@ -293,8 +380,10 @@ async function restorePurchase(){
 (async function initEntitlement(){
   await flourishConfig();
   if (IS_NATIVE) { document.addEventListener("deviceready", initIAP, false); setTimeout(initIAP, 1500); }
-  if (isSignedIn()) refreshUnlock().then(() => {
+  if (isSignedIn()) iapBindPending().then(refreshUnlock).then(() => {
     if (typeof restoreProgress === "function") restoreProgress();
     if (window.render) render();
   });
+  // Signed out in the iOS app: a kept Apple purchase lapses on its own date.
+  else if (IS_NATIVE && S.iap && !iapGrantValid() && S.unlocked) { S.unlocked = false; save(); if (window.render) render(); }
 })();
