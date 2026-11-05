@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="78378097cf";
+const APP_VERSION="47d6bf624f";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -844,6 +844,7 @@ function handle(act,id,el){
     case"sign-in-sheet":if(typeof signInSheet==="function")signInSheet();break;
     case"show-paywall":if(typeof showPaywall==="function")showPaywall();break;
     case"share-streak":if(typeof shareStreak==="function")shareStreak();break;
+    case"year-share":shareYear();break;
     case"membership":if(typeof membershipSheet==="function")membershipSheet();break;
     case"export-data":if(typeof exportMyData==="function")exportMyData();break;
     case"reset-progress":if(typeof resetProgress==="function")resetProgress();break;
@@ -2033,6 +2034,8 @@ function renderMe(){
     <div class="stat"><div class="ic">🏅</div><div class="n">${earned}</div><div class="l">Badges</div></div>
   </div>
 
+  ${yearReviewCard()}
+
   <p class="faint" id="grace-line" style="font-size:12px;margin:8px 2px 0">${graceLine()}</p>
 
   <div style="margin-top:14px">${gardenHero()}</div>
@@ -2167,6 +2170,81 @@ async function shareStreak(){
     await navigator.clipboard.writeText(text+" "+url);
     toast("Copied — paste it anywhere 📋");
   }catch(e){ /* user dismissed the share sheet: not an error */ }
+}
+
+/* ============ YEAR IN REVIEW (roadmap #46) ============
+   A built-in December moment. From 1 December to 31 January the Me page shows
+   "Your <year> with Flourish" (in January, the year just ended) to anyone who
+   finished at least three days that year, and draws a share image on a canvas.
+   Everything comes from this device's progress (each finished day, season day,
+   Rebuild day and virtue is stamped with when it was done); nothing is sent. */
+function reviewYear(){ const now = new Date(), m = now.getMonth(); return m === 11 ? now.getFullYear() : m === 0 ? now.getFullYear() - 1 : 0; }
+function inYear(ts, y){ const t = +ts; return t > 1e11 && new Date(t).getFullYear() === y; }
+function yearStats(y){
+  const days = Object.keys(S.done || {}).filter(k => k.indexOf("day") === 0 && inYear(S.done[k], y)).map(k => +k.slice(3)).filter(n => n > 0);
+  const pillars = {};
+  days.forEach(g => { const o = bookHasDay(g) ? CURR()[g - 1] : null; if (o && o.p) pillars[o.p] = (pillars[o.p] || 0) + 1; });
+  const count = obj => Object.values(obj || {}).filter(t => inYear(t, y)).length;
+  const bySeason = SEASON_IDS.map(id => [id, count((seasonState(id) || {}).done)]).filter(([, n]) => n > 0);
+  return { y, days: days.length, pillars, top: Object.keys(pillars).sort((a, b) => pillars[b] - pillars[a])[0] || "",
+           seasons: bySeason.reduce((n, [, k]) => n + k, 0), seasonNames: bySeason.map(([id]) => SEASON_DEFS[id].name).join(" & "),
+           rebuild: count(S.rebuild && S.rebuild.done), virtues: count(S.virtuesDone), streak: S.streak || 0 };
+}
+function yearReviewCard(){
+  const y = reviewYear(); if (!y) return "";
+  const st = yearStats(y); if (st.days < 3) return "";
+  const extra = st.seasons + st.rebuild;
+  return `<div class="card glow" id="year-review" style="margin-top:14px">
+    <div class="eyebrow">Your ${y} with Flourish</div>
+    <div class="grid g3" style="margin-top:10px">
+      <div class="stat"><div class="ic">📖</div><div class="n" id="yr-days">${st.days}</div><div class="l">Days read</div></div>
+      <div class="stat"><div class="ic">${extra ? "🕯️" : "🌱"}</div><div class="n">${extra || st.virtues}</div><div class="l">${extra ? "Season &amp; Rebuild days" : "Virtues practiced"}</div></div>
+      <div class="stat"><div class="ic">🔥</div><div class="n">${st.streak}</div><div class="l">Day streak</div></div>
+    </div>
+    ${st.top ? `<p class="muted" id="yr-top" style="font-size:13px;margin:10px 2px 0">Most of your reading was in <b>${esc(st.top)}</b>.</p>` : ""}
+    <button class="btn gold block" style="margin-top:12px" data-act="year-share">Share my year</button>
+  </div>`;
+}
+async function yearImage(st){
+  const W = 1080, H = 1350, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  try { await Promise.all(['700 96px "Playfair Display"', '600 40px "Inter"'].map(f => document.fonts.load(f))); } catch (e) {}
+  const g = x.createLinearGradient(0, 0, 0, H); g.addColorStop(0, "#0b1d14"); g.addColorStop(1, "#091410");
+  x.fillStyle = g; x.fillRect(0, 0, W, H);
+  x.strokeStyle = "rgba(236,196,81,.55)"; x.lineWidth = 4; x.strokeRect(48, 48, W - 96, H - 96);
+  x.textAlign = "center"; x.fillStyle = "#ecc451"; x.font = '600 40px "Inter", sans-serif';
+  x.fillText("MY " + st.y + " WITH FLOURISH", W / 2, 190);
+  x.fillStyle = "#ffffff"; x.font = '700 300px "Playfair Display", Georgia, serif'; x.fillText(String(st.days), W / 2, 540);
+  x.fillStyle = "#cfe3d5"; x.font = '600 48px "Inter", sans-serif'; x.fillText(st.days === 1 ? "day in the Word" : "days in the Word", W / 2, 620);
+  const lines = [];
+  if (st.seasons) lines.push(st.seasons + (st.seasons === 1 ? " day" : " days") + " of " + st.seasonNames);
+  if (st.rebuild) lines.push(st.rebuild + (st.rebuild === 1 ? " day" : " days") + " of the 30-Day Rebuild");
+  if (st.virtues) lines.push(st.virtues + (st.virtues === 1 ? " virtue" : " virtues") + " practiced");
+  if (st.top) lines.push("Most of it in " + st.top);
+  if (st.streak > 1) lines.push(st.streak + "-day streak and counting");
+  x.font = '500 42px "Inter", sans-serif'; x.fillStyle = "#ecf5ee";
+  lines.slice(0, 4).forEach((t, i) => x.fillText(t, W / 2, 780 + i * 78));
+  x.fillStyle = "#ecc451"; x.font = '700 64px "Playfair Display", Georgia, serif'; x.fillText("Flourish", W / 2, H - 190);
+  x.fillStyle = "#a7c4b2"; x.font = '500 34px "Inter", sans-serif'; x.fillText("Daily Scripture for health, wealth & relationships", W / 2, H - 130);
+  return await new Promise(r => c.toBlob(b => r(b), "image/png"));
+}
+async function shareYear(){
+  const y = reviewYear(); if (!y) return;
+  const st = yearStats(y);
+  let blob = null;
+  try { blob = await yearImage(st); } catch (e) { blob = null; }
+  if (!blob) { toast("Couldn't draw the image on this device"); return; }
+  const text = `My ${y} with Flourish: ${st.days} days in the Word.`;
+  const file = new File([blob], `flourish-${y}.png`, { type: "image/png" });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "Flourish", text }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  // No file sharing here: show the image to save by hand.
+  const url = URL.createObjectURL(blob);
+  sheet(`<div class="eyebrow">Your ${y} with Flourish</div>
+    <img id="yr-img" src="${url}" alt="${esc(text)}" style="width:100%;border-radius:14px;margin:10px 0">
+    <p class="muted" style="font-size:13px;margin:0 0 10px">Press and hold the picture to save or share it.</p>
+    <a class="btn gold block" style="text-decoration:none" href="${url}" download="flourish-${y}.png">Download</a>`);
 }
 
 function resetProgress(){
