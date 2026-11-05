@@ -292,7 +292,10 @@ async function churchDetailBody(id){
       </div>
       <div class="card" style="margin-top:14px">
         ${c.description ? `<p style="margin:0 0 10px">${esc(c.description)}</p>` : ""}
-        ${times.length ? `<b>🕘 Service times</b>${times.map(t => `<p style="margin:5px 0">• ${esc(String(t))}</p>`).join("")}` : ""}
+        ${times.length && sectionOn(c, "times") ? `<b>🕘 Service times</b>${times.map(t => `<p style="margin:5px 0">• ${esc(String(t))}</p>`).join("")}` : ""}
+        ${[c.address, c.city, c.state].filter(Boolean).length ? `<p class="muted" style="margin:8px 0 0">📍 ${esc([c.address, c.city, c.state, c.postal_code].filter(Boolean).join(", "))}</p>` : ""}
+        ${sectionOn(c, "sermons") && /^https:\/\//i.test(c.sermons_url || "") ? `<button class="btn block" style="margin-top:10px" data-act="open-link" data-url="${esc(c.sermons_url)}">🎧 Sermons ↗</button>` : ""}
+        ${sectionOn(c, "giving") && /^https:\/\//i.test(c.giving_url || "") ? `<button class="btn block" style="margin-top:8px" data-act="give-church" data-url="${esc(c.giving_url)}">💝 Give to ${esc(c.name)} ↗</button>` : ""}
         ${c.pastor_name ? `<p class="muted" style="margin-top:8px">👤 ${esc(c.pastor_name)}</p>` : ""}
         <button class="btn ${joined ? "" : "primary"} block lg" style="margin-top:14px"
           data-act="${joined ? "leave-church" : "join-church"}" data-id="${esc(c.id)}">
@@ -393,13 +396,14 @@ async function myChurchBody(){
       // RLS decides visibility: members see members-only events, everyone sees public
       sbRest("/events?church_id=eq." + encodeURIComponent(id) +
              "&select=id,title,description,start_time,location_name,visibility,event_type" +
-             "&order=start_time.asc&limit=20").catch(() => []),
+             "&cancelled_at=is.null&order=start_time.asc&limit=20").catch(() => []),
       // prayer_wall() rather than a select: it filters blocked authors and
       // withheld posts server-side and never returns user_id, so blocking works
       // on anonymous requests without telling anyone who wrote them.
       sbRpc("prayer_wall", { p_church_id: id, p_limit: 20 }).catch(() => []),
       sbRest("/announcements?church_id=eq." + encodeURIComponent(id) +
-             "&select=id,title,body,created_at&order=created_at.desc&limit=5").catch(() => []),
+             "&select=id,title,body,pinned,created_at&or=(expire_at.is.null,expire_at.gt." + encodeURIComponent(new Date().toISOString()) + ")" +
+             "&order=pinned.desc,created_at.desc&limit=5").catch(() => []),
       loadGroups(id).catch(() => ({ groups: [], mine: new Set() }))
     ]);
     const c = rows && rows[0];
@@ -423,21 +427,22 @@ async function myChurchBody(){
     ${leader ? `<button class="card center block" style="margin-top:2px" data-act="church-dash" data-id="${esc(id)}">
         <div style="font-size:24px">🛠️</div><b style="font-size:13px">Church dashboard</b></button>` : ""}
 
-    <div class="shead"><h2 class="serif">📅 Events</h2></div>
+    ${sectionOn(c, "events") ? `<div class="shead"><h2 class="serif">📅 Events</h2>${leader ? `<a data-act="event-new" data-id="${esc(id)}">+ New</a>` : ""}</div>
     ${events.length ? events.map(e => `<div class="list-item">
         <div class="av">${e.visibility === "members_only" ? "🔒" : "📅"}</div>
         <div class="tx"><b>${esc(e.title)}</b><small>${esc(when(e.start_time))}${e.location_name ? " · " + esc(e.location_name) : ""}</small></div>
+        ${leader ? `<button class="btn sm ghost" data-act="event-edit" data-id="${esc(id)}" data-event="${esc(e.id)}">Edit</button>` : ""}
         <button class="btn sm ${S.rsvps[e.id] ? "" : "primary"}" data-act="rsvp" data-id="${esc(e.id)}">${S.rsvps[e.id] ? "✓" : "RSVP"}</button>
       </div>`).join("")
       : viewEmpty("📅","Nothing on the calendar yet", leader
           ? "Add your first event so members know what's happening."
-          : "Your church hasn't posted any events yet.")}
+          : "Your church hasn't posted any events yet.")}` : ""}
 
-    ${notices.length ? `<div class="shead"><h2 class="serif">📣 Announcements</h2></div>` +
-      notices.map(a => `<div class="card"><b>${esc(a.title)}</b>
-        <p class="muted" style="font-size:13px;margin-top:4px">${esc(a.body || "")}</p></div>`).join("") : ""}
+    ${sectionOn(c, "announcements") && (notices.length || leader) ? `<div class="shead"><h2 class="serif">📣 Announcements</h2>${leader ? `<a data-act="notice-new" data-id="${esc(id)}">+ New</a>` : ""}</div>` +
+      (notices.length ? notices.map(a => `<div class="card"><div class="row between"><b>${a.pinned ? "📌 " : ""}${esc(a.title)}</b>${leader ? `<button class="btn sm ghost" data-act="notice-delete" data-id="${esc(a.id)}" aria-label="Remove announcement">✕</button>` : ""}</div>
+        <p class="muted" style="font-size:13px;margin-top:4px">${esc(a.body || "")}</p></div>`).join("") : `<p class="faint" style="font-size:13px;margin:0 4px">Nothing posted. Members see announcements here.</p>`) : ""}
 
-    <div class="shead"><h2 class="serif">👥 Groups</h2>${leader
+    ${sectionOn(c, "groups") ? `<div class="shead"><h2 class="serif">👥 Groups</h2>${leader
         ? `<a data-act="new-group" data-id="${esc(id)}">+ New</a>` : ""}</div>
     ${grp.groups.length ? grp.groups.map(g => {
         const inIt = grp.mine.has(g.id);
@@ -448,9 +453,9 @@ async function myChurchBody(){
             data-id="${esc(g.id)}">${inIt ? "✓ Joined" : "Join"}</button></div>`; }).join("")
       : viewEmpty("👥", "No groups yet", leader
           ? "Start a small group — a Bible study, a men's or women's group — and members can join here."
-          : "Your church hasn't started any groups in the app yet.")}
+          : "Your church hasn't started any groups in the app yet.")}` : ""}
 
-    <div class="shead"><h2 class="serif">🙏 Prayer Wall</h2><a data-act="new-prayer">+ Add</a></div>
+    ${sectionOn(c, "prayer") ? `<div class="shead"><h2 class="serif">🙏 Prayer Wall</h2><a data-act="new-prayer">+ Add</a></div>
     ${prayers.length ? prayers.map(p => `<div class="card ${p.is_answered ? "glow" : ""}">
         <div class="row between"><b>${p.is_anonymous ? "🕊️ Anonymous" : "A member"}</b>
           <span class="faint" style="font-size:11px">${esc(when(p.created_at))}</span></div>
@@ -468,7 +473,7 @@ async function myChurchBody(){
           </div>
         </div></div>`).join("")
       : viewEmpty("🙏","No prayer requests yet","Be the first to ask your church to pray with you.",
-          `<button class="btn primary" data-act="new-prayer">Share a request</button>`)}
+          `<button class="btn primary" data-act="new-prayer">Share a request</button>`)}` : ""}
 
     <button class="btn ghost block" style="margin-top:14px" data-act="leave-church" data-id="${esc(id)}">Leave church</button>`;
   } catch (e) {
@@ -710,12 +715,16 @@ async function openChurchDashboard(id){
         ${stat("Prayer requests", d && (d.prayer_count ?? d.prayers))}
         ${stat("Groups", d && (d.group_count ?? d.groups))}
       </div>
-      <button class="btn block" style="margin-top:12px" data-act="pastoral-inbox" data-id="${esc(id)}">
+      <button class="btn gold block" style="margin-top:12px" data-act="church-edit" data-id="${esc(id)}">✏️ Edit church page</button>
+      <div class="grid g2" style="margin-top:8px">
+        <button class="btn block" data-act="event-new" data-id="${esc(id)}">📅 New event</button>
+        <button class="btn block" data-act="notice-new" data-id="${esc(id)}">📣 Announcement</button>
+      </div>
+      <button class="btn block" style="margin-top:8px" data-act="pastoral-inbox" data-id="${esc(id)}">
         💬 Pastoral messages</button>
       <button class="btn block" style="margin-top:8px" data-act="moderation-queue" data-id="${esc(id)}">
         🛡️ Review reported requests</button>
-      <div class="note" style="margin-top:12px">Editing tools for leaders arrive with the
-      full church dashboard. This view is read-only for now.</div>`;
+      <div class="note" style="margin-top:12px">Member roles and church-wide messaging are coming next.</div>`;
   } catch (e) {
     const el = document.getElementById("ch-dash");
     if (el) el.innerHTML = viewError(e.message, () => openChurchDashboard(id));
@@ -910,4 +919,180 @@ async function submitGroup(churchId){
     closeSheet(); toast("Group created");
     fillView("my-church", myChurchBody);
   } catch (err) { toast("⚠ " + (err.message || "Could not create the group")); }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   CHURCH ADMIN PORTAL · phase 2 (4 Nov 2026, docs/PLAN-church-platform-2026-11.md)
+
+   A church's leaders edit their own page inside Flourish, choose which
+   sections it shows, and post events and announcements. Every write goes
+   through the live RLS policies, which check is_church_leader() on the server:
+   "leaders update church", "leaders manage events", "leaders manage
+   announcements". The screens are a convenience, not the control.
+   ══════════════════════════════════════════════════════════════════ */
+const CH_SECTIONS = [
+  ["times", "🕘 Service times"], ["events", "📅 Events"], ["announcements", "📣 Announcements"],
+  ["groups", "👥 Groups"], ["prayer", "🙏 Prayer wall"], ["giving", "💝 Giving"], ["sermons", "🎧 Sermons"]
+];
+function sectionOn(c, id){
+  const hidden = c && c.settings && Array.isArray(c.settings.sections_hidden) ? c.settings.sections_hidden : [];
+  return hidden.indexOf(id) < 0;
+}
+const httpsOrEmpty = v => { v = String(v || "").trim(); return !v || /^https:\/\/[^\s<>"']+$/i.test(v) ? v : null; };
+
+async function churchEditSheet(id){
+  sheet(`<div class="eyebrow">Church page</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 12px">Edit your church's page</h3>
+    <div id="ce-form">${viewLoading("your church")}</div>`);
+  let c = null;
+  try { const r = await sbRest("/churches?id=eq." + encodeURIComponent(id) + "&select=*&limit=1"); c = r && r[0]; } catch (e) { c = null; }
+  const box = document.getElementById("ce-form"); if (!box) return;
+  if (!c) { box.innerHTML = viewError("Couldn't load your church", () => churchEditSheet(id)); return; }
+  const v = k => esc(c[k] == null ? "" : String(c[k]));
+  const times = Array.isArray(c.service_times) ? c.service_times : [];
+  const f = (k, label, type) => `<label class="fl" for="ce-${k}">${label}</label><input id="ce-${k}" type="${type || "text"}" value="${v(k)}">`;
+  box.innerHTML = `
+    ${f("name", "Church name")}
+    <label class="fl" for="ce-description">About</label><textarea id="ce-description" rows="4">${v("description")}</textarea>
+    ${f("denomination", "Denomination")}${f("pastor_name", "Pastor")}
+    <label class="fl" for="ce-times">Service times (one per line)</label><textarea id="ce-times" rows="3">${esc(times.join("\n"))}</textarea>
+    ${f("address", "Street address")}${f("city", "City")}${f("state", "State")}${f("postal_code", "ZIP code")}
+    <div class="card" style="margin-top:10px">
+      <b>📍 Location on the map</b>
+      <p class="muted" id="ce-loc" style="font-size:13px;margin:6px 0 8px">${c.lat != null && c.lng != null ? "Set ✓" : "Not set yet. People searching nearby won't find you until it is."}</p>
+      <button class="btn block" data-act="church-locate">Use my location (stand at the church)</button>
+      <input type="hidden" id="ce-lat" value="${c.lat == null ? "" : esc(String(c.lat))}"><input type="hidden" id="ce-lng" value="${c.lng == null ? "" : esc(String(c.lng))}">
+    </div>
+    ${f("phone", "Phone", "tel")}${f("email", "Email", "email")}
+    ${f("website", "Website (https://…)", "url")}
+    ${f("giving_url", "Giving page (https://…)", "url")}
+    <label class="fl" for="ce-giving_note">Giving note</label><input id="ce-giving_note" value="${v("giving_note")}" placeholder="e.g. Tithes and offerings, via our secure giving page">
+    ${f("sermons_url", "Sermons (https://…)", "url")}
+    <div class="card" style="margin-top:12px"><b>Show on your page</b>
+      <p class="muted" style="font-size:13px;margin:6px 0 4px">Switch off anything your church doesn't use.</p>
+      ${CH_SECTIONS.map(([sid, label]) => `<label class="row" style="gap:10px;margin:8px 0"><input type="checkbox" class="ce-sec" value="${sid}" style="width:18px"${sectionOn(c, sid) ? " checked" : ""}> <span>${label}</span></label>`).join("")}
+    </div>
+    <p class="muted" id="ce-err" role="alert" style="color:var(--rose,#e77);font-size:13px;min-height:1em;margin:10px 0 0"></p>
+    <button class="btn gold block lg" style="margin-top:8px" data-act="church-save" data-id="${esc(id)}">Save page</button>`;
+  box.dataset.settings = JSON.stringify(c.settings && typeof c.settings === "object" ? c.settings : {});
+}
+function churchLocate(){
+  const msg = document.getElementById("ce-loc");
+  if (!navigator.geolocation) { if (msg) msg.textContent = "This device can't share its location."; return; }
+  if (msg) msg.textContent = "Finding you…";
+  navigator.geolocation.getCurrentPosition(p => {
+    const la = document.getElementById("ce-lat"), ln = document.getElementById("ce-lng");
+    if (la) la.value = p.coords.latitude.toFixed(6); if (ln) ln.value = p.coords.longitude.toFixed(6);
+    if (msg) msg.textContent = "Set to where you are now ✓ (save to keep it)";
+  }, () => { if (msg) msg.textContent = "Location was refused. Allow it in Settings, or try again at the church."; },
+  { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+async function churchSave(id){
+  const g = k => { const el = document.getElementById("ce-" + k); return el ? String(el.value || "").trim() : ""; };
+  const err = t => { const e = document.getElementById("ce-err"); if (e) e.textContent = t; };
+  const name = g("name");
+  if (name.length < 2) { err("Your church needs a name."); return; }
+  const urls = {};
+  for (const k of ["website", "giving_url", "sermons_url"]) {
+    const u = httpsOrEmpty(g(k));
+    if (u === null) { err("Links must start with https:// (check " + k.replace("_url", "").replace("_", " ") + ")."); return; }
+    urls[k] = u || null;
+  }
+  const lat = g("lat"), lng = g("lng");
+  const box = document.getElementById("ce-form");
+  let settings = {}; try { settings = JSON.parse((box && box.dataset.settings) || "{}") || {}; } catch (e) { settings = {}; }
+  settings.sections_hidden = Array.from(document.querySelectorAll(".ce-sec")).filter(x => !x.checked).map(x => x.value);
+  const body = Object.assign({
+    name: name.slice(0, 120), description: g("description").slice(0, 2000) || null,
+    denomination: g("denomination").slice(0, 80) || null, pastor_name: g("pastor_name").slice(0, 80) || null,
+    service_times: g("times").split(/\n+/).map(t => t.trim()).filter(Boolean).slice(0, 12).map(t => t.slice(0, 80)),
+    address: g("address").slice(0, 160) || null, city: g("city").slice(0, 80) || null, state: g("state").slice(0, 40) || null,
+    postal_code: g("postal_code").slice(0, 12) || null, phone: g("phone").slice(0, 30) || null, email: g("email").slice(0, 120) || null,
+    giving_note: g("giving_note").slice(0, 160) || null,
+    lat: lat === "" ? null : Number(lat), lng: lng === "" ? null : Number(lng),
+    settings
+  }, urls);
+  err("");
+  try {
+    await sbRest("/churches?id=eq." + encodeURIComponent(id), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+    // log_leader_action is server-only (revoked from clients); an audit trigger on churches is in the phase 2b migration.
+    closeSheet(); toast("Church page saved ✓");
+    CH.churches = null; if (typeof render === "function") render();
+  } catch (e) { err(e.message || "Couldn't save. Try again."); }
+}
+
+function toLocalInput(t){ if (!t) return ""; const d = new Date(t); if (isNaN(d)) return ""; const z = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()) + "T" + z(d.getHours()) + ":" + z(d.getMinutes()); }
+async function eventSheet(churchId, eventId){
+  let e = {};
+  if (eventId) { try { const r = await sbRest("/events?id=eq." + encodeURIComponent(eventId) + "&select=*&limit=1"); e = (r && r[0]) || {}; } catch (x) { e = {}; } }
+  const v = k => esc(e[k] == null ? "" : String(e[k]));
+  const vis = e.visibility === "public" ? "public" : "members_only";
+  sheet(`<div class="eyebrow">${eventId ? "Edit event" : "New event"}</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 12px">${eventId ? esc(e.title || "Event") : "Add to your church's calendar"}</h3>
+    <label class="fl" for="ev-title">Title</label><input id="ev-title" value="${v("title")}">
+    <label class="fl" for="ev-description">Details</label><textarea id="ev-description" rows="3">${v("description")}</textarea>
+    <label class="fl" for="ev-start">Starts</label><input id="ev-start" type="datetime-local" value="${toLocalInput(e.start_time)}">
+    <label class="fl" for="ev-end">Ends (optional)</label><input id="ev-end" type="datetime-local" value="${toLocalInput(e.end_time)}">
+    <label class="fl" for="ev-location_name">Where</label><input id="ev-location_name" value="${v("location_name")}" placeholder="e.g. Fellowship hall">
+    <label class="fl" for="ev-location_address">Address (optional)</label><input id="ev-location_address" value="${v("location_address")}">
+    <label class="fl" for="ev-visibility">Who can see it</label>
+    <select id="ev-visibility"><option value="public"${vis === "public" ? " selected" : ""}>Public: anyone, and people searching nearby</option>
+      <option value="members_only"${vis === "members_only" ? " selected" : ""}>Members only</option></select>
+    <label class="fl" for="ev-max_capacity">Capacity (optional)</label><input id="ev-max_capacity" type="number" min="1" value="${v("max_capacity")}">
+    <p class="muted" id="ev-err" role="alert" style="color:var(--rose,#e77);font-size:13px;min-height:1em;margin:10px 0 0"></p>
+    <button class="btn gold block lg" style="margin-top:8px" data-act="event-save" data-id="${esc(churchId)}" data-event="${esc(eventId || "")}">${eventId ? "Save event" : "Add event"}</button>
+    ${eventId && !e.cancelled_at ? `<button class="btn ghost block" style="margin-top:8px" data-act="event-cancel" data-id="${esc(eventId)}">Cancel this event</button>` : ""}`);
+}
+async function eventSave(churchId, eventId){
+  const g = k => { const el = document.getElementById("ev-" + k); return el ? String(el.value || "").trim() : ""; };
+  const err = t => { const x = document.getElementById("ev-err"); if (x) x.textContent = t; };
+  const title = g("title"), start = g("start"), end = g("end");
+  if (title.length < 2) { err("Give the event a title."); return; }
+  const st = new Date(start); if (!start || isNaN(st)) { err("Pick when it starts."); return; }
+  const en = end ? new Date(end) : null; if (en && (isNaN(en) || en < st)) { err("It can't end before it starts."); return; }
+  const cap = g("max_capacity"); const vis = g("visibility") === "public" ? "public" : "members_only";
+  const body = { title: title.slice(0, 120), description: g("description").slice(0, 2000) || null, start_time: st.toISOString(),
+    end_time: en ? en.toISOString() : null, location_name: g("location_name").slice(0, 120) || null,
+    location_address: g("location_address").slice(0, 200) || null, visibility: vis, max_capacity: cap ? Math.max(1, Math.round(+cap)) : null };
+  try {
+    if (eventId) await sbRest("/events?id=eq." + encodeURIComponent(eventId), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+    else {
+      const uid = typeof authUserId === "function" ? authUserId() : null;
+      await sbRest("/events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(Object.assign({ church_id: churchId }, uid ? { created_by: uid } : {}, body)) });
+    }
+    closeSheet(); toast(eventId ? "Event saved ✓" : "Event added ✓"); if (typeof render === "function") render();
+  } catch (x) { err(x.message || "Couldn't save. Try again."); }
+}
+async function eventCancel(eventId){
+  if (!confirm("Cancel this event? Members will see it as cancelled.")) return;
+  try { await sbRest("/events?id=eq." + encodeURIComponent(eventId), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ cancelled_at: new Date().toISOString() }) });
+    closeSheet(); toast("Event cancelled"); if (typeof render === "function") render(); } catch (x) { toast("⚠ " + (x.message || "Couldn't cancel")); }
+}
+
+function noticeSheet(churchId){
+  sheet(`<div class="eyebrow">New announcement</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 12px">Tell your church</h3>
+    <label class="fl" for="an-title">Title</label><input id="an-title">
+    <label class="fl" for="an-body">Message</label><textarea id="an-body" rows="4"></textarea>
+    <label class="row" style="gap:10px;margin:10px 0"><input type="checkbox" id="an-pinned" style="width:18px"> <span>Pin to the top</span></label>
+    <label class="fl" for="an-expire">Take it down on (optional)</label><input id="an-expire" type="date">
+    <p class="muted" id="an-err" role="alert" style="color:var(--rose,#e77);font-size:13px;min-height:1em;margin:10px 0 0"></p>
+    <button class="btn gold block lg" style="margin-top:8px" data-act="notice-save" data-id="${esc(churchId)}">Post announcement</button>`);
+}
+async function noticeSave(churchId){
+  const g = k => { const el = document.getElementById("an-" + k); return el ? String(el.value || "").trim() : ""; };
+  const err = t => { const x = document.getElementById("an-err"); if (x) x.textContent = t; };
+  const title = g("title"); if (title.length < 2) { err("Give it a title."); return; }
+  const exp = g("expire"); const uid = typeof authUserId === "function" ? authUserId() : null;
+  const body = Object.assign({ church_id: churchId, title: title.slice(0, 120), body: g("body").slice(0, 2000) || null,
+    pinned: !!(document.getElementById("an-pinned") || {}).checked, expire_at: exp ? new Date(exp + "T23:59:59").toISOString() : null }, uid ? { created_by: uid } : {});
+  try { await sbRest("/announcements", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
+    closeSheet(); toast("Announcement posted ✓"); if (typeof render === "function") render(); } catch (x) { err(x.message || "Couldn't post. Try again."); }
+}
+async function noticeDelete(id){
+  if (!confirm("Remove this announcement?")) return;
+  try { await sbRest("/announcements?id=eq." + encodeURIComponent(id), { method: "DELETE" }); toast("Removed"); if (typeof render === "function") render(); }
+  catch (x) { toast("⚠ " + (x.message || "Couldn't remove")); }
 }

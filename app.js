@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="ed46558d5a";
+const APP_VERSION="4b03e25029";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -837,6 +837,17 @@ function handle(act,id,el){
     case"pay-cart":if(typeof payCart==="function")payCart();break;
     case"pay-gift":if(typeof payGift==="function")payGift();break;
     case"give-church":openExternal(el.dataset.url);break;
+    case"open-link":openExternal(el.dataset.url);break;
+    case"church-edit":if(typeof churchEditSheet==="function")churchEditSheet(id);break;
+    case"church-locate":if(typeof churchLocate==="function")churchLocate();break;
+    case"church-save":if(typeof churchSave==="function")churchSave(id);break;
+    case"event-new":if(typeof eventSheet==="function")eventSheet(id,null);break;
+    case"event-edit":if(typeof eventSheet==="function")eventSheet(id,el.dataset.event||null);break;
+    case"event-save":if(typeof eventSave==="function")eventSave(id,el.dataset.event||null);break;
+    case"event-cancel":if(typeof eventCancel==="function")eventCancel(id);break;
+    case"notice-new":if(typeof noticeSheet==="function")noticeSheet(id);break;
+    case"notice-save":if(typeof noticeSave==="function")noticeSave(id);break;
+    case"notice-delete":if(typeof noticeDelete==="function")noticeDelete(id);break;
     case"give-flourish-web":openExternal(PUBLIC_SITE+"#/give");break;
     case"open-orders":if(typeof openOrders==="function")openOrders();break;
     case"submit-email":if(typeof submitEmailCapture==="function")submitEmailCapture();break;
