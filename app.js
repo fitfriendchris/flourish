@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="52f58057f1";
+const APP_VERSION="78378097cf";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -2287,6 +2287,7 @@ function renderOnboard(){
     </div>
     <div class="note">📅 Your journey starts today — Day 1 of ${N.toLocaleString()}. Miss a day? It waits for you.</div>
     <button class="btn primary block lg" style="margin-top:14px" data-act="ob-begin">Begin the Journey →</button>
+    ${IS_NATIVE || location.protocol === "file:" ? "" : `<p class="center faint" style="font-size:13px;margin-top:14px"><a href="learn/" id="ob-learn" style="color:inherit">Browse all ${N.toLocaleString()} lessons by topic</a></p>`}
   </div>`;
 }
 function obTrack(t){S.track=t;$("#ob-m").classList.toggle("active",t==="men");$("#ob-w").classList.toggle("active",t==="women");save();updateHeader();}
