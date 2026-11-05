@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="4b03e25029";
+const APP_VERSION="8cfa3f1f92";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -896,6 +896,36 @@ function handle(act,id,el){
     case"submit-group":if(typeof submitGroup==="function")submitGroup(id);break;
     case"pastoral-inbox":if(typeof pastoralInbox==="function")pastoralInbox(id);break;
     case"pastoral-open":if(typeof leaderThread==="function")leaderThread(id);break;
+    case"members-roster":if(typeof memberSheet==="function")memberSheet(id);break;
+    case"member-add":if(typeof memberAdd==="function")memberAdd(id);break;
+    case"member-role":if(typeof memberSetRole==="function")memberSetRole(id,el.dataset.church);break;
+    case"member-remove":if(typeof memberRemove==="function")memberRemove(id,el.dataset.church);break;
+    case"audit-log":if(typeof auditSheet==="function")auditSheet(id);break;
+    case"dm-start":if(typeof dmStart==="function")dmStart(id,el.dataset.church);break;
+    case"chats":if(typeof chatsOpen==="function")chatsOpen();break;
+    case"chat-open":if(typeof chatOpen==="function")chatOpen(id);break;
+    case"chat-send":if(typeof chatSend==="function")chatSend(id);break;
+    case"chat-leave":if(typeof chatLeave==="function")chatLeave(id);break;
+    case"chat-new":if(typeof chatNewSheet==="function")chatNewSheet(id);break;
+    case"member-invite-withdraw":if(typeof memberInviteWithdraw==="function")memberInviteWithdraw(id,el.dataset.church);break;
+    case"invite-accept":if(typeof respondChurchInvite==="function")respondChurchInvite(id,true);break;
+    case"invite-decline":if(typeof respondChurchInvite==="function")respondChurchInvite(id,false);break;
+    case"notif-open":if(typeof notifOpen==="function")notifOpen(id,el.dataset.go,el.dataset.target);break;
+    case"platform-reports":if(typeof platformReportsSheet==="function")platformReportsSheet();break;
+    case"report-resolve":if(typeof resolveReport==="function")resolveReport(id,el.dataset.action);break;
+    case"msg-del":if(typeof deleteMessage==="function")deleteMessage(id);break;
+    case"msg-report":if(typeof reportMessageSheet==="function")reportMessageSheet(id,el.dataset.user);break;
+    case"do-report-msg":if(typeof doReportMessage==="function")doReportMessage(id,el.dataset.reason);break;
+    case"msg-block":if(typeof blockMessageAuthor==="function")blockMessageAuthor(id);break;
+    case"notifications":if(typeof notificationsSheet==="function")notificationsSheet();break;
+    case"notif-read":if(typeof notifMarkRead==="function")notifMarkRead(id);break;
+    case"notif-del":if(typeof notifDelete==="function")notifDelete(id);break;
+    case"notif-read-all":if(typeof notifMarkAll==="function")notifMarkAll();break;
+    case"event-invites":if(typeof inviteSheet==="function")inviteSheet(id);break;
+    case"invite-add":if(typeof inviteAdd==="function")inviteAdd(id);break;
+    case"invite-del":if(typeof inviteDel==="function")inviteDel(id,el.dataset.event);break;
+    case"near-me":if(typeof nearMe==="function")nearMe();break;
+    case"zip-near":if(typeof zipNear==="function")zipNear();break;
     case"join-membership":if(typeof joinMembership==="function")joinMembership(id);break;
     case"sign-in":if(typeof doSignIn==="function")doSignIn(el.dataset.next||null);break;
     case"verify-code":if(typeof doVerifyCode==="function")doVerifyCode(el.dataset.email||"");break;

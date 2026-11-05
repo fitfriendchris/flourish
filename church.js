@@ -142,10 +142,23 @@ async function sbRest(path, opts){
     Object.assign({}, opts, { headers }), isWrite ? 12000 : 7000);
   if (!r.ok) {
     const detail = await r.text().catch(() => "");
-    throw new Error(r.status === 401 ? "Please sign in to see this"
-                  : "Could not load (" + r.status + ")" + (detail ? " " + detail.slice(0,120) : ""));
+    throw new Error(sbErrorText(r.status, detail));
   }
   return r.status === 204 ? null : r.json();
+}
+/* PostgREST answers with JSON ({"code","message",…}). The database writes some
+   of its refusals FOR people — "That email address doesn't look right.", the
+   word filter's "Please rephrase." — and those end in a full stop; show them as
+   they are. Anything else keeps the status code, which is what a bug report
+   needs. */
+function sbErrorText(status, detail){
+  if (status === 401) return "Please sign in to see this";
+  let msg = "";
+  try { const j = JSON.parse(detail || ""); msg = (j && (j.message || j.msg || j.error)) || ""; } catch (x) {}
+  msg = String(msg || "").replace(/^(TEXT_BLOCKED|PRAYER_BLOCKED):\s*/, "").trim();
+  if (msg && msg.length <= 200 && /[.!?]$/.test(msg)) return msg;
+  return "Could not load (" + status + ")" + (msg ? " " + msg.slice(0, 120)
+    : (detail ? " " + String(detail).slice(0, 120) : ""));
 }
 const sbRpc = (fn, args) => sbRest("/rpc/" + fn, { method:"POST", body: JSON.stringify(args || {}) });
 
@@ -229,7 +242,10 @@ async function loadMembership(force){
 }
 function myChurchId(){
   const m = CH.membership || [];
-  const primary = m.find(x => x.is_primary) || m[0];
+  // A super_admin seat is the PLATFORM role (is_platform_admin() is "super_admin
+  // anywhere"), held in a hidden platform church — it is nobody's church.
+  const real = m.filter(x => x.role !== "super_admin");
+  const primary = real.find(x => x.is_primary) || real[0];
   return primary ? primary.church_id : null;
 }
 function isLeaderOf(id){
@@ -239,21 +255,37 @@ function isLeaderOf(id){
 
 function discovery(){
   setTimeout(() => fillView("church-list", discoveryBody), 0);
-  return `<div class="page-title serif">Churches</div>
+  const signedIn = typeof isSignedIn === "function" && isSignedIn();
+  return `<div class="row between" style="align-items:flex-start">
+      <div class="page-title serif">Churches</div>
+      ${signedIn ? `<button class="btn sm ghost" data-act="notifications" aria-label="Alerts">🔔 <span id="notif-badge"></span></button>` : ""}
+    </div>
     <p class="page-sub">Find your congregation, or browse what other churches nearby are doing.</p>
+    <div id="near-zone">
+      <div class="row" style="gap:8px;margin:2px 0 10px">
+        <button class="btn primary" style="flex:1" data-act="near-me">📍 Near me</button>
+        <input id="near-zip" inputmode="numeric" placeholder="ZIP" maxlength="10" style="width:110px">
+        <button class="btn" data-act="zip-near">Go</button>
+      </div>
+    </div>
     <div id="church-list">${viewLoading("churches")}</div>
     ${typeof churchLicenceCard === "function" ? churchLicenceCard() : ""}`;
 }
 async function discoveryBody(){
   try {
-    const [list] = await Promise.all([loadChurches(), loadMembership()]);
+    // invitations waiting for this person come first (claimed from their
+    // address on the first look each session); a failed lookup shows none
+    const [list, , invites] = await Promise.all([loadChurches(), loadMembership(),
+      myPendingInvites().catch(() => [])]);
+    const invitesHtml = inviteCardsHtml(invites);
+    setTimeout(notificationBadge, 0);
     if (!list.length) {
-      return viewEmpty("⛪", "No churches listed yet",
+      return invitesHtml + viewEmpty("⛪", "No churches listed yet",
         "Be the first — add your congregation and invite your members.",
         `<button class="btn primary" data-act="add-church">Add your church</button>`);
     }
     const mine = myChurchId();
-    return list.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
+    return invitesHtml + list.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
       <div class="row between">
         <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
         ${c.id === mine ? '<span class="pill">your church</span>' : '<span style="font-size:18px">›</span>'}
@@ -315,9 +347,11 @@ async function joinChurch(id){
   try {
     // RLS only permits inserting your OWN row with role member/visitor, so a client
     // cannot promote itself to church_admin here
+    // user_id is sent (and also defaults to the signed-in user server-side):
+    // before 5 Nov it was omitted, compared as NULL, and every join was refused
     await sbRest("/church_memberships", { method:"POST",
       headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify({ church_id:id, role:"member", is_primary:true }) });
+      body: JSON.stringify({ church_id:id, user_id: authUserId(), role:"member", is_primary:true }) });
     await loadMembership(true);
     if (typeof earn === "function") earn("connector");
     toast("⛪ Welcome — you're in");
@@ -384,6 +418,7 @@ async function submitChurch(){
 /* ── my church: events, prayers, announcements (items 17, 22, 23) ── */
 function myChurch(){
   setTimeout(() => fillView("my-church", myChurchBody), 0);
+  setTimeout(() => { if (typeof notificationBadge === "function") notificationBadge(); }, 0);
   return `<div id="my-church">${viewLoading("your church")}</div>`;
 }
 async function myChurchBody(){
@@ -427,9 +462,15 @@ async function myChurchBody(){
     ${leader ? `<button class="card center block" style="margin-top:2px" data-act="church-dash" data-id="${esc(id)}">
         <div style="font-size:24px">🛠️</div><b style="font-size:13px">Church dashboard</b></button>` : ""}
 
+    <div class="grid g3" style="margin-top:6px">
+      <button class="card center" data-act="chats"><div style="font-size:26px">💬</div><b style="font-size:13px">Chats</b></button>
+      <button class="card center" data-act="members-roster" data-id="${esc(id)}"><div style="font-size:26px">👥</div><b style="font-size:13px">Members</b></button>
+      <button class="card center" data-act="notifications"><div style="font-size:26px">🔔</div><b style="font-size:13px">Alerts <span id="notif-badge"></span></b></button>
+    </div>
+
     ${sectionOn(c, "events") ? `<div class="shead"><h2 class="serif">📅 Events</h2>${leader ? `<a data-act="event-new" data-id="${esc(id)}">+ New</a>` : ""}</div>
     ${events.length ? events.map(e => `<div class="list-item">
-        <div class="av">${e.visibility === "members_only" ? "🔒" : "📅"}</div>
+        <div class="av">${e.visibility === "private" ? "🔐" : e.visibility === "members_only" ? "🔒" : "📅"}</div>
         <div class="tx"><b>${esc(e.title)}</b><small>${esc(when(e.start_time))}${e.location_name ? " · " + esc(e.location_name) : ""}</small></div>
         ${leader ? `<button class="btn sm ghost" data-act="event-edit" data-id="${esc(id)}" data-event="${esc(e.id)}">Edit</button>` : ""}
         <button class="btn sm ${S.rsvps[e.id] ? "" : "primary"}" data-act="rsvp" data-id="${esc(e.id)}">${S.rsvps[e.id] ? "✓" : "RSVP"}</button>
@@ -488,7 +529,10 @@ async function pushRsvp(a){
   if (a.going) {
     await sbRest("/event_rsvps", { method:"POST",
       headers:{ Prefer:"resolution=merge-duplicates,return=minimal" },
-      body: JSON.stringify({ event_id: a.eventId }) });
+      // an explicit null would beat the server's auth.uid() default, so the
+      // id is only sent when it is known
+      body: JSON.stringify(Object.assign({ event_id: a.eventId },
+        (typeof authUserId === "function" && authUserId()) ? { user_id: authUserId() } : {})) });
   } else {
     await sbRest("/event_rsvps?event_id=eq." + encodeURIComponent(a.eventId),
       { method:"DELETE", headers:{ Prefer:"return=minimal" } });
@@ -720,11 +764,17 @@ async function openChurchDashboard(id){
         <button class="btn block" data-act="event-new" data-id="${esc(id)}">📅 New event</button>
         <button class="btn block" data-act="notice-new" data-id="${esc(id)}">📣 Announcement</button>
       </div>
-      <button class="btn block" style="margin-top:8px" data-act="pastoral-inbox" data-id="${esc(id)}">
-        💬 Pastoral messages</button>
+      <button class="btn block" style="margin-top:8px" data-act="members-roster" data-id="${esc(id)}">
+        👥 Members & roles</button>
+      <div class="grid g2" style="margin-top:8px">
+        <button class="btn block" data-act="audit-log" data-id="${esc(id)}">🧾 Activity log</button>
+        <button class="btn block" data-act="pastoral-inbox" data-id="${esc(id)}">💬 Member threads</button>
+      </div>
+      <button class="btn block" style="margin-top:8px" data-act="chat-new" data-id="${esc(id)}">
+        👥 New group chat</button>
       <button class="btn block" style="margin-top:8px" data-act="moderation-queue" data-id="${esc(id)}">
         🛡️ Review reported requests</button>
-      <div class="note" style="margin-top:12px">Member roles and church-wide messaging are coming next.</div>`;
+      <div class="note" style="margin-top:12px">Roles are audited: every change lands in your activity log.</div>`;
   } catch (e) {
     const el = document.getElementById("ch-dash");
     if (el) el.innerHTML = viewError(e.message, () => openChurchDashboard(id));
@@ -906,7 +956,9 @@ function newGroupSheet(churchId){
     ${fld("grp-when", "When and where it meets", 120)}
     <textarea id="grp-desc" placeholder="What is this group for?" maxlength="600"
       style="width:100%;padding:11px;margin-top:8px;min-height:80px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:15px"></textarea>
-    <button class="btn gold block lg" style="margin-top:12px" data-act="submit-group" data-id="${esc(churchId)}">Create group</button>`);
+    <button class="btn gold block lg" style="margin-top:12px" data-act="submit-group" data-id="${esc(churchId)}">Create group</button>
+    <p class="faint" style="font-size:12px;margin-top:8px">Every group comes with its own group chat.
+      Members join it under Groups on My Church, and the chat appears in their Chats.</p>`);
 }
 
 async function submitGroup(churchId){
@@ -916,7 +968,7 @@ async function submitGroup(churchId){
   try {
     await sbRpc("create_group", { p_church_id: churchId, p_name: name, p_description: v("grp-desc"),
       p_emoji: "👥", p_meeting_info: v("grp-when") });
-    closeSheet(); toast("Group created");
+    closeSheet(); toast("Group created — its chat is in Chats");
     fillView("my-church", myChurchBody);
   } catch (err) { toast("⚠ " + (err.message || "Could not create the group")); }
 }
@@ -1028,7 +1080,8 @@ async function eventSheet(churchId, eventId){
   let e = {};
   if (eventId) { try { const r = await sbRest("/events?id=eq." + encodeURIComponent(eventId) + "&select=*&limit=1"); e = (r && r[0]) || {}; } catch (x) { e = {}; } }
   const v = k => esc(e[k] == null ? "" : String(e[k]));
-  const vis = e.visibility === "public" ? "public" : "members_only";
+  const vis = ["public","members_only","private"].includes(e.visibility) ? e.visibility
+    : "members_only";
   sheet(`<div class="eyebrow">${eventId ? "Edit event" : "New event"}</div>
     <h3 class="serif" style="font-size:20px;margin:6px 0 12px">${eventId ? esc(e.title || "Event") : "Add to your church's calendar"}</h3>
     <label class="fl" for="ev-title">Title</label><input id="ev-title" value="${v("title")}">
@@ -1039,8 +1092,14 @@ async function eventSheet(churchId, eventId){
     <label class="fl" for="ev-location_address">Address (optional)</label><input id="ev-location_address" value="${v("location_address")}">
     <label class="fl" for="ev-visibility">Who can see it</label>
     <select id="ev-visibility"><option value="public"${vis === "public" ? " selected" : ""}>Public: anyone, and people searching nearby</option>
-      <option value="members_only"${vis === "members_only" ? " selected" : ""}>Members only</option></select>
+      <option value="members_only"${vis === "members_only" ? " selected" : ""}>Members only</option>
+      <option value="private"${vis === "private" ? " selected" : ""}>Invite-only: only people you invite</option></select>
     <label class="fl" for="ev-max_capacity">Capacity (optional)</label><input id="ev-max_capacity" type="number" min="1" value="${v("max_capacity")}">
+    ${eventId ? `<div class="card" style="margin-top:10px"><div class="row between">
+        <b>🔐 Invitations</b>
+        <button class="btn sm" data-act="event-invites" data-id="${esc(eventId)}">Edit list</button></div>
+      <p class="muted" style="font-size:12.5px;margin:5px 0 0">Invite-only events show just to people
+        you invite (and your church's platform team).</p></div>` : ""}
     <p class="muted" id="ev-err" role="alert" style="color:var(--rose,#e77);font-size:13px;min-height:1em;margin:10px 0 0"></p>
     <button class="btn gold block lg" style="margin-top:8px" data-act="event-save" data-id="${esc(churchId)}" data-event="${esc(eventId || "")}">${eventId ? "Save event" : "Add event"}</button>
     ${eventId && !e.cancelled_at ? `<button class="btn ghost block" style="margin-top:8px" data-act="event-cancel" data-id="${esc(eventId)}">Cancel this event</button>` : ""}`);
@@ -1052,7 +1111,7 @@ async function eventSave(churchId, eventId){
   if (title.length < 2) { err("Give the event a title."); return; }
   const st = new Date(start); if (!start || isNaN(st)) { err("Pick when it starts."); return; }
   const en = end ? new Date(end) : null; if (en && (isNaN(en) || en < st)) { err("It can't end before it starts."); return; }
-  const cap = g("max_capacity"); const vis = g("visibility") === "public" ? "public" : "members_only";
+  const cap = g("max_capacity"); const vis = ["public","members_only","private"].includes(g("visibility")) ? g("visibility") : "members_only";
   const body = { title: title.slice(0, 120), description: g("description").slice(0, 2000) || null, start_time: st.toISOString(),
     end_time: en ? en.toISOString() : null, location_name: g("location_name").slice(0, 120) || null,
     location_address: g("location_address").slice(0, 200) || null, visibility: vis, max_capacity: cap ? Math.max(1, Math.round(+cap)) : null };
@@ -1060,9 +1119,12 @@ async function eventSave(churchId, eventId){
     if (eventId) await sbRest("/events?id=eq." + encodeURIComponent(eventId), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
     else {
       const uid = typeof authUserId === "function" ? authUserId() : null;
-      await sbRest("/events", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(Object.assign({ church_id: churchId }, uid ? { created_by: uid } : {}, body)) });
+      const rows = await sbRest("/events", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(Object.assign({ church_id: churchId }, uid ? { created_by: uid } : {}, body)) });
+      const created = Array.isArray(rows) ? rows[0] : rows;
+      // An invite-only event is useless without invitees: straight to the list.
+      if (created && created.id && created.visibility === "private") inviteSheet(created.id);
     }
-    closeSheet(); toast(eventId ? "Event saved ✓" : "Event added ✓"); if (typeof render === "function") render();
+    if (!eventId || !(vis === "private")) { closeSheet(); toast(eventId ? "Event saved ✓" : "Event added ✓"); if (typeof render === "function") render(); }
   } catch (x) { err(x.message || "Couldn't save. Try again."); }
 }
 async function eventCancel(eventId){
@@ -1088,11 +1150,835 @@ async function noticeSave(churchId){
   const exp = g("expire"); const uid = typeof authUserId === "function" ? authUserId() : null;
   const body = Object.assign({ church_id: churchId, title: title.slice(0, 120), body: g("body").slice(0, 2000) || null,
     pinned: !!(document.getElementById("an-pinned") || {}).checked, expire_at: exp ? new Date(exp + "T23:59:59").toISOString() : null }, uid ? { created_by: uid } : {});
-  try { await sbRest("/announcements", { method: "POST", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
-    closeSheet(); toast("Announcement posted ✓"); if (typeof render === "function") render(); } catch (x) { err(x.message || "Couldn't post. Try again."); }
+  try {
+    const rows = await sbRest("/announcements", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(body) });
+    const made = Array.isArray(rows) ? rows[0] : rows;
+    // Fan out immediately: every member gets a notification (migration F).
+    // Idempotent and counted — the toast says how many people were reached.
+    let reached = null;
+    if (made && made.id) {
+      try {
+        const fan = await sbRpc("notify_announcement", { p_announcement_id: made.id });
+        const f = Array.isArray(fan) ? fan[0] : fan;
+        reached = f && (f.notified ?? f.notify_announcement);
+      } catch (x) { /* the announcement exists; delivery may retry next save-free run */ }
+    }
+    closeSheet();
+    toast(reached != null ? `Announcement posted ✓ · ${reached} member${reached === 1 ? "" : "s"} notified`
+      : "Announcement posted ✓");
+    if (typeof render === "function") render();
+  } catch (x) { err(x.message || "Couldn't post. Try again."); }
 }
 async function noticeDelete(id){
   if (!confirm("Remove this announcement?")) return;
   try { await sbRest("/announcements?id=eq." + encodeURIComponent(id), { method: "DELETE" }); toast("Removed"); if (typeof render === "function") render(); }
   catch (x) { toast("⚠ " + (x.message || "Couldn't remove")); }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MEMBERS · CHATS · NOTIFICATIONS · NEAR ME — phase 3 (4 Nov 2026)
+
+   The database now has everything these screens need — migrations B–F,
+   applied to production and behavior-tested in
+   supabase/tests/church_permissions.sql:
+
+     B  leaders add members (member/visitor/deacon), scoped audit read,
+        church_member_counts()
+     C  create_event_invite(p_event, p_email, p_user) and invite-gated
+        private events
+     D  nearby_churches(p_lat, p_lng, p_km, p_limit)
+     E  all four messaging kinds, report_message(), user_blocks,
+        create_direct_conversation(p_other, p_church) — block-aware
+     F  notify_announcement(p_announcement_id), delete-own notifications
+
+   RLS is the control; these screens are the wiring. Every write here is
+   one the server policies already adjudicate.
+   ══════════════════════════════════════════════════════════════════ */
+const ROLE_LABELS = { member:"Member", visitor:"Visitor", deacon:"Deacon",
+  pastor:"Pastor", church_admin:"Church admin", super_admin:"Platform" };
+
+/* ── members & roles ─────────────────────────────────────────────── */
+async function loadRoster(churchId){
+  const rows = await sbRest("/church_memberships?select=id,user_id,role,created_at" +
+    `&church_id=eq.${encodeURIComponent(churchId)}&order=created_at.asc&limit=400`);
+  const ids = Array.from(new Set((rows || []).map(r => r.user_id).filter(Boolean)));
+  // Names only. Email and phone are not readable by anyone but their owner
+  // (20261105071652): a roster is not a contact list.
+  let people = [];
+  if (ids.length) {
+    people = await sbRest("/profiles?select=id,display_name&id=in.(" +
+      ids.map(encodeURIComponent).join(",") + ")").catch(() => []);
+  }
+  const byId = {};
+  (people || []).forEach(p => { byId[p.id] = p; });
+  return (rows || []).map(r => ({
+    id: r.id, user_id: r.user_id, role: r.role, created_at: r.created_at,
+    name: (byId[r.user_id] && byId[r.user_id].display_name) || "Member"
+  }));
+}
+
+/* invitations this church has sent: pending ones can be withdrawn */
+async function loadChurchInvites(churchId){
+  return sbRest("/church_invites?select=id,invitee_email,role,status,created_at" +
+    `&church_id=eq.${encodeURIComponent(churchId)}&status=in.(pending,declined)` +
+    "&order=created_at.desc&limit=100").catch(() => []);
+}
+
+async function memberSheet(churchId){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Members</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">👥 Church roster</h3>
+    <div id="roster">${viewLoading("your members")}</div>`);
+  try {
+    const leader = isLeaderOf(churchId);
+    const [rows, invites] = await Promise.all([
+      loadRoster(churchId), leader ? loadChurchInvites(churchId) : Promise.resolve([])]);
+    const me = authUserId();
+    const roles = ["member","visitor","deacon","pastor","church_admin"];
+    const el = document.getElementById("roster"); if (!el) return;
+    const pending = (invites || []).filter(i => i.status === "pending");
+    const declined = (invites || []).filter(i => i.status === "declined");
+    el.innerHTML =
+      (leader ? `<div class="card" style="margin-bottom:10px">
+        <b style="font-size:14px">✉️ Invite someone to your church</b>
+        <div class="row" style="gap:8px;margin-top:8px">
+          <input id="m-email" type="email" placeholder="Their email address" style="flex:1" autocomplete="off">
+          <select id="m-role" style="width:118px" aria-label="Invite as">
+            <option value="member">Member</option><option value="visitor">Visitor</option><option value="deacon">Deacon</option>
+          </select>
+        </div>
+        <button class="btn primary block" style="margin-top:8px" data-act="member-add" data-id="${esc(churchId)}">Send invitation</button>
+        <p class="faint" style="font-size:11.5px;margin:8px 0 0">They join only if they accept. Someone with
+          a Flourish account sees it in their alerts now; anyone else sees it when they sign up with this
+          address. Flourish doesn't email them — let them know it's coming.</p>
+      </div>` + (pending.length || declined.length ? `<div class="eyebrow" style="margin:4px 0 2px">Invitations</div>` +
+        pending.map(i => `<div class="card" style="margin-top:6px"><div class="row between">
+          <div style="min-width:0"><b style="font-size:13.5px">${esc(i.invitee_email)}</b>
+            <div class="faint" style="font-size:11.5px">Invited as ${esc(ROLE_LABELS[i.role] || i.role)} · waiting</div></div>
+          <button class="btn sm ghost" data-act="member-invite-withdraw" data-id="${esc(i.id)}"
+            data-church="${esc(churchId)}">Withdraw</button></div></div>`).join("") +
+        declined.map(i => `<div class="card" style="margin-top:6px;opacity:.62">
+          <b style="font-size:13.5px">${esc(i.invitee_email)}</b>
+          <div class="faint" style="font-size:11.5px">Declined</div></div>`).join("") : "")
+      : `<p class="faint" style="font-size:12px;margin:0 0 8px">Message any member with 💬.</p>`) +
+      (rows.length ? `<div class="eyebrow" style="margin:10px 0 2px">Members · ${rows.length}</div>` + rows.map(r => {
+        const isMe = r.user_id === me;
+        const canTouch = leader && !isMe && r.role !== "super_admin" &&
+          (r.role === "member" || r.role === "visitor" || r.role === "deacon" ||
+           r.role === "pastor" || r.role === "church_admin");
+        return `<div class="card" style="margin-top:8px">
+          <div class="row between">
+            <div style="min-width:0">
+              <b style="font-size:14px">${esc(r.name)}</b>
+              <div class="faint" style="font-size:11.5px">${esc(ROLE_LABELS[r.role] || r.role || "Member")}${isMe ? " · you" : ""}</div>
+            </div>
+            ${r.user_id && !isMe ? `<button class="btn sm ghost" data-act="dm-start"
+              data-id="${esc(r.user_id)}" data-church="${esc(churchId)}" title="Direct message">💬</button>` : ""}
+          </div>
+          ${canTouch
+            ? `<div class="row" style="gap:8px;margin-top:8px">
+                <select data-role-sel="${esc(r.id)}" style="flex:1">
+                  ${roles.map(x => `<option value="${x}"${r.role === x ? " selected" : ""}>${ROLE_LABELS[x] || x}</option>`).join("")}
+                </select>
+                <button class="btn sm" data-act="member-role" data-id="${esc(r.id)}"
+                  data-church="${esc(churchId)}">Save role</button>
+                <button class="btn sm ghost" data-act="member-remove" data-id="${esc(r.id)}"
+                  data-church="${esc(churchId)}">Remove</button>
+              </div>`
+            : ""}
+        </div>`; }).join("")
+      : viewEmpty("👥", "No members listed", "Members appear here as they join."));
+  } catch (err) {
+    const el = document.getElementById("roster");
+    if (el) el.innerHTML = viewError(err.message, () => memberSheet(churchId));
+  }
+}
+
+/* "Add a member" is an invitation (20261105071652): anyone can create a
+   church, so a leader adding accounts to a roster — and then notifying them —
+   was a spam path. The server finds the account behind the address, and the
+   person accepts or declines. The answer never says whether an account
+   exists, so a leader can't use this to test addresses. */
+async function memberAdd(churchId){
+  const inbox = document.getElementById("m-email");
+  const email = ((inbox || {}).value || "").trim().toLowerCase();
+  const role = ((document.getElementById("m-role") || {}).value) || "member";
+  if (!email || email.indexOf("@") < 1) { toast("Type their email address first"); return; }
+  try {
+    const r = await sbRpc("invite_church_member", { p_church_id: churchId, p_email: email, p_role: role });
+    if (inbox) inbox.value = "";
+    toast(r && r.status === "already_member" ? "They're already a member ✓" : "Invitation sent ✓");
+    if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
+    memberSheet(churchId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't invite them")); }
+}
+
+async function memberInviteWithdraw(inviteId, churchId){
+  try {
+    await sbRest("/church_invites?id=eq." + encodeURIComponent(inviteId), { method:"DELETE" });
+    toast("Invitation withdrawn"); memberSheet(churchId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't withdraw it")); }
+}
+
+/* the invited person's side: accept joins, decline just says no */
+async function respondChurchInvite(inviteId, accept){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  try {
+    const r = await sbRpc("respond_church_invite", { p_invite_id: inviteId, p_accept: !!accept });
+    if (accept) {
+      await loadMembership(true).catch(() => []);
+      if (typeof earn === "function") earn("connector");
+      toast("⛪ Welcome — you're in");
+      if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
+    } else toast("Declined. They won't ask again.");
+    closeSheet(); notificationBadge();
+    S.route = {}; render();
+    return r;
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't answer the invitation")); }
+}
+
+/* Invitations sent to your address before you had an account — linked and
+   announced once per session, then listed wherever you look for a church. */
+let _invitesClaimed = false;
+async function claimInvitesOnce(){
+  if (_invitesClaimed || !(typeof isSignedIn === "function" && isSignedIn())) return;
+  _invitesClaimed = true;
+  try { await sbRpc("claim_my_invites", {}); } catch (e) { _invitesClaimed = false; }
+}
+async function myPendingInvites(){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) return [];
+  await claimInvitesOnce();
+  const rows = await sbRest("/church_invites?select=id,church_id,role,status,created_at" +
+    "&status=eq.pending&order=created_at.desc&limit=20").catch(() => []);
+  if (!(rows || []).length) return [];
+  const churches = await sbRest("/churches?select=id,name,city,state&id=in.(" +
+    rows.map(r => encodeURIComponent(r.church_id)).join(",") + ")").catch(() => []);
+  const byId = {}; (churches || []).forEach(c => { byId[c.id] = c; });
+  return rows.map(r => Object.assign({}, r, { church: byId[r.church_id] || null }));
+}
+function inviteCardsHtml(list){
+  return (list || []).map(i => `<div class="card glow" style="margin-bottom:10px" data-invite-card="${esc(i.id)}">
+      <div class="eyebrow">⛪ You're invited</div>
+      <b class="serif" style="font-size:17px">${esc((i.church && i.church.name) || "A church")}</b>
+      ${i.church && (i.church.city || i.church.state) ? `<p class="muted" style="font-size:12.5px;margin:3px 0 0">${esc([i.church.city, i.church.state].filter(Boolean).join(", "))}</p>` : ""}
+      <p class="faint" style="font-size:12px;margin:6px 0 0">As ${esc(ROLE_LABELS[i.role] || "a member")}. Nothing changes until you choose.</p>
+      <div class="row" style="gap:8px;margin-top:10px">
+        <button class="btn primary" style="flex:1" data-act="invite-accept" data-id="${esc(i.id)}">Accept</button>
+        <button class="btn ghost" style="flex:1" data-act="invite-decline" data-id="${esc(i.id)}">Decline</button>
+      </div></div>`).join("");
+}
+
+async function memberSetRole(rowId, churchId){
+  const sel = document.querySelector(`select[data-role-sel="${rowId}"]`);
+  const role = sel ? sel.value : null;
+  if (!role) return;
+  try {
+    await sbRest("/church_memberships?id=eq." + encodeURIComponent(rowId),
+      { method:"PATCH", headers:{ Prefer:"return=minimal" }, body: JSON.stringify({ role }) });
+    toast("Role set to " + (ROLE_LABELS[role] || role));
+    if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
+    memberSheet(churchId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't change the role")); }
+}
+
+async function memberRemove(rowId, churchId){
+  if (!confirm("Remove this member from your church?")) return;
+  try {
+    await sbRest("/church_memberships?id=eq." + encodeURIComponent(rowId), { method:"DELETE" });
+    toast("Removed"); memberSheet(churchId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't remove them")); }
+}
+
+/* ── the leader's activity log (scoped read from migration B) ────── */
+async function auditSheet(churchId){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Activity</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">🧾 What your leaders did</h3>
+    <div id="audit">${viewLoading("the action log")}</div>`);
+  try {
+    const rows = await sbRest("/audit_logs?select=id,action,table_name,record_id,new_data,old_data,created_at" +
+      "&order=created_at.desc&limit=40");
+    const when = t => { try { return new Date(t).toLocaleString(undefined,
+      { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); } catch (x) { return ""; } };
+    const line = r => {
+      const d = r.new_data || r.old_data || {};
+      const bits = [r.action, d.from && d.to ? `${d.from} → ${d.to}` : "",
+        d.title ? d.title : ""].filter(Boolean);
+      return `<div class="card" style="margin-top:8px">
+        <b style="font-size:13.5px">${esc(r.action.replace(/_/g, " "))}</b>
+        <div class="faint" style="font-size:11.5px;margin-top:3px">${esc(r.table_name || "")
+          }${bits[1] ? " · " + esc(bits[1]) : ""}${bits[2] ? " · " + esc(bits[2]) : ""
+          } · ${esc(when(r.created_at))}</div>
+      </div>`;
+    };
+    const el = document.getElementById("audit"); if (!el) return;
+    el.innerHTML = (rows || []).length ? (rows || []).map(line).join("")
+      : viewEmpty("🧾", "Nothing logged yet", "Roster, verification and messaging actions appear here.");
+  } catch (err) {
+    const el = document.getElementById("audit");
+    if (el) el.innerHTML = viewError(err.message, () => auditSheet(churchId));
+  }
+}
+
+/* ── chats: every conversation the signed-in member is part of ─────
+   (migration E: groups anyone in the church can join, 1:1 with their
+   leaders, and person-to-person DMs — every kind reports and blocks) */
+function chatTitle(t){ return String(t || "").replace(/\s*↔\s*Leaders$/i, "") || "Conversation"; }
+
+async function chatPartners(convIds){
+  if (!convIds || !convIds.length) return;
+  const parts = await sbRest("/conversation_participants?select=conversation_id,user_id" +
+    "&conversation_id=in.(" + convIds.map(encodeURIComponent).join(",") + ")&limit=500")
+    .catch(() => []);
+  const ids = Array.from(new Set((parts || []).map(p => p.user_id).filter(Boolean)));
+  let people = [];
+  if (ids.length) {
+    people = await sbRest("/profiles?select=id,display_name&id=in.(" +
+      ids.map(encodeURIComponent).join(",") + ")").catch(() => []);
+  }
+  const byId = {};
+  (people || []).forEach(p => { byId[p.id] = p.display_name || "Member"; });
+  // the other people in each conversation — a DM is titled by who you're
+  // talking to, not by your own name
+  const me = authUserId();
+  const out = {};
+  (parts || []).forEach(p => {
+    if (p.user_id === me) return;
+    (out[p.conversation_id] = out[p.conversation_id] || []).push(byId[p.user_id] || "Member");
+  });
+  return out;
+}
+
+async function chatsOpen(){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Messages</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">💬 Your conversations</h3>
+    <div id="chats">${viewLoading("your conversations")}</div>`);
+  try {
+    const mine = await sbRest("/conversation_participants?select=conversation_id" +
+      "&user_id=eq." + encodeURIComponent(authUserId()) + "&limit=200");
+    const convIds = Array.from(new Set((mine || []).map(p => p.conversation_id)));
+    const el = document.getElementById("chats"); if (!el) return;
+    if (!convIds.length) {
+      el.innerHTML = viewEmpty("💬", "No conversations yet",
+        "Group chats and direct messages you're part of appear here — start one from your roster.",
+        `<button class="btn primary" data-act="pastoral">Write to your leaders</button>`);
+      return;
+    }
+    const convs = await sbRest("/conversations?select=id,type,title,church_id,last_message_at" +
+      "&id=in.(" + convIds.map(encodeURIComponent).join(",") + ")&order=last_message_at.desc.nullslast&limit=100");
+    const partners = await chatPartners(convIds);
+    el.innerHTML = (convs || []).map(c => {
+      const others = (partners[c.id] || []).filter(n => n);
+      const who = c.type === "pastoral" ? "Pastoral · " + chatTitle(c.title)
+        : c.type === "group" ? chatTitle(c.title) || "Group chat"
+        : (others.join(", ") || "Direct message");
+      return `<button class="card" style="text-align:left;margin-top:8px" data-act="chat-open" data-id="${esc(c.id)}">
+        <b style="font-size:14px">${c.type === "pastoral" ? "🤲" : c.type === "group" ? "👥" : "👤"} ${esc(who)}</b>
+        ${c.last_message_at ? `<div class="faint" style="font-size:11.5px;margin-top:2px">${esc(new Date(c.last_message_at).toLocaleString())}</div>` : ""}
+      </button>`;
+    }).join("") +
+    `<button class="btn ghost block" style="margin-top:12px" data-act="pastoral">🤲 Write to your church's leaders</button>
+    <p class="faint center" style="font-size:11.5px;margin-top:8px">Group chats come with your church's
+      small groups — join one under Groups on My Church and its chat appears here.</p>`;
+  } catch (err) {
+    const el = document.getElementById("chats");
+    if (el) el.innerHTML = viewError(err.message, chatsOpen);
+  }
+}
+
+function chatHtml(msgs, me, names){
+  if (!msgs || !msgs.length) return `<div class="faint center" style="font-size:13px;padding:14px 0">
+    No messages yet — say something kind.</div>`;
+  const when = t => { try { return new Date(t).toLocaleString(undefined,
+    { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); } catch (x) { return ""; } };
+  return msgs.map(m => {
+    const mine = m.sender_id === me;
+    const who = mine ? "You" : (names[m.sender_id] || "Member");
+    return `<div style="display:flex;justify-content:${mine ? "flex-end" : "flex-start"};margin:6px 0">
+      <div style="max-width:82%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.45;
+        background:${mine ? "var(--gold-soft, rgba(201,162,39,.16))" : "var(--surface)"};border:1px solid var(--line)">
+        ${!mine ? `<div style="margin-bottom:2px"><b style="font-size:12px">${esc(who)}</b></div>` : ""}
+        <div style="white-space:pre-wrap">${esc(m.content || "")}</div>
+        <div class="row" style="gap:8px;margin-top:4px;align-items:center">
+          <span class="faint" style="font-size:10.5px">${esc(when(m.created_at))}</span>
+          ${mine ? `<button class="btn sm ghost" data-act="msg-del" data-id="${esc(m.id)}"
+              style="padding:1px 7px;font-size:11px" title="Delete">✕</button>`
+            : `<button class="btn sm ghost" data-act="msg-report" data-id="${esc(m.id)}"
+                data-user="${esc(m.sender_id)}"
+                style="padding:1px 7px;font-size:11px" title="Report or block">⋯</button>`}
+        </div>
+      </div></div>`;
+  }).join("");
+}
+
+/* While a chat is on screen it refreshes itself every few seconds (only while
+   the page is visible), and opening it clears that conversation's alerts. One
+   poller at a time; it stops the moment its chat is no longer in the DOM. */
+let _chatPoll = null;
+const _chatNames = {};
+function chatStopPolling(){ if (_chatPoll) { clearInterval(_chatPoll); _chatPoll = null; } }
+function chatStartPolling(convId){
+  chatStopPolling();
+  let last = "";
+  const tick = async () => {
+    const list = document.getElementById("chat-list");
+    if (!list || list.dataset.conv !== convId) { chatStopPolling(); return; }
+    if (document.hidden || navigator.onLine === false) return;
+    try {
+      const msgs = await loadThread(convId);
+      const sig = (msgs || []).length + ":" + ((msgs || []).slice(-1)[0] || {}).id;
+      if (sig === last) return;
+      last = sig;
+      const now = document.getElementById("chat-list");
+      if (now && now.dataset.conv === convId) {
+        const atEnd = now.scrollHeight - now.scrollTop - now.clientHeight < 40;
+        now.innerHTML = chatHtml(msgs, authUserId(), _chatNames[convId] || {});
+        if (atEnd) now.scrollTop = now.scrollHeight;
+        chatMarkRead(convId);
+      }
+    } catch (e) { /* a missed tick is retried by the next one */ }
+  };
+  _chatPoll = setInterval(tick, 8000);
+}
+async function chatMarkRead(convId){
+  try {
+    await sbRest("/notifications?user_id=eq." + encodeURIComponent(authUserId()) +
+      "&type=eq.message&is_read=eq.false&data->>conversation_id=eq." + encodeURIComponent(convId),
+      { method:"PATCH", headers:{ Prefer:"return=minimal" }, body: JSON.stringify({ is_read: true }) });
+    notificationBadge();
+  } catch (e) { /* alerts catch up on the next open */ }
+}
+
+async function chatOpen(convId){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Conversation</div>
+    <h3 class="serif" id="chat-title" style="font-size:19px;margin:6px 0 6px">💬 Chat</h3>
+    <div id="chat-view">${viewLoading("the conversation")}</div>`);
+  try {
+    const [msgs, parts, convRows] = await Promise.all([
+      loadThread(convId),
+      sbRest("/conversation_participants?select=conversation_id,user_id&conversation_id=eq." +
+        encodeURIComponent(convId) + "&limit=100"),
+      sbRest("/conversations?select=id,type,title&id=eq." + encodeURIComponent(convId) + "&limit=1").catch(() => [])
+    ]);
+    const ids = Array.from(new Set((parts || []).map(p => p.user_id).filter(Boolean)));
+    let people = [];
+    if (ids.length) people = await sbRest("/profiles?select=id,display_name&id=in.(" +
+      ids.map(encodeURIComponent).join(",") + ")").catch(() => []);
+    const names = {};
+    (people || []).forEach(p => { names[p.id] = p.display_name || "Member"; });
+    _chatNames[convId] = names;
+    const me = authUserId();
+    const conv = (convRows || [])[0] || {};
+    const others = ids.filter(x => x !== me).map(x => names[x] || "Member");
+    const head = document.getElementById("chat-title");
+    if (head) head.textContent = conv.type === "group" ? "👥 " + (chatTitle(conv.title) || "Group chat")
+      : conv.type === "pastoral" ? "🤲 " + (chatTitle(conv.title) || "Pastoral")
+      : "👤 " + (others.join(", ") || "Direct message");
+    const el = document.getElementById("chat-view"); if (!el) return;
+    el.innerHTML = `<div id="chat-list" data-conv="${esc(convId)}" style="max-height:52vh;overflow-y:auto">${chatHtml(msgs, me, names)}</div>
+      ${composerHtml(convId, "chat-send")}
+      <div style="margin-top:10px">
+        <button class="btn ghost sm" data-act="chat-leave" data-id="${esc(convId)}">Leave chat</button>
+      </div>
+      <p class="faint center" style="font-size:11px;margin-top:8px">Be kind. Anything you'd report
+        on the prayer wall is reportable here, and blocking works the same.</p>`;
+    const list = document.getElementById("chat-list");
+    if (list) list.scrollTop = list.scrollHeight;
+    chatMarkRead(convId);
+    chatStartPolling(convId);
+  } catch (err) {
+    const el = document.getElementById("chat-view");
+    if (el) el.innerHTML = viewError(err.message, () => chatOpen(convId));
+  }
+}
+
+async function chatSend(convId){
+  const box = document.getElementById("chat-body") || document.getElementById("pm-body");
+  const content = ((box || {}).value || "").trim();
+  if (!content) { toast("Write your message first"); return; }
+  if (navigator.onLine === false) { toast("You're offline — send it when you reconnect"); return; }
+  try {
+    await sbRest("/messages", { method:"POST", headers:{ Prefer:"return=minimal" },
+      body: JSON.stringify({
+        id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : undefined,
+        conversation_id: convId, sender_id: authUserId(), content }) });
+    if (box) box.value = "";
+    const msgs = await loadThread(convId);
+    const list = document.getElementById("chat-list");
+    if (list) {
+      list.innerHTML = chatHtml(msgs, authUserId(), _chatNames[convId] || {});
+      list.scrollTop = list.scrollHeight;
+    }
+    toast("Sent");
+    if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
+  } catch (err) {
+    toast("⚠ Not sent — " + (err.message || "try again"));
+  }
+}
+
+async function chatLeave(convId){
+  if (!confirm("Leave this conversation?")) return;
+  try {
+    await sbRest("/conversation_participants?conversation_id=eq." + encodeURIComponent(convId) +
+      "&user_id=eq." + encodeURIComponent(authUserId()), { method:"DELETE" });
+    closeSheet(); toast("You left the chat"); chatsOpen();
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't leave")); }
+}
+
+/* start a person-to-person DM (block-aware on the server; a blocked pair
+   gets a plain "blocked" message, which we render gently) */
+async function dmStart(otherId, churchId){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  try {
+    const r = await sbRpc("create_direct_conversation", { p_other: otherId, p_church_id: churchId || null });
+    const convId = typeof r === "string" ? r : (r && (r.id || r.create_direct_conversation)) || null;
+    if (!convId) throw new Error("Could not open the conversation");
+    chatOpen(convId);
+  } catch (e) {
+    toast(/blocked/i.test(e.message || "") ? "You've blocked each other — unblock in Settings first"
+      : "⚠ " + (e.message || "Couldn't start the chat"));
+  }
+}
+
+/* report or block a message — the prayer wall's rules, carried over */
+const REPORT_REASONS = [["offensive","Offensive or inappropriate"],["harassment","Harassment or bullying"],
+  ["spam","Spam or advertising"],["self_harm","Someone may be in danger"],["other","Something else"]];
+function reportMessageSheet(msgId, senderId){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Report this message</div>
+    <h3 class="serif" style="font-size:19px;margin:6px 0 4px">What's wrong with it?</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">The Flourish team reviews every
+      report. In a group chat your church's leaders see it too; a report about a direct or
+      pastoral message goes only to Flourish, never to the church. Reporting never tells
+      the person.</p>
+    ${REPORT_REASONS.map(([v, label]) => `<button class="btn block" style="margin-top:8px;text-align:left"
+        data-act="do-report-msg" data-id="${esc(msgId)}" data-reason="${esc(v)}">${esc(label)}</button>`).join("")}
+    ${senderId ? `<div class="divider" style="margin:14px 0 10px"></div>
+    <button class="btn ghost block" data-act="msg-block" data-id="${esc(senderId)}">
+      🚫 Block this person</button>
+    <p class="muted" style="font-size:12.5px;margin-top:8px">Blocking ends all DMs between you
+      and them — they are not told. Undo it by unblocking.</p>` : ""}`);
+}
+async function doReportMessage(msgId, reason){
+  try {
+    await sbRpc("report_message", { p_message_id: msgId, p_reason: reason });
+    closeSheet();
+    toast(reason === "self_harm" ? "Reported. If someone is in danger now, call 911 or text 988."
+      : "Reported — thank you. It will be reviewed.");
+    chatsOpen();
+  } catch (e) { toast("⚠ " + (e.message)); }
+}
+async function blockMessageAuthor(userId){
+  if (!userId) return;
+  try {
+    await sbRest("/user_blocks", { method:"POST", headers:{ Prefer:"return=minimal" },
+      body: JSON.stringify({ blocker_id: authUserId(), blocked_id: userId }) });
+    closeSheet(); toast("Blocked. All DMs between you end."); chatsOpen();
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't block")); }
+}
+async function deleteMessage(msgId){
+  if (!confirm("Delete this message?")) return;
+  try {
+    await sbRest("/messages?id=eq." + encodeURIComponent(msgId), { method:"DELETE" });
+    const list = document.getElementById("chat-list");
+    const conv = (list && list.dataset.conv) || null;
+    toast("Deleted");
+    if (conv) chatOpen(conv);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't delete")); }
+}
+
+/* ── notifications (migration F) ──────────────────────────────────── */
+const NOTIF_ICONS = { event_invite:"🔐", announcement:"📣", prayer_update:"🙏", message:"💬",
+  church_invite:"⛪", event_reminder:"📅", system:"🛡️" };
+
+/* Platform admins (a super_admin membership) review the reports no church can
+   see. Asked once per session; the server decides, this only shows a button. */
+let _platformAdmin = null;
+async function isPlatformAdmin(){
+  if (_platformAdmin !== null) return _platformAdmin;
+  try { const r = await sbRpc("is_platform_admin", {}); _platformAdmin = r === true || r === "true"; }
+  catch (e) { _platformAdmin = false; }
+  return _platformAdmin;
+}
+
+/* where an alert leads: its conversation, its church, or the report queue */
+function notifTarget(n){
+  const d = (n && n.data) || {};
+  if (d.kind === "message" && d.conversation_id) return { act: "chat-open", id: d.conversation_id, label: "Open chat" };
+  if (d.kind === "report") return { act: "platform-reports", id: "", label: "Review" };
+  if (d.church_id && (n.type === "event_invite" || n.type === "announcement"))
+    return { act: "open-church", id: d.church_id, label: n.type === "event_invite" ? "See the event" : "Open church" };
+  return null;
+}
+async function unreadCount(){
+  try {
+    const rows = await sbRest("/notifications?select=id&user_id=eq." +
+      encodeURIComponent(authUserId()) + "&is_read=eq.false&limit=99");
+    return (rows || []).length;
+  } catch (e) { return 0; }
+}
+async function notificationsSheet(){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Notifications</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">🔔 What's new</h3>
+    <div id="notifs">${viewLoading("your notifications")}</div>
+    <button class="btn ghost block" style="margin-top:10px" data-act="notif-read-all">Mark all read</button>`);
+  try {
+    const rows = await sbRest("/notifications?select=id,type,title,body,data,is_read,created_at" +
+      "&user_id=eq." + encodeURIComponent(authUserId()) +
+      "&order=created_at.desc&limit=60");
+    const when = t => { try { return new Date(t).toLocaleString(undefined,
+      { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); } catch (x) { return ""; } };
+    const admin = await isPlatformAdmin();
+    const el = document.getElementById("notifs"); if (!el) return;
+    const card = n => {
+      const d = n.data || {};
+      const go = notifTarget(n);
+      const inviteOpen = n.type === "church_invite" && d.invite_id && !n.is_read;
+      return `<div class="card" style="margin-top:8px;${n.is_read ? "opacity:.62" : ""}">
+        <div class="row between">
+          <b style="font-size:14px">${NOTIF_ICONS[n.type] || "🔔"} ${esc(n.title || "Notification")}</b>
+          <div class="row" style="gap:6px">
+            ${!n.is_read && !inviteOpen ? `<button class="btn sm ghost" data-act="notif-read" data-id="${esc(n.id)}" title="Mark read">✓</button>` : ""}
+            <button class="btn sm ghost" data-act="notif-del" data-id="${esc(n.id)}" title="Delete">✕</button>
+          </div>
+        </div>
+        ${n.body ? `<p class="muted" style="font-size:13px;margin:5px 0 0">${esc(n.body)}</p>` : ""}
+        ${inviteOpen ? `<div class="row" style="gap:8px;margin-top:9px">
+            <button class="btn sm primary" style="flex:1" data-act="invite-accept" data-id="${esc(d.invite_id)}">Accept</button>
+            <button class="btn sm ghost" style="flex:1" data-act="invite-decline" data-id="${esc(d.invite_id)}">Decline</button>
+          </div>` : ""}
+        ${go ? `<button class="btn sm block" style="margin-top:9px" data-act="notif-open" data-id="${esc(n.id)}"
+            data-go="${esc(go.act)}" data-target="${esc(go.id)}">${esc(go.label)} ›</button>` : ""}
+        <div class="faint" style="font-size:11px;margin-top:5px">${esc(when(n.created_at))}${n.is_read ? " · read" : " · NEW"}</div>
+      </div>`;
+    };
+    el.innerHTML = (admin ? `<button class="btn block" style="margin-bottom:6px" data-act="platform-reports">🛡️ Reports waiting for review</button>` : "") +
+      ((rows || []).length ? (rows || []).map(card).join("")
+        : viewEmpty("🔔", "Nothing yet", "Invitations, messages, event invites and announcements land here."));
+  } catch (err) {
+    const el = document.getElementById("notifs");
+    if (el) el.innerHTML = viewError(err.message, notificationsSheet);
+  }
+}
+async function notifMarkRead(id){
+  try {
+    await sbRest("/notifications?id=eq." + encodeURIComponent(id),
+      { method:"PATCH", headers:{ Prefer:"return=minimal" }, body: JSON.stringify({ is_read: true }) });
+    notificationsSheet(); notificationBadge();
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't mark it read")); }
+}
+async function notifDelete(id){
+  try {
+    await sbRest("/notifications?id=eq." + encodeURIComponent(id), { method:"DELETE" });
+    notificationsSheet(); notificationBadge();
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't delete")); }
+}
+async function notifMarkAll(){
+  try {
+    await sbRest("/notifications?user_id=eq." + encodeURIComponent(authUserId()) + "&is_read=eq.false",
+      { method:"PATCH", headers:{ Prefer:"return=minimal" }, body: JSON.stringify({ is_read: true }) });
+    toast("All marked read"); notificationsSheet(); notificationBadge();
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't mark them read")); }
+}
+async function notifOpen(id, act, target){
+  try {
+    await sbRest("/notifications?id=eq." + encodeURIComponent(id),
+      { method:"PATCH", headers:{ Prefer:"return=minimal" }, body: JSON.stringify({ is_read: true }) });
+  } catch (e) { /* opening still works; the alert just stays unread */ }
+  notificationBadge();
+  if (act === "chat-open" && target) { chatOpen(target); return; }
+  if (act === "platform-reports") { platformReportsSheet(); return; }
+  if (act === "open-church" && target) {
+    closeSheet(); S.page = "church"; save(); route("church-detail", target); return;
+  }
+  notificationsSheet();
+}
+
+/* ── the platform's report queue (App Review 1.2: reports get a timely
+      response). Reports with no church — every DM and pastoral report —
+      are only ever seen here. ───────────────────────────────────────── */
+const REPORT_LABELS = { offensive:"Offensive", harassment:"Harassment", spam:"Spam",
+  self_harm:"Someone may be in danger", other:"Something else" };
+async function platformReportsSheet(){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Platform moderation</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 4px">🛡️ Reports to review</h3>
+    <p class="muted" style="font-size:12.5px;margin:0 0 8px">Remove takes the message or prayer
+      down for everyone. Dismiss keeps it and closes the report.</p>
+    <div id="pr-list">${viewLoading("the reports")}</div>`);
+  try {
+    const rows = await sbRpc("platform_reports", { p_include_resolved: false });
+    const list = Array.isArray(rows) ? rows : [];
+    const when = t => { try { return new Date(t).toLocaleString(undefined,
+      { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); } catch (x) { return ""; } };
+    const where = r => r.content_kind === "prayer" ? "Prayer request"
+      : r.conversation_type === "group" ? "Group chat" : r.conversation_type === "pastoral" ? "Pastoral thread"
+      : r.conversation_type === "direct" ? "Direct message" : "Message";
+    const el = document.getElementById("pr-list"); if (!el) return;
+    el.innerHTML = list.length ? list.map(r => `<div class="card" style="margin-top:8px">
+        <div class="row between"><b style="font-size:13.5px">${r.reason === "self_harm" ? "🚨 " : ""}${esc(REPORT_LABELS[r.reason] || r.reason || "Report")}</b>
+          <span class="faint" style="font-size:11px">${esc(when(r.created_at))}</span></div>
+        <div class="faint" style="font-size:11.5px;margin-top:3px">${esc(where(r))}${r.church_name ? " · " + esc(r.church_name) : ""}
+          · by ${esc(r.author_name || "a member")}${Number(r.reports) > 1 ? " · " + esc(String(r.reports)) + " reports" : ""}</div>
+        <p style="font-size:13.5px;margin:7px 0 0;white-space:pre-wrap">${r.excerpt ? esc(r.excerpt) : '<span class="faint">Already deleted.</span>'}</p>
+        ${r.detail ? `<p class="muted" style="font-size:12px;margin:6px 0 0">Reporter's note: ${esc(r.detail)}</p>` : ""}
+        <div class="row" style="gap:8px;margin-top:9px">
+          <button class="btn sm primary" style="flex:1" data-act="report-resolve" data-id="${esc(r.id)}" data-action="remove">Remove</button>
+          <button class="btn sm ghost" style="flex:1" data-act="report-resolve" data-id="${esc(r.id)}" data-action="dismiss">Dismiss</button>
+        </div></div>`).join("")
+      : viewEmpty("✅", "Nothing waiting", "New reports land here, and in your alerts the moment they're filed.");
+  } catch (err) {
+    const el = document.getElementById("pr-list");
+    if (el) el.innerHTML = viewError(err.message, platformReportsSheet);
+  }
+}
+async function resolveReport(reportId, action){
+  if (action === "remove" && !confirm("Remove this for everyone?")) return;
+  try {
+    await sbRpc("resolve_report", { p_report_id: reportId, p_action: action });
+    toast(action === "remove" ? "Removed" : "Dismissed");
+    platformReportsSheet();
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't resolve it")); }
+}
+
+async function notificationBadge(){
+  if (!document.getElementById("notif-badge") ||
+      !(typeof isSignedIn === "function" && isSignedIn())) return;
+  const n = await unreadCount();
+  const el = document.getElementById("notif-badge");
+  if (el) el.innerHTML = n > 0 ? `<span class="pill" style="background:var(--rose,#e77);color:#fff;font-size:10px">${n}</span>` : "";
+}
+
+/* ── "near me" discovery (migration D) ────────────────────────────── */
+async function nearMe(){
+  const zone = document.getElementById("near-zone");
+  if (!navigator.geolocation) {
+    if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">This device can't share its location. Search churches by ZIP instead.</p>`;
+    return;
+  }
+  if (zone) zone.innerHTML = `<p class="faint" style="font-size:12.5px;margin:8px 0">Finding churches near you…</p>`;
+  // Miles where people think in miles (US English), kilometres elsewhere.
+  // The server measures in km either way; 48.3 km is 30 miles.
+  const miles = /^en-US$/i.test(navigator.language || "") || /^en-US/i.test((navigator.languages || [])[0] || "");
+  const radiusKm = miles ? 48.3 : 50;
+  const dist = km => km == null ? "" : miles
+    ? (Math.round(km * 0.621371 * 10) / 10) + " mi" : km + " km";
+  navigator.geolocation.getCurrentPosition(async pos => {
+    try {
+      const r = await sbRpc("nearby_churches", { p_lat: pos.coords.latitude, p_lng: pos.coords.longitude, p_km: radiusKm, p_limit: 50 });
+      const rows = Array.isArray(r) ? r : (r && r.nearby_churches) || [];
+      const el = document.getElementById("church-list");
+      if (!el) return;
+      if (!rows.length) {
+        if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">Nothing within ${miles ? "30 miles" : "50 km"} yet. You can add your church.</p>`;
+        return;
+      }
+      if (zone) zone.innerHTML = "";
+      el.innerHTML = rows.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
+          <div class="row between">
+            <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
+            <span class="pill" style="font-size:11px">${esc(dist(c.distance_km))}</span>
+          </div>
+          <p class="muted" style="font-size:13px;margin:6px 0 0">${esc([c.city, c.state].filter(Boolean).join(", ") || "Church")}</p>
+        </button>`).join("") +
+        `<button class="btn ghost block" style="margin-top:10px" data-act="add-church">＋ Add your church</button>`;
+    } catch (e) {
+      if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">⚠ ${esc(e.message || "Couldn't search nearby")}</p>`;
+    }
+  }, () => {
+    if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">
+      Location was refused. Allow it in Settings, or search by ZIP below.</p>`;
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+async function zipNear(){
+  const input = document.getElementById("near-zip");
+  const zip = ((input || {}).value || "").trim();
+  if (!zip) { toast("Type a ZIP code first"); return; }
+  const zone = document.getElementById("near-zone");
+  try {
+    const rows = await sbRest("/churches?select=id,name,denomination,city,state,address,is_verified" +
+      "&postal_code=eq." + encodeURIComponent(zip) + "&order=name.asc&limit=25");
+    const el = document.getElementById("church-list");
+    if (el) el.innerHTML = (rows || []).length
+      ? rows.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
+          <div class="row between">
+            <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
+            <span style="font-size:18px">›</span>
+          </div>
+          <p class="muted" style="font-size:13px;margin:6px 0 0">${esc([c.denomination, [c.city, c.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "Church")}</p>
+        </button>`).join("")
+      : viewEmpty("📮", "No churches with that ZIP", "Try another ZIP, or add this church to Flourish yourself.");
+    if (zone) zone.innerHTML = "";
+  } catch (e) {
+    if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">⚠ ${esc(e.message || "Couldn't search")}</p>`;
+  }
+}
+
+/* ── a leader starts a church group chat ──────────────────────────────
+   A group chat IS a small group: create_group() makes the group, its chat and
+   the leader's seat in both, and members find it under Groups and join with
+   one tap (join_group). The 4 Nov version posted a bare conversation that no
+   screen listed — only its creator could ever find it. */
+function chatNewSheet(churchId){ newGroupSheet(churchId); }
+
+/* ── event invites (migration C) ──────────────────────────────────── */
+async function inviteRows(eventId){
+  return await sbRest("/event_invites?select=id,invitee_email,invitee_user,created_at" +
+    "&event_id=eq." + encodeURIComponent(eventId) + "&order=created_at.desc&limit=100").catch(() => []);
+}
+async function inviteSheet(eventId){
+  if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
+  sheet(`<div class="eyebrow">Invite-only event</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">🔐 Who's invited</h3>
+    <div class="row" style="gap:8px">
+      <input id="inv-email" type="email" placeholder="Invite by email" style="flex:1">
+      <button class="btn primary" data-act="invite-add" data-id="${esc(eventId)}">Invite</button>
+    </div>
+    <div id="inv-list">${viewLoading("the list")}</div>
+    <p class="faint" style="font-size:12px;margin-top:8px">Invited people see this event even
+      though it's private — and nobody else does. They RSVP like anyone else. Someone with a
+      Flourish account gets an alert now; anyone else sees it when they sign up with that
+      address. Flourish doesn't send emails — let them know it's coming.</p>`);
+  inviteRender(eventId);
+}
+async function inviteRender(eventId){
+  try {
+    const rows = await inviteRows(eventId);
+    const when = t => { try { return new Date(t).toLocaleDateString(undefined,
+      { month:"short", day:"numeric" }); } catch (x) { return ""; } };
+    const el = document.getElementById("inv-list");
+    if (!el) return;
+    el.innerHTML = (rows || []).length
+      ? rows.map(r => `<div class="card" style="margin-top:8px"><div class="row between">
+          <b style="font-size:13.5px">✉️ ${esc(r.invitee_email || (r.invitee_user ? "A member" : ""))}</b>
+          <div class="row" style="gap:6px">
+            <span class="faint" style="font-size:11px">${esc(when(r.created_at))}</span>
+            <button class="btn sm ghost" data-act="invite-del" data-id="${esc(r.id)}" data-event="${esc(eventId)}">✕</button>
+          </div></div></div>`).join("")
+      : `<p class="faint" style="font-size:13px;margin:8px 0">Nobody invited yet.</p>`;
+  } catch (e) {
+    const el = document.getElementById("inv-list");
+    if (el) el.innerHTML = viewError(e.message, () => inviteRender(eventId));
+  }
+}
+async function inviteAdd(eventId){
+  const input = document.getElementById("inv-email");
+  const email = ((input || {}).value || "").trim();
+  if (!email || email.indexOf("@") < 1) { toast("Type the email to invite"); return; }
+  try {
+    const r = await sbRpc("create_event_invite", { p_event_id: eventId, p_email: email });
+    if (input) input.value = "";
+    toast(r && r.already_invited ? "Already invited ✓" : "Invited ✓");
+    if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
+    inviteRender(eventId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't invite them")); }
+}
+async function inviteDel(inviteId, eventId){
+  try {
+    await sbRest("/event_invites?id=eq." + encodeURIComponent(inviteId), { method:"DELETE" });
+    toast("Invite removed"); inviteRender(eventId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't remove")); }
 }
