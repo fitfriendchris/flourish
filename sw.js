@@ -52,6 +52,11 @@ self.addEventListener("install", e => {
     // one line of church.js re-downloaded all ~300 KB, curriculum included.
     const old = (await caches.keys()).filter(k => k !== VERSION);
     const reuse = async u => {
+      // Only a URL carrying the hash of its bytes (?v=) names the same file in
+      // both builds. "./", config.js and the icons carry none, and reusing them
+      // served the old copies forever: on 5 Nov 2026 every returning visitor
+      // kept a config.js that pointed at a backend already switched off.
+      if (!/[?&]v=/.test(u)) return false;
       for (const k of old) {
         const hit = await caches.open(k).then(oc => oc.match(u));
         if (hit) { await c.put(u, hit); return true; }
@@ -103,6 +108,16 @@ self.addEventListener("fetch", e => {
     e.respondWith(
       fetch(req).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); return r; })
                 .catch(() => caches.match(req).then(r => r || caches.match("./index.html")))
+    );
+    return;
+  }
+  // config.js carries no hash because it is edited on the server after a
+  // deploy, so cache-first would pin whatever copy was cached first. Network
+  // first, like a navigation; the cached copy is the offline fallback.
+  if (url.pathname.endsWith("/config.js")) {
+    e.respondWith(
+      fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); } return r; })
+                .catch(() => caches.match(req).then(r => r || new Response("", { status: 504, statusText: "offline" })))
     );
     return;
   }
