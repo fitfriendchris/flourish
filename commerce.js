@@ -6,17 +6,30 @@
    ══════════════════════════════════════════════════════════════════ */
 
 /* ---- live catalog sync (falls back to the baked catalog offline) ---- */
+/* A product keeps its options (size, colour): the cart asks for one, and the
+   server refuses a line that needs one and has none. Prices stay in cents. */
+function shopProducts(list){
+  return (Array.isArray(list) ? list : []).filter(p => p && typeof p.id === "string").map(p => {
+    const cents = Number.isInteger(p.price_cents) ? p.price_cents : 0;
+    return {
+      id: p.id, name: String(p.name || "Flourish item"), cat: p.category || p.cat || "Shop",
+      emoji: p.emoji || "🎁", price: cents / 100, cents, stock: p.stock ?? 99,
+      variants: (Array.isArray(p.variants) ? p.variants : []).filter(v => v && typeof v.id === "string").map(v => ({
+        id: v.id, title: String(v.title || v.option1 || v.id),
+        cents: Number.isInteger(v.price_cents) ? v.price_cents : cents,
+        soldOut: v.inventory_count === 0
+      }))
+    };
+  });
+}
 fetch(FLOURISH_API + "/api/products")
   .then(r => r.ok ? r.json() : null)
   .then(j => {
     if (!j || !j.products || !j.products.length) return;
-    DATA.hub.products = j.products.map(p => ({
-      id: p.id, name: p.name, cat: p.category || p.cat || "Shop",
-      emoji: p.emoji || "🎁", price: (p.price_cents || 0) / 100, stock: p.stock ?? 99
-    }));
+    DATA.hub.products = shopProducts(j.products);
     render();
   })
-  .catch(() => { /* offline: baked catalog stays */ });
+  .catch(() => { /* offline: the shop says it cannot be reached */ });
 
 /* ---- membership plans (mirrors Stripe prices + App Store products) ---- */
 const PLANS = [

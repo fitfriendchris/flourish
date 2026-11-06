@@ -447,7 +447,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="c0f0a23b4b";
+const APP_VERSION="bf2b3e7f26";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -799,6 +799,9 @@ function handle(act,id,el){
     case"rsvp":toggleRsvp(id);break;
     case"pray":prayFor(id);break;
     case"add-cart":addCart(id);break;
+    case"pick-option":pickOption(id,el.dataset.v,el.dataset.line);break;
+    case"cart-option":{const it=S.cart[Number(id)],p=it&&shopProduct(it.id);if(p)optionSheet(p,Number(id));break;}
+    case"cart-step":cartStep(Number(id),Number(el.dataset.n));break;
     case"open-cart":openCart();break;
     case"give":openGive(id);break;
     case"shop":route("shop");break;
@@ -831,9 +834,8 @@ function handle(act,id,el){
     case"memory-start":if(typeof memoryStart==="function")memoryStart();break;
     case"finish-lesson":if(typeof finishLesson==="function")finishLesson(id);break;
     /* Numbers back to numbers: a data attribute is always a string, and
-       pickAmt/placeOrder compare and arithmetic on their argument. */
+       pickAmt and cartStep compare and do arithmetic on their argument. */
     case"pick-amt":if(typeof pickAmt==="function")pickAmt(Number(el.dataset.n),el);break;
-    case"place-order":if(typeof placeOrder==="function")placeOrder(Number(el.dataset.n));break;
     case"pay-cart":if(typeof payCart==="function")payCart();break;
     case"pay-gift":if(typeof payGift==="function")payGift();break;
     case"give-church":openExternal(el.dataset.url);break;
@@ -2185,7 +2187,9 @@ async function openOrders(){
     el.innerHTML=orders.map(o=>{
       const when=new Date(o.created_at).toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});
       const items=(o.items||[]).map(i=>`${esc(i.name)} ×${i.quantity}`).join(", ")||"—";
-      const ids=(o.items||[]).map(i=>i.product_id).filter(Boolean);
+      /* the catalog id and option the order was sold as (order_items.metadata) */
+      const ids=(o.items||[]).filter(i=>i&&typeof i.sku==="string"&&i.sku)
+        .map(i=>({sku:i.sku, variant:typeof i.variant==="string"?i.variant:""}));
       return `<div class="card" style="margin-bottom:10px">
         <div class="row between"><b style="font-size:14px">${when}</b>
           <span class="pill">${esc(o.status||"pending")}</span></div>
@@ -2199,9 +2203,21 @@ async function openOrders(){
 }
 
 /* #15 buy again — devotional buyers reorder journals and card sets */
-function buyAgain(ids){
-  let n=0;
-  ids.forEach(id=>{ if(DATA.hub.products.some(p=>p.id===id)){ addCart(id); n++; } });
+function buyAgain(list){
+  let n=0, ask=null;
+  (Array.isArray(list)?list:[]).forEach(it=>{
+    const id=typeof it==="string"?it:(it&&typeof it.sku==="string"?it.sku:"");
+    const v=it&&typeof it==="object"&&typeof it.variant==="string"?it.variant:"";
+    const p=id?shopProduct(id):null; if(!p) return;
+    /* the same option again when it is still sold; otherwise ask */
+    if(cartAdd(id, lineReady(p,v)?v:"")) n++; else if(!ask) ask=p;
+  });
+  if(n){ save(); updateHeader(); render(); }
+  if(ask){
+    optionSheet(ask);
+    toast(`${n?`${n} item${n>1?"s":""} back in your cart · `:""}Choose an option for ${ask.name}`);
+    return;
+  }
   closeSheet();
   toast(n?`${n} item${n>1?"s":""} back in your cart 🛒`:"Those items are no longer available");
 }
@@ -2944,53 +2960,143 @@ async function flourishFetch(path, opts){
 }
 function flourishCheckoutRedirect(url){ toast("Redirecting to secure checkout…"); setTimeout(()=>location.href=url, 400); }
 
-/* ---- GIFT SHOP ---- */
+/* ---- GIFT SHOP ----
+   Sizes and colours (5 Nov 2026). The catalogue sells tees in five sizes and
+   journals in two colours, but the cart held a product id and nothing else, so
+   every apparel order would have reached the warehouse without a size. A
+   product with more than one option now asks before it goes in the cart, a
+   product with one option takes it, and the server refuses a line that needs
+   an option and has none (resolveLine in supabase/functions/flourish/app.ts).
+
+   Money is counted in cents: $34.99 × 3 in floating point is
+   $104.97000000000001. "Reserve for pickup" is gone: it cleared the cart and
+   said "see you at pickup" without telling anyone anything. */
+function shopProduct(id){ return DATA.hub.products.find(p=>p.id===id)||null; }
+function shopOptions(p){ return p&&Array.isArray(p.variants)?p.variants:[]; }
+function shopCents(p){ return Number.isInteger(p&&p.cents)?p.cents:Math.round(((p&&p.price)||0)*100); }
+function shopMoney(c){ return "$"+(Math.max(0,Number(c)||0)/100).toFixed(2); }
+/* The option a cart line will be sold as: the one it names, or the only one there is. */
+function lineOption(p,v){
+  const o=shopOptions(p);
+  if(v) return o.find(x=>x.id===v)||null;
+  return o.length===1?o[0]:null;
+}
+/* A line can be paid for when its product is sold and, if it has options, a
+   chosen option that is not sold out. */
+function lineReady(p,v){
+  if(!p) return false;
+  if(!shopOptions(p).length) return !v;
+  const x=lineOption(p,v); return !!x&&!x.soldOut;
+}
+function lineCents(p,v){ const x=lineOption(p,v); return x&&Number.isInteger(x.cents)?x.cents:shopCents(p); }
+
 function shopView(){
   const cats=[...new Set(DATA.hub.products.map(p=>p.cat))];
   const cartN=S.cart.reduce((n,i)=>n+i.qty,0);
   return `<div class="subhead"><button class="nb" data-act="church-home">‹</button>
     <div class="st"><b>🛍️ Gift Shop</b><small>Books, apparel & gifts</small></div>
     <button class="btn sm gold" data-act="open-cart">🛒 ${cartN}</button></div>
-  ${!cats.length?viewEmpty("\u{1F6CD}\uFE0F","Catalogue unavailable",
+  ${!cats.length?viewEmpty("\u{1F6CD}️","Catalogue unavailable",
       "The shop catalogue loads from the Flourish store. Check your connection and try again."):""}
   ${cats.map(cat=>`<div class="shead"><h2 class="serif" style="font-size:17px">${esc(cat)}</h2></div>
-    <div class="grid g2">${DATA.hub.products.filter(p=>p.cat===cat).map(p=>`
-      <div class="prod"><div class="ph">${p.emoji}</div><div class="pb">
-      <div class="pn">${esc(p.name)}</div><div class="pp">$${p.price}</div>
-      <button class="btn sm primary block" style="margin-top:8px" data-act="add-cart" data-id="${p.id}">Add</button></div></div>`).join("")}</div>`).join("")}
+    <div class="grid g2">${DATA.hub.products.filter(p=>p.cat===cat).map(p=>{
+      const n=shopOptions(p).length;
+      return `<div class="prod"><div class="ph">${esc(p.emoji)}</div><div class="pb">
+      <div class="pn">${esc(p.name)}</div><div class="pp">${shopMoney(shopCents(p))}</div>
+      ${n>1?`<div class="faint" style="font-size:11px">${n} options</div>`:""}
+      <button class="btn sm primary block" style="margin-top:8px" data-act="add-cart" data-id="${esc(p.id)}">${n>1?"Choose":"Add"}</button></div></div>`;}).join("")}</div>`).join("")}
   <div class="note" style="margin-top:14px">🔒 Secure checkout by Stripe · Apple Pay &amp; Google Pay · 30-day returns</div>`;
 }
-function addCart(id){const ex=S.cart.find(i=>i.id===id);if(ex)ex.qty++;else S.cart.push({id,qty:1});save();toast("Added to cart 🛒");updateHeader();render();
-  const cc=$("#cart-chip"); if(cc){cc.classList.remove("pulse");void cc.offsetWidth;cc.classList.add("pulse");}}
+/* Puts one of something in the cart. false when it cannot be sold as asked. */
+function cartAdd(id,v){
+  const p=shopProduct(id); if(!p) return false;
+  const o=shopOptions(p);
+  if(!v&&o.length===1) v=o[0].id;
+  if(!lineReady(p,v)) return false;
+  const ex=S.cart.find(i=>i.id===id&&(i.v||"")===(v||""));
+  if(ex) ex.qty=Math.min(99,ex.qty+1); else S.cart.push(v?{id,v,qty:1}:{id,qty:1});
+  return true;
+}
+function addCart(id,v){
+  const p=shopProduct(id);
+  if(!p){ toast("That item is no longer available"); return; }
+  if(!v&&shopOptions(p).length>1){ optionSheet(p); return; }
+  if(!cartAdd(id,v)){ toast("That option is sold out"); return; }
+  const x=lineOption(p,v);
+  save(); toast(`Added to cart 🛒${x&&shopOptions(p).length>1?" · "+x.title:""}`); updateHeader(); render();
+  const cc=$("#cart-chip"); if(cc){cc.classList.remove("pulse");void cc.offsetWidth;cc.classList.add("pulse");}
+}
+/* line: the index of a cart line that still needs its option (a cart saved
+   before options existed); absent when adding from the shop. */
+function optionSheet(p,line){
+  const base=shopCents(p);
+  sheet(`<div class="eyebrow">${esc(p.name)}</div>
+  <h3 class="serif" style="font-size:20px;margin:6px 0 12px">Choose an option</h3>
+  <div style="display:grid;gap:8px">${shopOptions(p).map(x=>`<button class="btn block" data-act="pick-option" data-id="${esc(p.id)}" data-v="${esc(x.id)}"${line===undefined?"":` data-line="${Number(line)}"`}${x.soldOut?` disabled aria-disabled="true"`:""}>${esc(x.title)}${x.soldOut?" · sold out":(x.cents!==base?" · "+shopMoney(x.cents):"")}</button>`).join("")}</div>`);
+}
+function pickOption(id,v,line){
+  if(line!==undefined&&line!==""){
+    const i=Number(line), it=S.cart[i], p=shopProduct(id);
+    if(it&&it.id===id&&p){
+      if(!lineReady(p,v)){ toast("That option is sold out"); return; }
+      S.cart.splice(i,1);
+      const ex=S.cart.find(c=>c.id===id&&(c.v||"")===v);
+      if(ex) ex.qty=Math.min(99,ex.qty+it.qty); else S.cart.splice(i,0,{id,v,qty:it.qty});
+      save(); updateHeader(); openCart(); return;
+    }
+  }
+  closeSheet(); addCart(id,v);
+}
+function cartStep(ix,d){
+  const it=S.cart[ix]; if(!it||!Number.isFinite(d)) return;
+  it.qty+=d;
+  if(it.qty<=0) S.cart.splice(ix,1); else it.qty=Math.min(99,it.qty);
+  save(); updateHeader(); render(); openCart();
+}
 function openCart(){
   newAttempt("cart");
   if(!S.cart.length){sheet(`<div class="empty"><div class="e-ic">🛒</div>Your cart is empty</div>`);return;}
-  const items=S.cart.map(i=>({...i,p:DATA.hub.products.find(p=>p.id===i.id)}));
-  const total=items.reduce((s,i)=>s+i.p.price*i.qty,0);
+  if(!DATA.hub.products.length){
+    sheet(`<div class="empty"><div class="e-ic">🛒</div>The shop can't be reached right now.<br>Your cart is saved — try again when you're online.</div>`);return;
+  }
+  const lines=S.cart.map((i,ix)=>({...i,ix,p:shopProduct(i.id)}));
+  const ready=lines.every(l=>lineReady(l.p,l.v));
+  const total=lines.reduce((s,l)=>s+(l.p?lineCents(l.p,l.v)*l.qty:0),0);
+  const step=(l,d,label,txt)=>`<button class="btn sm" data-act="cart-step" data-id="${l.ix}" data-n="${d}" aria-label="${label}">${txt}</button>`;
   sheet(`<div class="eyebrow">Your Cart</div><h3 class="serif" style="font-size:20px;margin:6px 0 12px">Review order</h3>
-  ${items.map(i=>`<div class="row between" style="margin-bottom:10px"><div class="row"><div class="av">${i.p.emoji}</div><div><b style="font-size:14px">${esc(i.p.name)}</b><div class="faint" style="font-size:12px">$${i.p.price} × ${i.qty}</div></div></div><b>$${i.p.price*i.qty}</b></div>`).join("")}
-  <div class="divider"></div><div class="row between"><b>Total</b><b class="serif" style="font-size:20px;color:var(--gold)">$${total}</b></div>
+  ${lines.map(l=>{
+    if(!l.p) return `<div class="row between" style="margin-bottom:10px"><span class="faint" style="font-size:13px">An item that is no longer sold</span>${step(l,-l.qty,"Remove it","Remove")}</div>`;
+    const x=lineOption(l.p,l.v), c=lineCents(l.p,l.v);
+    const opt=!shopOptions(l.p).length?"":lineReady(l.p,l.v)
+      ?(shopOptions(l.p).length>1?`<div class="faint" style="font-size:12px">${esc(x.title)}</div>`:"")
+      :`<button class="btn sm" style="margin-top:4px" data-act="cart-option" data-id="${l.ix}">${x?"Sold out — choose another":"Choose an option"}</button>`;
+    return `<div class="row between" style="margin-bottom:10px;gap:8px"><div class="row"><div class="av">${esc(l.p.emoji)}</div><div><b style="font-size:14px">${esc(l.p.name)}</b>${opt}
+      <div class="row" style="gap:6px;margin-top:4px;align-items:center">${step(l,-1,"One fewer","−")}<span class="faint" style="font-size:12px">${shopMoney(c)} × ${l.qty}</span>${step(l,1,"One more","+")}</div></div></div><b>${shopMoney(c*l.qty)}</b></div>`;
+  }).join("")}
+  <div class="divider"></div><div class="row between"><b>Total</b><b class="serif" style="font-size:20px;color:var(--gold)">${shopMoney(total)}</b></div>
   <div class="note" style="margin-top:12px">🔒 Secure checkout by Stripe · Apple Pay / Google Pay supported · US shipping only</div>
-  <button class="btn gold block lg" style="margin-top:12px" id="cartpay" data-act="pay-cart">Pay now — $${total}</button>
-  <button class="btn sm block" style="margin-top:8px" data-act="place-order" data-n="${total}">Reserve for pickup instead</button>`);
+  ${ready?"":`<div class="note" id="cart-needs" style="margin-top:8px">Choose an option for every item to continue.</div>`}
+  <button class="btn gold block lg" style="margin-top:12px" id="cartpay" data-act="pay-cart"${ready?"":` disabled aria-disabled="true"`}>Pay now — ${shopMoney(total)}</button>`);
 }
 
 async function payCart(){
+  const lines=S.cart.map(i=>({i,p:shopProduct(i.id)}));
+  if(!lines.length||lines.some(l=>!lineReady(l.p,l.i.v))){ toast("Choose an option for every item first"); openCart(); return; }
   const btn=document.getElementById("cartpay"); if(btn){btn.disabled=true;btn.textContent="Connecting…";}
   try{
-    const items=S.cart.map(i=>({product_id:i.id, quantity:i.qty}));
+    const items=lines.map(({i,p})=>{ const x=lineOption(p,i.v);
+      return x?{product_id:i.id, variant_id:x.id, quantity:i.qty}:{product_id:i.id, quantity:i.qty}; });
     const j=await flourishFetch("/api/create-order-session",{method:"POST",body:JSON.stringify({
       idempotency_key:attemptKey("cart"),
-      items, shipping_cents:0, tax_cents:0,
+      items,
       shipping_name:(S.profile&&S.profile.name)||"", shipping_email:(S.profile&&S.profile.email)||"", shipping_address:{},
       success_url:location.origin+location.pathname+"#pay=success&type=order",
       cancel_url:location.origin+location.pathname+"#pay=cancel"
     })});
     sessionStorage.setItem("flourish_pending_order", JSON.stringify({items:S.cart, order_id:j.order_id}));
     flourishCheckoutRedirect(j.url);
-  }catch(e){ toast("⚠ "+e.message+" — order reserved locally"); if(btn){btn.disabled=false;btn.textContent="Pay now";} }
+  }catch(e){ toast("⚠ "+e.message); if(btn){btn.disabled=false;btn.textContent="Pay now";} }
 }
-function placeOrder(total){S.gifts.push({amt:total,camp:"Gift Shop order",rec:false,when:Date.now()});S.cart=[];save();closeSheet();toast("✅ Order reserved — see you at pickup!");render();}
 
 /* ---- QR ---- */
 function renderQR(el,url){

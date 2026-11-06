@@ -12,17 +12,23 @@
    ══════════════════════════════════════════════════════════════════ */
 
 const AUTH_KEY = "flourish_auth";
-let CFG = null;
+let CFG = null, _cfgLoad = null;
 
-/* ---- public config (no keys baked into the bundle) ---- */
+/* ---- public config (no keys baked into the bundle) ----
+   One request however many callers ask at once. Boot, the church directory and
+   sign-in each asked before the first answer landed, and each request is an
+   Edge Function invocation (5 Nov 2026: the free plan allows 500K a month).
+   A failure with nothing cached is not remembered, so the next caller retries. */
 async function flourishConfig(){
   if (CFG) return CFG;
-  try {
-    const r = await fetch(FLOURISH_API + "/api/public-config");
-    if (r.ok) { CFG = await r.json(); localStorage.setItem("flourish_cfg", JSON.stringify(CFG)); return CFG; }
-  } catch (e) { /* offline */ }
-  try { CFG = JSON.parse(localStorage.getItem("flourish_cfg") || "null"); } catch (e) { CFG = null; }
-  return CFG;
+  if (!_cfgLoad) _cfgLoad = (async () => {
+    try {
+      const r = await fetch(FLOURISH_API + "/api/public-config");
+      if (r.ok) { const j = await r.json(); localStorage.setItem("flourish_cfg", JSON.stringify(j)); return j; }
+    } catch (e) { /* offline */ }
+    try { return JSON.parse(localStorage.getItem("flourish_cfg") || "null"); } catch (e) { return null; }
+  })().then(c => { CFG = c; _cfgLoad = null; return c; });
+  return _cfgLoad;
 }
 
 /* ---- session ---- */
