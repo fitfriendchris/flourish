@@ -114,9 +114,15 @@ self.addEventListener("fetch", e => {
   // config.js carries no hash because it is edited on the server after a
   // deploy, so cache-first would pin whatever copy was cached first. Network
   // first, like a navigation; the cached copy is the offline fallback.
+  // "no-cache" because the network is not the only cache in the way: the host
+  // sends config.js with max-age=600, and a plain fetch() is answered from the
+  // browser's own HTTP cache until that runs out. On 10 Nov 2026 a visitor
+  // who had been on the site minutes before a deploy came back to the new app
+  // running against the old config.js. no-cache revalidates every time, and a
+  // 304 costs nothing.
   if (url.pathname.endsWith("/config.js")) {
     e.respondWith(
-      fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); } return r; })
+      fetch(req, { cache: "no-cache" }).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(req, cp)); } return r; })
                 .catch(() => caches.match(req).then(r => r || new Response("", { status: 504, statusText: "offline" })))
     );
     return;
