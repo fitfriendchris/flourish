@@ -22,11 +22,31 @@ function shopProducts(list){
     };
   });
 }
+/* The partner store (the catalog's "storefront"): a name, an https root, and
+   items that each live under that root. Anything else is dropped, not shown:
+   an item's address is where a member is sent to pay. No price is read here.
+   The store states its own. */
+function shopStorefront(sf){
+  if (!sf || typeof sf !== "object") return null;
+  const root = String(sf.url || "");
+  if (!/^https:\/\/[a-z0-9.-]+\/$/i.test(root) || !sf.name) return null;
+  const items = (Array.isArray(sf.items) ? sf.items : [])
+    .filter(i => i && typeof i.name === "string" && typeof i.url === "string" && i.url.indexOf(root + "product/") === 0)
+    .map(i => ({ name: String(i.name), kind: String(i.kind || "Apparel"), url: String(i.url) }));
+  return { name: String(sf.name), url: root, tagline: String(sf.tagline || ""), terms: String(sf.terms || ""), items };
+}
 fetch(FLOURISH_API + "/api/products")
   .then(r => r.ok ? r.json() : null)
   .then(j => {
-    if (!j || !j.products || !j.products.length) return;
-    DATA.hub.products = shopProducts(j.products);
+    if (!j) return;
+    /* First-party goods are offered only when the API says their orders are
+       open. An API that lists goods and does not say (an older deploy still
+       answering behind a newer page) is treated as closed: never offer what
+       nobody can fulfil. The partner store arrives always. */
+    const own = j.orders_open === true ? shopProducts(j.products) : [], store = shopStorefront(j.storefront);
+    if (!own.length && !store) return;
+    DATA.hub.products = own;
+    if (store) DATA.hub.storefront = store;
     render();
   })
   .catch(() => { /* offline: the shop says it cannot be reached */ });

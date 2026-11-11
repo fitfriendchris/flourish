@@ -142,7 +142,9 @@ async function sbRest(path, opts){
     Object.assign({}, opts, { headers }), isWrite ? 12000 : 7000);
   if (!r.ok) {
     const detail = await r.text().catch(() => "");
-    throw new Error(sbErrorText(r.status, detail));
+    const err = new Error(sbErrorText(r.status, detail));
+    err.status = r.status;   // the write queue tells "never" from "not now" by this, not by the wording
+    throw err;
   }
   return r.status === 204 ? null : r.json();
 }
@@ -469,11 +471,11 @@ async function myChurchBody(){
     </div>
 
     ${sectionOn(c, "events") ? `<div class="shead"><h2 class="serif">📅 Events</h2>${leader ? `<a data-act="event-new" data-id="${esc(id)}">+ New</a>` : ""}</div>
-    ${events.length ? events.map(e => `<div class="list-item">
+    ${events.length ? events.map(e => `<div class="list-item" data-act="event-open" data-id="${esc(e.id)}" style="cursor:pointer">
         <div class="av">${e.visibility === "private" ? "🔐" : e.visibility === "members_only" ? "🔒" : "📅"}</div>
         <div class="tx"><b>${esc(e.title)}</b><small>${esc(when(e.start_time))}${e.location_name ? " · " + esc(e.location_name) : ""}</small></div>
-        ${leader ? `<button class="btn sm ghost" data-act="event-edit" data-id="${esc(id)}" data-event="${esc(e.id)}">Edit</button>` : ""}
-        <button class="btn sm ${S.rsvps[e.id] ? "" : "primary"}" data-act="rsvp" data-id="${esc(e.id)}">${S.rsvps[e.id] ? "✓" : "RSVP"}</button>
+        ${leader ? `<button class="btn sm ghost" data-act="event-edit" data-id="${esc(id)}" data-event="${esc(e.id)}" onclick="event.stopPropagation()">Edit</button>` : ""}
+        <button class="btn sm ${S.rsvps[e.id] ? "" : "primary"}" data-act="rsvp" data-id="${esc(e.id)}" onclick="event.stopPropagation()">${S.rsvps[e.id] ? "✓" : "RSVP"}</button>
       </div>`).join("")
       : viewEmpty("📅","Nothing on the calendar yet", leader
           ? "Add your first event so members know what's happening."
@@ -538,13 +540,28 @@ async function pushRsvp(a){
       { method:"DELETE", headers:{ Prefer:"return=minimal" } });
   }
 }
+/* The server said no after the screen had already said yes: the event filled
+   up, or was cancelled, between the button being drawn and the tap arriving.
+   Put the button back and say why, in the database's own words when it wrote
+   some for people ("This event is full."). */
+function rsvpRefused(a, msg){
+  if (!a || !a.eventId) return;
+  if (!!S.rsvps[a.eventId] === !!a.going) {
+    S.rsvps[a.eventId] = !a.going; save();
+    _rsvpTaps[a.eventId] = (_rsvpTaps[a.eventId] || 0) + 1;
+  }
+  const said = String(msg || "");
+  toast("⚠ " + (said && /[.!?]$/.test(said) && !/^Could not load \(/.test(said) ? said : "Your RSVP could not be saved."),
+        { assertive: true });
+  render();
+}
 async function pushPrayed(a){ await sbRpc("increment_prayer_count", { p_prayer_id: a.prayerId }); }
 async function pushPrayer(a){
   await sbRest("/prayer_requests", { method:"POST", headers:{ Prefer:"return=minimal" },
     body: JSON.stringify(a.row) });
 }
 if (typeof registerReplay === "function") {
-  registerReplay("rsvp",   pushRsvp);
+  registerReplay("rsvp",   pushRsvp, rsvpRefused);
   registerReplay("prayed", pushPrayed);
   registerReplay("prayer", pushPrayer);
 }
@@ -552,10 +569,24 @@ if (typeof registerReplay === "function") {
 /* Item 48 optimistic, item 45 durable. The optimistic update is kept because
    it is right; what changes is that losing the network no longer silently
    undoes it in front of the member. */
+/* How many times this device has changed its RSVP for an event since the page
+   loaded, and whether one of those changes is still waiting to be sent. The
+   detail screen uses both to tell a fresh answer from the server from one that
+   was already on its way when the member tapped. A counter, not a clock: two
+   taps in one millisecond are still two taps. */
+const _rsvpTaps = Object.create(null);
+function rsvpTapCount(eventId){ return _rsvpTaps[eventId] || 0; }
+function rsvpWaiting(eventId){
+  return typeof loadQueue === "function" && loadQueue().some(q => q.kind === "rsvp" && q.key === eventId);
+}
 function toggleRsvp(eventId){
   const going = !S.rsvps[eventId];
-  S.rsvps[eventId] = going; save(); render();
+  _rsvpTaps[eventId] = (_rsvpTaps[eventId] || 0) + 1;
+  S.rsvps[eventId] = going; save();
+  /* Queued before the redraw, not after: the redraw asks the server about this
+     event, and that question has to know a change of ours is on its way. */
   queueWrite({ kind:"rsvp", key:eventId, args:{ eventId, going } });
+  render();
 }
 function prayFor(prayerId){
   if (S.prayed[prayerId]) return;
@@ -1076,9 +1107,52 @@ async function churchSave(id){
 
 function toLocalInput(t){ if (!t) return ""; const d = new Date(t); if (isNaN(d)) return ""; const z = n => String(n).padStart(2, "0");
   return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()) + "T" + z(d.getHours()) + ":" + z(d.getMinutes()); }
+
+function eventMapsUrl(address){
+  const q = encodeURIComponent(String(address || "").trim());
+  return q ? "https://www.google.com/maps/search/?api=1\u0026query=" + q : "";
+}
+
+function eventIcs(event){
+  const uid = String(event.id || "event").replace(/[^a-zA-Z0-9-]/g, "") + "@flourishapp.online";
+  const fmt = d => {
+    if (!d) return "";
+    const x = new Date(d);
+    if (isNaN(x)) return "";
+    return x.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  };
+  const start = fmt(event.start_time);
+  const end = fmt(event.end_time) || start;
+  const loc = [event.location_name, event.location_address].filter(Boolean).join(", ");
+  const body = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Flourish//Event//EN",
+    "BEGIN:VEVENT",
+    "UID:" + uid,
+    "DTSTAMP:" + fmt(new Date()),
+    "DTSTART:" + start,
+    end ? "DTEND:" + end : "",
+    "SUMMARY:" + (event.title || "Flourish event").replace(/\n/g, " "),
+    event.description ? "DESCRIPTION:" + String(event.description).replace(/\n/g, " ").replace(/,/g, "\\,") : "",
+    loc ? "LOCATION:" + loc.replace(/\n/g, " ").replace(/,/g, "\\,") : "",
+    "END:VEVENT", "END:VCALENDAR"
+  ].filter(Boolean).join("\r\n") + "\r\n";
+  const blob = new Blob([body], { type: "text/calendar" });
+  const url = URL.createObjectURL(blob);
+  const filename = (event.title || "event").replace(/[^a-zA-Z0-9]+/g, "_").slice(0, 40) + ".ics";
+  const shareData = { files: [new File([blob], filename, { type: "text/calendar" })] };
+  if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+    navigator.share(Object.assign({ title: event.title || "Flourish event" }, shareData)).catch(() => {});
+  } else {
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 async function eventSheet(churchId, eventId){
   let e = {};
   if (eventId) { try { const r = await sbRest("/events?id=eq." + encodeURIComponent(eventId) + "&select=*&limit=1"); e = (r && r[0]) || {}; } catch (x) { e = {}; } }
+  const church = (CH.churches || []).find(c => c.id === churchId) || {};
   const v = k => esc(e[k] == null ? "" : String(e[k]));
   const vis = ["public","members_only","private"].includes(e.visibility) ? e.visibility
     : "members_only";
@@ -1090,6 +1164,15 @@ async function eventSheet(churchId, eventId){
     <label class="fl" for="ev-end">Ends (optional)</label><input id="ev-end" type="datetime-local" value="${toLocalInput(e.end_time)}">
     <label class="fl" for="ev-location_name">Where</label><input id="ev-location_name" value="${v("location_name")}" placeholder="e.g. Fellowship hall">
     <label class="fl" for="ev-location_address">Address (optional)</label><input id="ev-location_address" value="${v("location_address")}">
+    <div class="card" style="margin-top:10px">
+      <b>📍 Map pin</b>
+      <p class="muted" id="ev-loc" style="font-size:13px;margin:6px 0 8px">${e.lat != null && e.lng != null ? `Set ✓ (${e.lat.toFixed(4)}, ${e.lng.toFixed(4)})` : "No pin yet — add one so people get directions."}</p>
+      <div class="row" style="gap:8px">
+        <button class="btn block" style="flex:1" data-act="event-locate">Use my location</button>
+        <button class="btn block" style="flex:1" data-act="event-church-loc" data-id="${esc(churchId)}">Use church's location</button>
+      </div>
+      <input type="hidden" id="ev-lat" value="${e.lat == null ? "" : esc(String(e.lat))}"><input type="hidden" id="ev-lng" value="${e.lng == null ? "" : esc(String(e.lng))}">
+    </div>
     <label class="fl" for="ev-visibility">Who can see it</label>
     <select id="ev-visibility"><option value="public"${vis === "public" ? " selected" : ""}>Public: anyone, and people searching nearby</option>
       <option value="members_only"${vis === "members_only" ? " selected" : ""}>Members only</option>
@@ -1104,6 +1187,31 @@ async function eventSheet(churchId, eventId){
     <button class="btn gold block lg" style="margin-top:8px" data-act="event-save" data-id="${esc(churchId)}" data-event="${esc(eventId || "")}">${eventId ? "Save event" : "Add event"}</button>
     ${eventId && !e.cancelled_at ? `<button class="btn ghost block" style="margin-top:8px" data-act="event-cancel" data-id="${esc(eventId)}">Cancel this event</button>` : ""}`);
 }
+
+function eventLocate(){
+  const msg = document.getElementById("ev-loc");
+  if (!navigator.geolocation) { if (msg) msg.textContent = "This device can't share its location."; return; }
+  if (msg) msg.textContent = "Finding you…";
+  navigator.geolocation.getCurrentPosition(p => {
+    const la = document.getElementById("ev-lat"), ln = document.getElementById("ev-lng");
+    if (la) la.value = p.coords.latitude.toFixed(6); if (ln) ln.value = p.coords.longitude.toFixed(6);
+    if (msg) msg.textContent = `Set to where you are now ✓ (${p.coords.latitude.toFixed(4)}, ${p.coords.longitude.toFixed(4)}) (save to keep it)`;
+  }, () => { if (msg) msg.textContent = "Location was refused. Allow it in Settings, or type the address."; },
+  { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+
+async function eventUseChurchLoc(churchId){
+  const msg = document.getElementById("ev-loc");
+  try {
+    const r = await sbRest("/churches?id=eq." + encodeURIComponent(churchId) + "&select=lat,lng&limit=1");
+    const c = (r && r[0]) || {};
+    if (c.lat == null || c.lng == null) { if (msg) msg.textContent = "This church doesn't have a location set yet."; return; }
+    const la = document.getElementById("ev-lat"), ln = document.getElementById("ev-lng");
+    if (la) la.value = String(c.lat); if (ln) ln.value = String(c.lng);
+    if (msg) msg.textContent = `Using the church's pin ✓ (${Number(c.lat).toFixed(4)}, ${Number(c.lng).toFixed(4)}) (save to keep it)`;
+  } catch (e) { if (msg) msg.textContent = "Couldn't load the church's location."; }
+}
+
 async function eventSave(churchId, eventId){
   const g = k => { const el = document.getElementById("ev-" + k); return el ? String(el.value || "").trim() : ""; };
   const err = t => { const x = document.getElementById("ev-err"); if (x) x.textContent = t; };
@@ -1112,9 +1220,12 @@ async function eventSave(churchId, eventId){
   const st = new Date(start); if (!start || isNaN(st)) { err("Pick when it starts."); return; }
   const en = end ? new Date(end) : null; if (en && (isNaN(en) || en < st)) { err("It can't end before it starts."); return; }
   const cap = g("max_capacity"); const vis = ["public","members_only","private"].includes(g("visibility")) ? g("visibility") : "members_only";
+  const lat = g("lat"), lng = g("lng");
   const body = { title: title.slice(0, 120), description: g("description").slice(0, 2000) || null, start_time: st.toISOString(),
     end_time: en ? en.toISOString() : null, location_name: g("location_name").slice(0, 120) || null,
-    location_address: g("location_address").slice(0, 200) || null, visibility: vis, max_capacity: cap ? Math.max(1, Math.round(+cap)) : null };
+    location_address: g("location_address").slice(0, 200) || null,
+    lat: lat === "" ? null : Number(lat), lng: lng === "" ? null : Number(lng),
+    visibility: vis, max_capacity: cap ? Math.max(1, Math.round(+cap)) : null };
   try {
     if (eventId) await sbRest("/events?id=eq." + encodeURIComponent(eventId), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });
     else {
@@ -1132,6 +1243,148 @@ async function eventCancel(eventId){
   try { await sbRest("/events?id=eq." + encodeURIComponent(eventId), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ cancelled_at: new Date().toISOString() }) });
     closeSheet(); toast("Event cancelled"); if (typeof render === "function") render(); } catch (x) { toast("⚠ " + (x.message || "Couldn't cancel")); }
 }
+
+/* ── event detail screen (capacity, attendance, directions, calendar) ─────── */
+function churchEventDetail(eventId){
+  setTimeout(() => {
+    fillView("event-detail", () => churchEventDetailBody(eventId));
+    // Attendance is a leader-only secondary fetch; load it once the skeleton mounts.
+    setTimeout(() => churchEventAttendance(eventId), 0);
+  }, 0);
+  return `<div class="subhead"><button class="nb" data-act="church-home">‹</button>
+    <div class="st"><b>Event</b></div></div>
+    <div id="event-detail">${viewLoading("event details")}</div>`;
+}
+
+async function churchEventDetailBody(eventId){
+  try {
+    // read before asking: an answer already on its way when the member taps is older than the tap
+    const tapsBefore = rsvpTapCount(eventId), waitingBefore = rsvpWaiting(eventId);
+    const raw = await sbRpc("event_detail", { p_event_id: eventId });
+    const e = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
+    if (!e.id) return viewEmpty("📅", "Event not found", "It may have been removed or you may not be able to see it.");
+
+    const whenFull = t => { try { return new Date(t).toLocaleString(undefined,
+      { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" }); } catch (x) { return ""; } };
+    const going = Number(e.rsvp_count || 0);
+    const left = e.max_capacity ? Math.max(0, e.max_capacity - going) : 0;
+    const capText = e.max_capacity ? `${going} going · ${left} ${left === 1 ? "spot" : "spots"} left` : `${going} going`;
+    const cancelled = !!e.cancelled_at;
+    const dirUrl = eventMapsUrl(e.location_address || e.location_name);
+    const leader = e.is_leader === true;
+    const me = typeof authUserId === "function" ? authUserId() : null;
+    const mine = me && typeof isSignedIn === "function" && isSignedIn();
+    /* The server knows whether this person holds a seat; this device only knows
+       what was tapped on it. With nothing of ours on its way, the server is
+       right: a second phone, or a reinstall, starts with no taps at all. */
+    if (mine && typeof e.my_rsvp === "boolean" && !waitingBefore && !rsvpWaiting(eventId)
+        && rsvpTapCount(eventId) === tapsBefore && !!S.rsvps[eventId] !== e.my_rsvp) {
+      S.rsvps[eventId] = e.my_rsvp; save();
+    }
+    const full = !cancelled && !!e.max_capacity && going >= e.max_capacity;
+    const shut = cancelled || (full && !S.rsvps[eventId]);   // a seat already held can still be given back
+
+    return `<div class="hero">
+        <div class="v" style="font-size:23px">${esc(e.title)}</div>
+        <div class="ref">${esc(whenFull(e.start_time))}${e.end_time ? " – " + esc(whenFull(e.end_time)) : ""}</div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        ${cancelled ? `<div class="note" style="margin:0 0 10px">🚫 This event has been cancelled.</div>` : ""}
+        ${e.description ? `<p style="margin:0 0 10px">${esc(e.description)}</p>` : ""}
+        ${e.location_name || e.location_address ? `<div class="row between" style="align-items:flex-start;margin:8px 0">
+          <div>
+            <b>📍 ${esc(e.location_name || "Location")}</b>
+            ${e.location_address ? `<p class="muted" style="font-size:13px;margin:3px 0 0">${esc(e.location_address)}</p>` : ""}
+          </div>
+          ${dirUrl ? `<button class="btn sm" data-act="event-directions" data-url="${esc(dirUrl)}">Directions ↗</button>` : ""}
+        </div>` : ""}
+        <div class="row between" style="margin:8px 0 0">
+          <span class="pill">${esc(capText)}</span>
+          <span class="faint" style="font-size:12px">${e.visibility === "private" ? "🔐 Invite-only" : e.visibility === "members_only" ? "🔒 Members only" : "🌐 Public"}</span>
+        </div>
+        <div class="row" style="gap:8px;margin-top:12px">
+          <button class="btn ${S.rsvps[eventId] ? "" : "primary"} block" style="flex:1" data-act="rsvp" data-id="${esc(eventId)}"${shut ? " disabled aria-disabled=\"true\"" : ""}>
+            ${S.rsvps[eventId] ? "✓ You're going" : full ? "Event full" : "RSVP"}
+          </button>
+          ${!cancelled ? `<button class="btn block" style="flex:1" data-act="event-ics" data-id="${esc(eventId)}">📅 Add to calendar</button>` : ""}
+        </div>
+        ${full && !S.rsvps[eventId] ? `<p class="muted" style="font-size:12px;margin:8px 0 0">This event is full. Check back if someone changes their RSVP.</p>` : ""}
+      </div>
+
+      ${leader ? `<div class="card" style="margin-top:10px">
+        <div class="row between"><b>🛠️ Leader tools</b></div>
+        <div class="row" style="gap:8px;margin-top:10px">
+          <button class="btn sm" data-act="event-edit" data-id="${esc(e.church_id)}" data-event="${esc(eventId)}">Edit event</button>
+          <button class="btn sm" data-act="event-invites" data-id="${esc(eventId)}">Invites</button>
+          <button class="btn sm ghost" data-act="event-cancel" data-id="${esc(eventId)}">Cancel</button>
+        </div>
+        <div id="event-attendance" style="margin-top:12px">${viewLoading("attendance")}</div>
+      </div>` : ""}`;
+  } catch (err) {
+    return viewError(err.message, () => fillView("event-detail", () => churchEventDetailBody(eventId)));
+  }
+}
+
+/* What a leader needs beside a name: a "maybe" is not a seat, and guests are. */
+function rosterNote(r){
+  const bits = [];
+  if (r.rsvp_status === "maybe") bits.push("maybe");
+  const g = Math.max(0, Math.floor(Number(r.guests_count) || 0));
+  if (g > 0) bits.push("+" + g + (g === 1 ? " guest" : " guests"));
+  return bits.length ? ` <span class="faint" style="font-size:12px">· ${esc(bits.join(" · "))}</span>` : "";
+}
+async function churchEventAttendance(eventId){
+  try {
+    const rows = await sbRpc("event_attendance_read", { p_event_id: eventId });
+    const el = document.getElementById("event-attendance"); if (!el) return;
+    if (!rows || !rows.length) {
+      el.innerHTML = `<p class="muted" style="font-size:13px;margin:6px 0 0">No RSVPs yet. Attendance will appear here as people respond.</p>`;
+      return;
+    }
+    el.innerHTML = `<div class="eyebrow" style="margin:4px 0 2px">Attendance · ${rows.length}</div>` +
+      rows.map(r => `<div class="row between" style="margin-top:6px;align-items:center">
+        <span style="font-size:14px">${esc(r.display_name || "Member")}${rosterNote(r)}</span>
+        <div class="row" style="gap:6px">
+          <button class="btn sm ${r.checked_in ? "" : "ghost"}" data-act="event-checkin" data-event="${esc(eventId)}" data-id="${esc(r.user_id)}" data-on="${r.checked_in ? "false" : "true"}">${r.checked_in ? "✓ Checked in" : "Check in"}</button>
+          <button class="btn sm ${r.is_volunteer ? "" : "ghost"}" data-act="event-volunteer-leader" data-event="${esc(eventId)}" data-id="${esc(r.user_id)}" data-on="${r.is_volunteer ? "false" : "true"}">${r.is_volunteer ? "✓ Volunteer" : "Volunteer"}</button>
+        </div>
+      </div>`).join("");
+  } catch (err) {
+    const el = document.getElementById("event-attendance");
+    if (el) el.innerHTML = viewError(err.message, () => churchEventAttendance(eventId));
+  }
+}
+
+async function eventCheckinToggle(eventId, userId, on){
+  try {
+    await sbRpc("event_checkin", { p_event_id: eventId, p_user_id: userId, p_on: on === "true" || on === true });
+    churchEventAttendance(eventId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't update check-in")); }
+}
+
+async function eventVolunteerLeaderToggle(eventId, userId, on){
+  try {
+    /* A leader marks someone on the roster as a volunteer. This goes through
+       event_volunteer_set(): row-level security lets nobody write a volunteer
+       row for another person, so a direct insert here was refused every time
+       and a direct delete removed nothing and said nothing. */
+    await sbRpc("event_volunteer_set", { p_event_id: eventId, p_user_id: userId, p_on: on === "true" || on === true });
+    churchEventAttendance(eventId);
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't update volunteer")); }
+}
+
+async function eventVolunteerSelfToggle(eventId, on){
+  try {
+    await sbRpc("event_volunteer", { p_event_id: eventId, p_on: on === "true" || on === true });
+    toast(on ? "You're signed up to volunteer ✓" : "Volunteer sign-up removed");
+    render();
+  } catch (e) { toast("⚠ " + (e.message || "Couldn't update volunteer status")); }
+}
+
+function eventDirections(url){ openExternal(url); }
+
+function openEventDetail(id){ S.page = "church"; S.route = { sub: "church-event", id }; save(); syncHash(); render(); window.scrollTo(0,0); }
 
 function noticeSheet(churchId){
   sheet(`<div class="eyebrow">New announcement</div>

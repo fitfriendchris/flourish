@@ -107,7 +107,8 @@ badges:[
 
    tools/test_no_fabricated_data.py fails the build if any of this comes back. */
 hub:{
- products:[]
+ products:[],
+ storefront:null
 }
 };
 /* ============ STATE ============ */
@@ -447,7 +448,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="bf2b3e7f26";
+const APP_VERSION="286c9f0c0a";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -673,6 +674,12 @@ function applyHash(){
     _applyingHash = true; save(); render(); _applyingHash = false;
     return true;
   }
+  // Event detail deep link: flourish.app/#/event/<event-id>
+  if (parts[0] === "event" && parts[1]) {
+    S.page = "church"; S.route = { sub:"church-event", id: parts[1] };
+    _applyingHash = true; save(); render(); _applyingHash = false;
+    return true;
+  }
   // The link in the Rebuilt Man bio: <site>/#/rebuild. Link tools append
   // ?utm_... to whatever they are given, and people type capitals.
   if (String(parts[0] || "").split("?")[0].toLowerCase() === "rebuild") {
@@ -691,6 +698,12 @@ function applyHash(){
     S.page = "me"; S.route = {};
     _applyingHash = true; save(); render(); _applyingHash = false;
     openGive();
+    return true;
+  }
+  // The shop's own address: <site>/#/shop (the Linktree card, a QR on a tag).
+  if (String(parts[0] || "").split("?")[0].toLowerCase() === "shop") {
+    S.page = "me"; S.route = { sub:"shop" };
+    _applyingHash = true; save(); render(); _applyingHash = false;
     return true;
   }
   if (!PAGES.includes(parts[0])) return false;
@@ -807,6 +820,7 @@ function handle(act,id,el){
     case"shop":route("shop");break;
     case"admin":route("admin");break;
     case"church-home":S.route={};render();break;
+    case"shop-back":S.route={};save();syncHash();render();window.scrollTo(0,0);break;
     case"new-prayer":if(typeof newPrayerSheet==="function")newPrayerSheet(el.dataset.mode);break;
     case"show-qr":openQR(id);break;
     case"checkin":openCheckin();break;
@@ -951,6 +965,18 @@ function handle(act,id,el){
     case"church-enquiry":churchEnquirySheet();break;
     case"church-enquiry-send":churchEnquirySend();break;
     case"ask-send":askSend();break;
+    case"event-open":if(typeof openEventDetail==="function")openEventDetail(id);break;
+    case"event-ics":
+      if(typeof eventIcs==="function"){
+        sbRpc("event_detail",{p_event_id:id}).then(r=>{const e=Array.isArray(r)?r[0]:r; if(e)eventIcs(e);});
+      }
+      break;
+    case"event-directions":if(typeof eventDirections==="function")eventDirections(el.dataset.url);break;
+    case"event-locate":if(typeof eventLocate==="function")eventLocate();break;
+    case"event-church-loc":if(typeof eventUseChurchLoc==="function")eventUseChurchLoc(id);break;
+    case"event-checkin":if(typeof eventCheckinToggle==="function")eventCheckinToggle(el.dataset.event,id,el.dataset.on);break;
+    case"event-volunteer-leader":if(typeof eventVolunteerLeaderToggle==="function")eventVolunteerLeaderToggle(el.dataset.event,id,el.dataset.on);break;
+    case"event-volunteer":if(typeof eventVolunteerSelfToggle==="function")eventVolunteerSelfToggle(id,el.dataset.on);break;
     default: {
       /* <season>-home, <season>-open, <season>-done for every season in SEASON_DEFS */
       const m = /^([a-z]+)-(home|open|done)$/.exec(String(act || ""));
@@ -2063,6 +2089,7 @@ function seasonScrollerCard(){
 
 /* ============ ME (RETENTION DASHBOARD) ============ */
 function renderMe(){
+  if(S.route&&S.route.sub==="shop")return shopView();
   const li=levelInfo();const d=dayNumber();
   const totalLessons=totalDays();
   const doneCount=Object.keys(S.done).length;
@@ -2103,6 +2130,8 @@ function renderMe(){
     <div class="bar"><i style="width:${(d/1095*100).toFixed(1)}%"></i></div>
     <div class="row between faint" style="margin-top:8px;font-size:12px"><span>Yr1 Foundation</span><span>Yr2 Deepening</span><span>Yr3 Multiplication</span></div>
   </div>
+
+  ${storeCard()}
 
   ${accountCard()}`;
 }
@@ -2815,6 +2844,7 @@ const churchById=id=>(typeof CH!=="undefined"&&CH.churches?CH.churches.find(c=>c
 function renderChurch(){
   const sub=S.route.sub;
   if(sub==="church-detail")return churchDetail(S.route.id);
+  if(sub==="church-event")return typeof churchEventDetail==="function"?churchEventDetail(S.route.id):laterModuleView();
   if(sub==="admin")return adminPortal();
   if(sub==="shop")return shopView();
   if(S.joinedChurch)return myChurch();
@@ -2990,14 +3020,57 @@ function lineReady(p,v){
 }
 function lineCents(p,v){ const x=lineOption(p,v); return x&&Number.isInteger(x.cents)?x.cents:shopCents(p); }
 
+/* The partner store (10 Nov 2026). Until now the app had a shop screen and no
+   way to reach it, and what it listed were first-party goods nobody makes or
+   ships. The shop a member can use is the print-to-order store: named in the
+   catalog ("storefront"), listed by /api/products, and paid for on the store's
+   own site. First-party goods show only when the API lists them, which it
+   does only while their orders are open. No price is printed for a store
+   item: the store states its own.
+
+   The name and address also ride in config.js, so the way in exists before
+   the catalogue request lands and in the single-file build. */
+function storeInfo(){
+  const live=DATA.hub.storefront;
+  if(live) return live;
+  const c=(window.FLOURISH_CONFIG&&window.FLOURISH_CONFIG.store)||null;
+  if(!c||!c.name||!/^https:\/\/[a-z0-9.-]+\/$/i.test(String(c.url||""))) return null;
+  return {name:String(c.name),url:String(c.url),tagline:String(c.tagline||""),terms:String(c.terms||""),items:[]};
+}
+function storeEmoji(kind){ return /tee|shirt/i.test(kind)?"\u{1F455}":"\u{1F9E5}"; }
+function storeCard(){
+  const st=storeInfo(); if(!st) return "";
+  return `<div class="card" style="margin-top:14px" id="me-store">
+    <div class="card-hd"><h3 class="serif">${esc(st.name)}</h3><span class="faint">Shop</span></div>
+    <p class="muted" style="font-size:13px;margin:6px 0 10px">${esc(st.tagline)}</p>
+    <button class="btn sm block" data-act="shop">\u{1F6CD}️ Open the shop</button>
+  </div>`;
+}
+function storefrontSection(st){
+  const kinds=[...new Set(st.items.map(i=>i.kind))];
+  return `<div class="card glow" id="store-hero" style="margin-top:12px">
+    <div class="eyebrow">Partner store</div>
+    <h3 class="serif" style="font-size:21px;margin:6px 0 4px">${esc(st.name)}</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 12px">${esc(st.tagline)}</p>
+    <button class="btn gold block" id="store-open" data-act="open-link" data-url="${esc(st.url)}">Open the ${esc(st.name)} store ↗</button>
+    ${st.terms?`<p class="faint" id="store-terms" style="font-size:12px;margin:10px 0 0">${esc(st.terms)}</p>`:""}
+  </div>
+  ${kinds.map(k=>`<div class="shead"><h2 class="serif" style="font-size:17px">${esc(k)}</h2></div>
+    <div class="grid g2">${st.items.filter(i=>i.kind===k).map(i=>`<div class="prod"><div class="ph">${storeEmoji(k)}</div><div class="pb">
+      <div class="pn">${esc(i.name)}</div>
+      <button class="btn sm primary block" style="margin-top:8px" data-act="open-link" data-url="${esc(i.url)}">Sizes &amp; price ↗</button></div></div>`).join("")}</div>`).join("")}`;
+}
 function shopView(){
+  const st=storeInfo();
   const cats=[...new Set(DATA.hub.products.map(p=>p.cat))];
+  const own=cats.length>0;
   const cartN=S.cart.reduce((n,i)=>n+i.qty,0);
-  return `<div class="subhead"><button class="nb" data-act="church-home">‹</button>
-    <div class="st"><b>🛍️ Gift Shop</b><small>Books, apparel & gifts</small></div>
-    <button class="btn sm gold" data-act="open-cart">🛒 ${cartN}</button></div>
-  ${!cats.length?viewEmpty("\u{1F6CD}️","Catalogue unavailable",
-      "The shop catalogue loads from the Flourish store. Check your connection and try again."):""}
+  return `<div class="subhead"><button class="nb" data-act="shop-back" aria-label="Back">‹</button>
+    <div class="st"><b>🛍️ Shop</b><small>${own?"Apparel, books & gifts":"Faith apparel, printed to order"}</small></div>
+    ${own||cartN?`<button class="btn sm gold" data-act="open-cart">🛒 ${cartN}</button>`:""}</div>
+  ${st?storefrontSection(st):""}
+  ${!st&&!own?(typeof viewEmpty==="function"?viewEmpty("\u{1F6CD}️","The shop can't be reached",
+      "Check your connection and try again."):`<div class="empty">The shop can't be reached right now.</div>`):""}
   ${cats.map(cat=>`<div class="shead"><h2 class="serif" style="font-size:17px">${esc(cat)}</h2></div>
     <div class="grid g2">${DATA.hub.products.filter(p=>p.cat===cat).map(p=>{
       const n=shopOptions(p).length;
@@ -3005,7 +3078,7 @@ function shopView(){
       <div class="pn">${esc(p.name)}</div><div class="pp">${shopMoney(shopCents(p))}</div>
       ${n>1?`<div class="faint" style="font-size:11px">${n} options</div>`:""}
       <button class="btn sm primary block" style="margin-top:8px" data-act="add-cart" data-id="${esc(p.id)}">${n>1?"Choose":"Add"}</button></div></div>`;}).join("")}</div>`).join("")}
-  <div class="note" style="margin-top:14px">🔒 Secure checkout by Stripe · Apple Pay &amp; Google Pay · 30-day returns</div>`;
+  ${own?`<div class="note" style="margin-top:14px">🔒 Secure checkout by Stripe · Apple Pay &amp; Google Pay · 30-day returns</div>`:""}`;
 }
 /* Puts one of something in the cart. false when it cannot be sold as asked. */
 function cartAdd(id,v){

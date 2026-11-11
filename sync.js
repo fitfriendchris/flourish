@@ -148,6 +148,7 @@ const WRITE_QUEUE_KEY = "flourish_write_queue";
 const QUEUE_MAX  = 200;
 const QUEUE_TTL  = 30 * 864e5;          // 30 days
 const _replayers = Object.create(null);
+const _refusals  = Object.create(null);   // kind -> what its screen does when the server says "never"
 let _draining = false;
 let _drainTimer = null;
 
@@ -166,7 +167,13 @@ function nextSeq(){
   return _seq;
 }
 
-function registerReplay(kind, fn){ _replayers[kind] = fn; }
+/* `onRefused(args, message)` is optional. It runs when the server will never
+   take this write, so the screen that showed it as done can undo that and say
+   why, instead of the write vanishing behind a button that still says yes. */
+function registerReplay(kind, fn, onRefused){
+  _replayers[kind] = fn;
+  if (typeof onRefused === "function") _refusals[kind] = onRefused; else delete _refusals[kind];
+}
 
 function loadQueue(){
   try {
@@ -215,6 +222,7 @@ async function drainQueue(){
     const now = Date.now();
     const batch = start.filter(e => now - (e.at || 0) < QUEUE_TTL);
     const settled = Object.create(null);   // identity -> "done" | entry to keep
+    const refused = [];                    // dropped: the server will never take them
 
     for (const entry of batch) {
       const fn = _replayers[entry.kind];
@@ -225,13 +233,21 @@ async function drainQueue(){
         settled[id] = null;
       } catch (e) {
         entry.tries = (entry.tries || 0) + 1;
-        // A 4xx will never succeed on retry — the event was deleted, the
-        // membership was revoked. Retrying it forever would block everything
-        // behind it in the queue.
-        const permanent = /\b4\d\d\b/.test(String(e && e.message));
+        // A 4xx will never succeed on retry — the event filled up, the event
+        // was deleted, the membership was revoked. Retrying it forever would
+        // block everything behind it in the queue. The status is read off the
+        // error when it carries one: the database words some refusals for
+        // people ("This event is full."), and a sentence has no number in it
+        // to find. 401, 408 and 429 mean "not now", not "never".
+        const status = Number(e && e.status) || 0;
+        const permanent = status
+          ? (status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 429)
+          : /\b4\d\d\b/.test(String(e && e.message));
         settled[id] = (!permanent && entry.tries < 8) ? entry : null;
-        if (settled[id] === null)
+        if (settled[id] === null) {
           console.warn("[flourish] dropping unreplayable write", entry.kind, entry.key, e);
+          refused.push({ entry, message: String((e && e.message) || "") });
+        }
       }
     }
 
@@ -253,7 +269,19 @@ async function drainQueue(){
     }
     saveQueue(merged);
 
-    const delivered = batch.length - merged.length;
+    /* A write the server will never take was shown as done the moment it was
+       tapped. Hand it back to the screen that made that promise — unless the
+       member has changed it again since, in which case the newer intent is
+       still in the queue and speaks for itself. */
+    for (const r of refused) {
+      const tell = _refusals[r.entry.kind];
+      if (!tell || merged.some(e => e.kind === r.entry.kind && e.key === r.entry.key)) continue;
+      try { tell(r.entry.args, r.message); }
+      catch (x) { console.warn("[flourish] refusal handler failed", r.entry.kind, x); }
+    }
+
+    // a refusal left the queue too, and it was not delivered
+    const delivered = batch.length - merged.length - refused.length;
     if (delivered > 0 && !merged.length && typeof toast === "function" && navigator.onLine !== false)
       toast("Your offline changes are saved");
   } finally { _draining = false; }
