@@ -266,9 +266,12 @@ function discovery(){
     <div id="near-zone">
       <div class="row" style="gap:8px;margin:2px 0 10px">
         <button class="btn primary" style="flex:1" data-act="near-me">📍 Near me</button>
-        <input id="near-zip" inputmode="numeric" placeholder="ZIP" maxlength="10" style="width:110px">
-        <button class="btn" data-act="zip-near">Go</button>
       </div>
+      <div class="row" style="gap:8px;margin:0 0 6px">
+        <input id="near-zip" type="search" enterkeyhint="search" placeholder="ZIP, city or church name" maxlength="120" style="flex:1">
+        <button class="btn" data-act="zip-near">Search</button>
+      </div>
+      <div id="near-note"></div>
     </div>
     <div id="church-list">${viewLoading("churches")}</div>
     ${typeof churchLicenceCard === "function" ? churchLicenceCard() : ""}`;
@@ -282,9 +285,9 @@ async function discoveryBody(){
     const invitesHtml = inviteCardsHtml(invites);
     setTimeout(notificationBadge, 0);
     if (!list.length) {
-      return invitesHtml + viewEmpty("⛪", "No churches listed yet",
-        "Be the first — add your congregation and invite your members.",
-        `<button class="btn primary" data-act="add-church">Add your church</button>`);
+      return invitesHtml + viewEmpty("📍", "Find churches near you",
+        "Tap Near me, or search a ZIP, city or your church's name, to see churches around you and what they have coming up.",
+        `<button class="btn primary" data-act="near-me">📍 Near me</button>`);
     }
     const mine = myChurchId();
     return invitesHtml + list.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
@@ -317,6 +320,11 @@ async function churchDetailBody(id){
     ]);
     const c = rows && rows[0];
     if (!c) return viewEmpty("🔍", "Church not found", "It may have been removed.");
+    const fromMap = c.source === "osm" && !c.is_verified;
+    const upcoming = await sbRest("/events?church_id=eq." + encodeURIComponent(c.id) +
+      "&select=id,title,start_time,location_name&visibility=eq.public&cancelled_at=is.null" +
+      "&start_time=gte." + encodeURIComponent(new Date().toISOString()) + "&order=start_time.asc&limit=5").catch(() => []);
+    const whenEv = t => { try { return new Date(t).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } };
     const joined = (CH.membership || []).some(m => m.church_id === c.id);
     const times = Array.isArray(c.service_times) ? c.service_times
                 : (c.service_times && typeof c.service_times === "object" ? Object.values(c.service_times) : []);
@@ -331,6 +339,13 @@ async function churchDetailBody(id){
         ${sectionOn(c, "sermons") && /^https:\/\//i.test(c.sermons_url || "") ? `<button class="btn block" style="margin-top:10px" data-act="open-link" data-url="${esc(c.sermons_url)}">🎧 Sermons ↗</button>` : ""}
         ${sectionOn(c, "giving") && /^https:\/\//i.test(c.giving_url || "") ? `<button class="btn block" style="margin-top:8px" data-act="give-church" data-url="${esc(c.giving_url)}">💝 Give to ${esc(c.name)} ↗</button>` : ""}
         ${c.pastor_name ? `<p class="muted" style="margin-top:8px">👤 ${esc(c.pastor_name)}</p>` : ""}
+        ${/^https:\/\//i.test(c.website || "") ? `<button class="btn block" style="margin-top:8px" data-act="open-link" data-url="${esc(c.website)}">🌐 Website ↗</button>` : ""}
+        ${c.phone ? `<p class="muted" style="margin-top:8px">📞 <a href="tel:${esc(String(c.phone).replace(/[^0-9+]/g, ""))}">${esc(c.phone)}</a></p>` : ""}
+        <b style="display:block;margin-top:14px">📅 Coming up</b>
+        ${(upcoming || []).length ? upcoming.map(e => `<button class="card" style="margin-top:8px" data-act="event-open" data-id="${esc(e.id)}">
+            <b>${esc(e.title)}</b><p class="muted" style="font-size:13px;margin:5px 0 0">${esc(whenEv(e.start_time))}${e.location_name ? " · " + esc(e.location_name) : ""}</p></button>`).join("")
+          : `<p class="muted" style="font-size:13px;margin:6px 0 0">${fromMap ? "This church hasn't joined Flourish yet, so its events aren't here. Invite your pastor with the QR below." : "No public events posted yet."}</p>`}
+        ${fromMap ? `<div class="note" style="margin-top:12px">Listed from public map data so you can find it. It isn't managed on Flourish yet. <span class="faint" style="font-size:11px">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</span></div>` : ""}
         <button class="btn ${joined ? "" : "primary"} block lg" style="margin-top:14px"
           data-act="${joined ? "leave-church" : "join-church"}" data-id="${esc(c.id)}">
           ${joined ? "✓ You're a member — leave" : "Join this church"}</button>
@@ -663,7 +678,7 @@ function reportPrayerSheet(prayerId){
     <p class="muted" style="font-size:12.5px;margin-top:8px">Blocking hides everything they post,
       including anonymous requests. They are not told. You can undo this in Settings.</p>
     <p class="muted" style="font-size:12.5px;margin-top:10px">Urgent concern?
-      Email <b>support@flourishapp.online</b> and a person will answer.</p>`);
+      Contact ${typeof supportLinkHtml === "function" ? supportLinkHtml() : "us from Me → Help"} and a person will answer.</p>`);
 }
 async function doReportPrayer(prayerId, reason){
   try {
@@ -1114,7 +1129,7 @@ function eventMapsUrl(address){
 }
 
 function eventIcs(event){
-  const uid = String(event.id || "event").replace(/[^a-zA-Z0-9-]/g, "") + "@flourishapp.online";
+  const uid = String(event.id || "event").replace(/[^a-zA-Z0-9-]/g, "") + "@events.flourish";
   const fmt = d => {
     if (!d) return "";
     const x = new Date(d);
@@ -1961,6 +1976,7 @@ function notifTarget(n){
   const d = (n && n.data) || {};
   if (d.kind === "message" && d.conversation_id) return { act: "chat-open", id: d.conversation_id, label: "Open chat" };
   if (d.kind === "report") return { act: "platform-reports", id: "", label: "Review" };
+  if (d.kind === "support") return { act: "support-open", id: "", label: "Read the reply" };
   if (d.church_id && (n.type === "event_invite" || n.type === "announcement"))
     return { act: "open-church", id: d.church_id, label: n.type === "event_invite" ? "See the event" : "Open church" };
   return null;
@@ -2044,6 +2060,7 @@ async function notifOpen(id, act, target){
   notificationBadge();
   if (act === "chat-open" && target) { chatOpen(target); return; }
   if (act === "platform-reports") { platformReportsSheet(); return; }
+  if (act === "support-open" && typeof supportSheet === "function") { supportSheet(); return; }
   if (act === "open-church" && target) {
     closeSheet(); S.page = "church"; save(); route("church-detail", target); return;
   }
@@ -2105,69 +2122,110 @@ async function notificationBadge(){
   if (el) el.innerHTML = n > 0 ? `<span class="pill" style="background:var(--rose,#e77);color:#fff;font-size:10px">${n}</span>` : "";
 }
 
-/* ── "near me" discovery (migration D) ────────────────────────────── */
-async function nearMe(){
-  const zone = document.getElementById("near-zone");
-  if (!navigator.geolocation) {
-    if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">This device can't share its location. Search churches by ZIP instead.</p>`;
+/* ── finding churches: near me, or by ZIP / city / name (15 Nov 2026) ──
+   Production had no churches, so every search said "nothing here". The API
+   now fills an area from OpenStreetMap's public map the first time anyone
+   searches there (POST /api/churches/discover), then the app lists what is
+   near with nearby_churches() and the public events those churches post.
+   An imported church is unclaimed until its staff claim it. */
+const NEAR = { miles: /^en-US/i.test(navigator.language || "") || /^en-US/i.test((navigator.languages || [])[0] || "") };
+NEAR.radiusKm = NEAR.miles ? 48.3 : 50;                    // 30 miles / 50 km
+function nearDist(km){ return km == null ? "" : NEAR.miles ? (Math.round(km * 0.621371 * 10) / 10) + " mi" : km + " km"; }
+function nearNote(html){ const z = document.getElementById("near-note"); if (z) z.innerHTML = html ? `<p class="muted" style="font-size:13px;margin:8px 0">${html}</p>` : ""; }
+
+async function discoverArea(body){
+  // Best effort: a slow or failed import still lists what is already known.
+  try {
+    return await Promise.race([
+      flourishFetch("/api/churches/discover", { method: "POST", body: JSON.stringify(body) }),
+      new Promise(r => setTimeout(() => r(null), 25000))
+    ]);
+  } catch (e) { return body.q ? { error: e.message } : null; }
+}
+
+async function nearbyAt(lat, lng, focusId, title){
+  const r = await sbRpc("nearby_churches", { p_lat: lat, p_lng: lng, p_km: NEAR.radiusKm, p_limit: 60 });
+  let rows = Array.isArray(r) ? r : (r && r.nearby_churches) || [];
+  if (focusId) {
+    const i = rows.findIndex(c => c.id === focusId);
+    if (i > 0) rows.unshift(rows.splice(i, 1)[0]);
+  }
+  const ids = rows.map(c => c.id);
+  const [extra, events] = ids.length ? await Promise.all([
+    sbRest("/churches?select=id,denomination,source&id=in.(" + ids.join(",") + ")").catch(() => []),
+    sbRest("/events?select=id,title,start_time,location_name,church_id&visibility=eq.public&cancelled_at=is.null" +
+      "&start_time=gte." + encodeURIComponent(new Date().toISOString()) +
+      "&church_id=in.(" + ids.slice(0, 60).join(",") + ")&order=start_time.asc&limit=8").catch(() => [])
+  ]) : [[], []];
+  const meta = Object.fromEntries((extra || []).map(x => [x.id, x]));
+  const el = document.getElementById("church-list");
+  if (!el) return;
+  if (!rows.length) {
+    nearNote("");
+    el.innerHTML = viewEmpty("⛪", `No churches within ${NEAR.miles ? "30 miles" : "50 km"}`,
+      "Try a nearby town or ZIP, or add your church yourself.",
+      `<button class="btn primary" data-act="add-church">Add your church</button>`);
     return;
   }
-  if (zone) zone.innerHTML = `<p class="faint" style="font-size:12.5px;margin:8px 0">Finding churches near you…</p>`;
-  // Miles where people think in miles (US English), kilometres elsewhere.
-  // The server measures in km either way; 48.3 km is 30 miles.
-  const miles = /^en-US$/i.test(navigator.language || "") || /^en-US/i.test((navigator.languages || [])[0] || "");
-  const radiusKm = miles ? 48.3 : 50;
-  const dist = km => km == null ? "" : miles
-    ? (Math.round(km * 0.621371 * 10) / 10) + " mi" : km + " km";
-  navigator.geolocation.getCurrentPosition(async pos => {
-    try {
-      const r = await sbRpc("nearby_churches", { p_lat: pos.coords.latitude, p_lng: pos.coords.longitude, p_km: radiusKm, p_limit: 50 });
-      const rows = Array.isArray(r) ? r : (r && r.nearby_churches) || [];
-      const el = document.getElementById("church-list");
-      if (!el) return;
-      if (!rows.length) {
-        if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">Nothing within ${miles ? "30 miles" : "50 km"} yet. You can add your church.</p>`;
-        return;
-      }
-      if (zone) zone.innerHTML = "";
-      el.innerHTML = rows.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
-          <div class="row between">
-            <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
-            <span class="pill" style="font-size:11px">${esc(dist(c.distance_km))}</span>
-          </div>
-          <p class="muted" style="font-size:13px;margin:6px 0 0">${esc([c.city, c.state].filter(Boolean).join(", ") || "Church")}</p>
-        </button>`).join("") +
-        `<button class="btn ghost block" style="margin-top:10px" data-act="add-church">＋ Add your church</button>`;
-    } catch (e) {
-      if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">⚠ ${esc(e.message || "Couldn't search nearby")}</p>`;
-    }
-  }, () => {
-    if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">
-      Location was refused. Allow it in Settings, or search by ZIP below.</p>`;
-  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+  nearNote(title ? `Churches near <b>${esc(title)}</b>` : "");
+  const names = Object.fromEntries(rows.map(c => [c.id, c.name]));
+  const when = t => { try { return new Date(t).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } };
+  const evHtml = (events || []).length ? `<div class="eyebrow" style="margin:6px 0 8px">Happening nearby</div>` +
+    events.map(e => `<button class="card" data-act="event-open" data-id="${esc(e.id)}">
+        <b>${esc(e.title)}</b>
+        <p class="muted" style="font-size:13px;margin:5px 0 0">${esc(when(e.start_time))} · ${esc(names[e.church_id] || "")}${e.location_name ? " · " + esc(e.location_name) : ""}</p>
+      </button>`).join("") + `<div class="eyebrow" style="margin:16px 0 8px">Churches</div>` : "";
+  let mapped = false;
+  el.innerHTML = evHtml + rows.map(c => {
+    const m = meta[c.id] || {};
+    const fromMap = m.source === "osm" && !c.is_verified;
+    if (fromMap) mapped = true;
+    return `<button class="card" data-act="open-church" data-id="${esc(c.id)}"${c.id === focusId ? ' style="border-color:var(--gold,#c9a54a)"' : ""}>
+      <div class="row between">
+        <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
+        <span class="pill" style="font-size:11px">${esc(nearDist(c.distance_km))}</span>
+      </div>
+      <p class="muted" style="font-size:13px;margin:6px 0 0">${esc([m.denomination, [c.city, c.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "Church")}</p>
+      ${fromMap ? '<p class="faint" style="font-size:12px;margin:4px 0 0">Not on Flourish yet · invite your pastor</p>' : ""}
+    </button>`;
+  }).join("") +
+  `<button class="btn ghost block" style="margin-top:10px" data-act="add-church">＋ Don't see yours? Add it</button>` +
+  (mapped ? `<p class="faint center" style="font-size:11px;margin-top:10px">Church locations © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors</p>` : "");
 }
+
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.target && e.target.id === "near-zip") { e.preventDefault(); zipNear(); }
+});
+
+async function nearMe(){
+  if (!navigator.geolocation) { nearNote("This device can't share its location. Search by ZIP, city or church name instead."); return; }
+  nearNote("Finding churches near you…");
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    try {
+      await discoverArea({ lat, lng });
+      await nearbyAt(lat, lng, null, "");
+    } catch (e) { nearNote("⚠ " + esc(e.message || "Couldn't search nearby")); }
+  }, () => nearNote("Location was refused. Allow it in Settings, or search by ZIP, city or church name."),
+  { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 });
+}
+
 async function zipNear(){
   const input = document.getElementById("near-zip");
-  const zip = ((input || {}).value || "").trim();
-  if (!zip) { toast("Type a ZIP code first"); return; }
-  const zone = document.getElementById("near-zone");
+  const q = ((input || {}).value || "").trim().slice(0, 120);
+  if (q.length < 2) { toast("Type a ZIP, a city or your church's name"); return; }
+  nearNote("Searching…");
   try {
-    const rows = await sbRest("/churches?select=id,name,denomination,city,state,address,is_verified" +
-      "&postal_code=eq." + encodeURIComponent(zip) + "&order=name.asc&limit=25");
-    const el = document.getElementById("church-list");
-    if (el) el.innerHTML = (rows || []).length
-      ? rows.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
-          <div class="row between">
-            <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
-            <span style="font-size:18px">›</span>
-          </div>
-          <p class="muted" style="font-size:13px;margin:6px 0 0">${esc([c.denomination, [c.city, c.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "Church")}</p>
-        </button>`).join("")
-      : viewEmpty("📮", "No churches with that ZIP", "Try another ZIP, or add this church to Flourish yourself.");
-    if (zone) zone.innerHTML = "";
-  } catch (e) {
-    if (zone) zone.innerHTML = `<p class="muted" style="font-size:13px;margin:8px 0">⚠ ${esc(e.message || "Couldn't search")}</p>`;
-  }
+    // Churches already on Flourish by name first: a claimed church is found
+    // even if the map spells it differently.
+    const byName = /^\d/.test(q) ? [] : await sbRest("/churches?select=id,name,city,state,lat,lng&name=ilike." +
+      encodeURIComponent("*" + q.replace(/[*,()]/g, " ") + "*") + "&limit=1").catch(() => []);
+    const d = await discoverArea({ q });
+    if (d && d.found) return await nearbyAt(d.lat, d.lng, d.focus_id, d.label || q);
+    const hit = (byName || [])[0];
+    if (hit && hit.lat != null) return await nearbyAt(hit.lat, hit.lng, hit.id, [hit.city, hit.state].filter(Boolean).join(", "));
+    nearNote(d && d.error ? "⚠ " + esc(d.error) : `Nothing found for “${esc(q)}”. Try a ZIP code or a city and state.`);
+  } catch (e) { nearNote("⚠ " + esc(e.message || "Couldn't search")); }
 }
 
 /* ── a leader starts a church group chat ──────────────────────────────

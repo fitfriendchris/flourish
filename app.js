@@ -448,7 +448,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="286c9f0c0a";
+const APP_VERSION="1747518562";
 const PILLAR_EMOJI={health:"❤️‍🩹",wealth:"🪙",relationships:"🤝",integration:"🧭"};
 const pillarEmoji=p=>PILLAR_EMOJI[String(p||"").toLowerCase()]||"🤝";
 
@@ -866,6 +866,11 @@ function handle(act,id,el){
     case"notice-delete":if(typeof noticeDelete==="function")noticeDelete(id);break;
     case"give-flourish-web":openExternal(PUBLIC_SITE+"#/give");break;
     case"open-orders":if(typeof openOrders==="function")openOrders();break;
+    case"support-open":supportSheet();break;
+    case"support-send":supportSend();break;
+    case"support-reply":supportReply(id,!!el.dataset.staff);break;
+    case"support-inbox":supportInbox(id||"");break;
+    case"support-status":supportStatus(id,el.dataset.status);break;
     case"submit-email":if(typeof submitEmailCapture==="function")submitEmailCapture();break;
     case"dismiss-email":if(typeof dismissEmailCapture==="function")dismissEmailCapture();break;
     case"dismiss-notice":if(typeof flourishDismissNotice==="function")flourishDismissNotice();break;
@@ -1715,11 +1720,18 @@ document.addEventListener("change", ev => {
    already gives a church its page, events, a moderated prayer wall, groups,
    pastoral messages, giving and invite QR codes for free; what a church buys is
    membership for its people. There is no price to show yet, so this asks rather
-   than pretends: the details go to support@flourishapp.online by email (the
-   address the Terms and Privacy Policy already publish), and the email is also
+   than pretends: the details go to the support address by email (SUPPORT_EMAIL
+   in the API's secrets, served by /api/public-config — the address the Terms
+   and Privacy Policy show), and the email is also
    added to the leads list as source "church-licence" so it is not lost if the
    mail never gets sent.                                                   */
-const SUPPORT_EMAIL = "support@flourishapp.online";
+/* The support address lives in one place, the API's SUPPORT_EMAIL secret, and
+   reaches the app through /api/public-config (15 Nov 2026: the old address was
+   on a domain nobody had registered, so every email to it bounced). Until the
+   config lands, or if it is unset, people are pointed at Help, never at a
+   mailbox that does not exist. */
+function supportEmail(){ try { return (typeof CFG !== "undefined" && CFG && /^[^\s@<>"]+@[^\s@<>"]+\.[a-z]{2,}$/i.test(CFG.support_email || "")) ? CFG.support_email : ""; } catch (e) { return ""; } }
+function supportLinkHtml(){ const e = supportEmail(); return e ? `<a href="mailto:${esc(e)}"><b>${esc(e)}</b></a>` : `<a href="#" data-act="support-open"><b>Flourish support</b></a>`; }
 const CHURCH_SIZES = [["under-100", "Under 100"], ["100-300", "100–300"], ["300-1000", "300–1,000"], ["1000-plus", "1,000+"]];
 function churchLicenceCard(){
   return `<div class="card" id="church-licence" style="margin-top:14px">
@@ -1753,7 +1765,7 @@ function churchEnquiryMailto(f){
   const size = (CHURCH_SIZES.find(([v]) => v === f.size) || [0, f.size])[1];
   const body = ["Name: " + f.name, "Email: " + f.email, "Church: " + f.church, "Role: " + f.role,
                 "Weekly attendance: " + size, "", f.msg || ""].join("\n");
-  return "mailto:" + SUPPORT_EMAIL + "?subject=" + encodeURIComponent("Church licence: " + f.church)
+  return "mailto:" + supportEmail() + "?subject=" + encodeURIComponent("Church licence: " + f.church)
        + "&body=" + encodeURIComponent(body);
 }
 async function churchEnquirySend(){
@@ -1766,9 +1778,22 @@ async function churchEnquirySend(){
     await fetch(FLOURISH_API + "/api/subscribe", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: f.email, source: "church-licence" }) });
   } catch (e) { /* offline: the email below still carries everything */ }
-  const href = churchEnquiryMailto(f);
   const done = document.getElementById("ce-done");
-  if (done) done.innerHTML = `<div class="note" style="margin-top:12px">✉️ <div>Your email app should open with everything filled in: send it and we'll reply. If it didn't open, <a id="ce-mail" href="${esc(href)}">open it here</a> or write to <b>${SUPPORT_EMAIL}</b>.</div></div>`;
+  if (!supportEmail()) {
+    // No address configured: the enquiry goes to the support inbox (16 Nov 2026).
+    // A leads row alone is read by nobody, so "we have your details" was not true.
+    const size = (CHURCH_SIZES.find(([v]) => v === f.size) || [0, f.size])[1];
+    try {
+      await supportApi("/api/support", "POST", { topic: "church", email: f.email, subject: ("Church licence: " + f.church).slice(0, 120),
+        message: ["Name: " + f.name, "Email: " + f.email, "Church: " + f.church, "Role: " + f.role, "Weekly attendance: " + size, "", f.msg || ""].join("\n").trim() });
+      if (done) done.innerHTML = `<div class="note" style="margin-top:12px">✅ <div>Thanks — we have your details and will reply to ${esc(f.email)}.</div></div>`;
+    } catch (e) {
+      if (done) done.innerHTML = `<div class="note" style="margin-top:12px">⚠ <div>${esc(e.message)} Nothing was sent.</div></div>`;
+    }
+    return;
+  }
+  const href = churchEnquiryMailto(f);
+  if (done) done.innerHTML = `<div class="note" style="margin-top:12px">✉️ <div>Your email app should open with everything filled in: send it and we'll reply. If it didn't open, <a id="ce-mail" href="${esc(href)}">open it here</a> or write to ${supportLinkHtml()}.</div></div>`;
   try { location.href = href; } catch (e) { /* the link above is the fallback */ }
 }
 
@@ -2166,6 +2191,12 @@ function accountCard(){
   </div>
 
   <div class="card" style="margin-top:12px">
+    <div class="card-hd"><h3 class="serif">Help &amp; support</h3></div>
+    <p class="muted" style="font-size:13px;margin:6px 0 10px">Questions, problems or ideas. A person reads every message and replies right here.</p>
+    <button class="btn sm block" data-act="support-open">💬 Message support</button>
+  </div>
+
+  <div class="card" style="margin-top:12px">
     <div class="card-hd"><h3 class="serif">Orders</h3></div>
     <p class="muted" style="font-size:13px;margin:6px 0 10px">Your past orders and gifts.</p>
     <button class="btn sm block" data-act="open-orders">View order history</button>
@@ -2188,12 +2219,119 @@ function accountCard(){
     <button class="btn sm block" data-act="unblock-all">Unblock everyone I've blocked</button>
     <p class="muted" style="font-size:12.5px;margin-top:10px;line-height:1.6">
       Something urgent, or a report that isn't being handled?<br>
-      Email <a href="mailto:support@flourishapp.online"><b>support@flourishapp.online</b></a> — a person reads it.</p>
+      <a href="#" data-act="support-open">Message support</a> — a person reads it.</p>
   </div>
 
   <p class="faint center" style="font-size:11px;margin-top:14px;line-height:1.7">
     <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="refund.html">Refunds</a><br>
     Flourish ${APP_VERSION} · works offline</p>`;
+}
+
+/* ── Help & support: an inbox inside the app (16 Nov 2026) ──
+   There was no working support address, so members now write to support here,
+   the owner reads and answers in the same app (the API decides who the owner
+   is: ADMIN_EMAILS or profiles.is_store_admin), and the member sees the answer
+   here and in Alerts. Signed out, a visitor leaves an email for the reply. */
+const SUPPORT_TOPICS = [["account","My account"],["billing","Membership or billing"],["church","My church"],["safety","Safety or a report"],["bug","Something's broken"],["idea","An idea"],["other","Something else"]];
+
+async function supportApi(path, method, body){
+  const signedIn = typeof isSignedIn === "function" && isSignedIn();
+  const headers = { "Content-Type": "application/json" };
+  if (signedIn) headers.Authorization = "Bearer " + await authToken();
+  const r = await fetch(FLOURISH_API + path, { method: method || "GET", headers, body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || "Couldn't reach support. Please try again.");
+  return j;
+}
+
+function supportThread(t, staffView){
+  const when = x => { try { return new Date(x).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); } catch (e) { return ""; } };
+  const label = { open: staffView ? "needs reply" : "waiting for us", answered: staffView ? "answered" : "we replied", closed: "closed" }[t.status] || t.status;
+  return `<div class="card" style="margin-top:10px">
+    <div class="row between"><b style="font-size:14px">${esc(t.subject || "Message")}</b><span class="pill" style="font-size:11px">${esc(label)}</span></div>
+    ${staffView ? `<div class="faint" style="font-size:12px;margin-top:3px">${esc(t.email || "")} · ${esc(t.topic || "")}</div>` : ""}
+    ${(t.messages || []).map(m => `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:${m.from_staff ? "rgba(201,165,74,.12)" : "rgba(255,255,255,.04)"}">
+        <div class="faint" style="font-size:11px">${m.from_staff ? "Flourish support" : (staffView ? "Member" : "You")} · ${esc(when(m.created_at))}</div>
+        <div style="font-size:13.5px;white-space:pre-wrap;margin-top:3px">${esc(m.body)}</div></div>`).join("")}
+    ${staffView && !t.user_id ? `<p class="muted" style="font-size:12.5px;margin:9px 0 0">Sent without signing in, so a reply in the app would never reach them. Answer by email:</p>
+      <div class="row" style="gap:8px;margin-top:6px">
+        <a class="btn sm primary" style="flex:1;text-align:center" href="mailto:${esc(encodeURIComponent(t.email || "").replace(/%40/g, "@"))}?subject=${esc(encodeURIComponent("Re: " + (t.subject || "your message to Flourish")))}">✉️ Email ${esc(t.email || "")}</a>
+        ${t.status === "open" ? `<button class="btn sm ghost" data-act="support-status" data-id="${esc(t.id)}" data-status="answered">Mark answered</button>` : ""}
+        <button class="btn sm ghost" data-act="support-status" data-id="${esc(t.id)}" data-status="${t.status === "closed" ? "open" : "closed"}">${t.status === "closed" ? "Reopen" : "Close"}</button>
+      </div>` : t.status !== "closed" || staffView ? `<textarea id="sr-${esc(t.id)}" rows="2" maxlength="5000" placeholder="${staffView ? "Write your reply…" : "Add a message…"}" style="width:100%;margin-top:9px"></textarea>
+      <div class="row" style="gap:8px;margin-top:6px">
+        <button class="btn sm primary" style="flex:1" data-act="support-reply" data-id="${esc(t.id)}" data-staff="${staffView ? "1" : ""}">${staffView ? "Send reply" : "Send"}</button>
+        ${staffView ? `<button class="btn sm ghost" data-act="support-status" data-id="${esc(t.id)}" data-status="${t.status === "closed" ? "open" : "closed"}">${t.status === "closed" ? "Reopen" : "Close"}</button>` : ""}
+      </div>` : ""}
+  </div>`;
+}
+
+async function supportSheet(){
+  const signedIn = typeof isSignedIn === "function" && isSignedIn();
+  sheet(`<div class="eyebrow">Help &amp; support</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 4px">Message us</h3>
+    <p class="muted" style="font-size:13px;margin:0 0 10px">A person reads every message and replies ${signedIn ? "here and in Alerts" : "by email"}.</p>
+    <div id="support-admin"></div>
+    <select id="sp-topic" style="width:100%">${SUPPORT_TOPICS.map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+    ${signedIn ? "" : `<input id="sp-email" type="email" autocomplete="email" maxlength="254" placeholder="Your email, for our reply" style="width:100%;margin-top:8px">`}
+    <textarea id="sp-msg" rows="4" maxlength="5000" placeholder="How can we help?" style="width:100%;margin-top:8px"></textarea>
+    <button class="btn primary block" style="margin-top:8px" data-act="support-send">Send</button>
+    <div id="support-mine"></div>`);
+  if (!signedIn) return;
+  try {
+    const j = await supportApi("/api/support");
+    const mine = document.getElementById("support-mine");
+    if (mine && (j.tickets || []).length) mine.innerHTML = `<div class="eyebrow" style="margin-top:18px">Your conversations</div>` + j.tickets.map(t => supportThread(t, false)).join("");
+    const adm = document.getElementById("support-admin");
+    if (adm && j.is_admin) adm.innerHTML = `<button class="btn gold block" style="margin-bottom:10px" data-act="support-inbox">📥 Open the support inbox</button>`;
+  } catch (e) {
+    const mine = document.getElementById("support-mine");
+    if (mine) mine.innerHTML = `<p class="faint" style="font-size:12px;margin-top:12px">⚠ ${esc(e.message)}</p>`;
+  }
+}
+
+async function supportSend(){
+  const msg = ((document.getElementById("sp-msg") || {}).value || "").trim();
+  if (msg.length < 2) { toast("Write a message first"); return; }
+  const body = { topic: (document.getElementById("sp-topic") || {}).value || "other", message: msg };
+  const em = document.getElementById("sp-email");
+  if (em) body.email = em.value.trim();
+  try {
+    await supportApi("/api/support", "POST", body);
+    toast("Sent — we'll reply soon");
+    supportSheet();
+  } catch (e) { toast("⚠ " + e.message); }
+}
+
+async function supportReply(id, staff){
+  const box = document.getElementById("sr-" + id);
+  const msg = ((box || {}).value || "").trim();
+  if (!msg) { toast("Write a message first"); return; }
+  try {
+    await supportApi("/api/support/reply", "POST", { ticket_id: id, message: msg });
+    toast(staff ? "Reply sent" : "Sent");
+    staff ? supportInbox() : supportSheet();
+  } catch (e) { toast("⚠ " + e.message); }
+}
+
+let supportFilter = "waiting";
+async function supportInbox(filter){
+  if (filter) supportFilter = filter;
+  sheet(`<div class="eyebrow">Support inbox</div>
+    <div class="row" style="gap:6px;margin:8px 0 4px">
+      ${[["open","Needs reply"],["waiting","Not closed"],["all","All"]].map(([k, v]) => `<button class="btn sm ${supportFilter === k ? "primary" : "ghost"}" data-act="support-inbox" data-id="${k}">${v}</button>`).join("")}
+    </div>
+    <div id="support-inbox-list" class="muted" style="font-size:14px">Loading…</div>`);
+  try {
+    const j = await supportApi("/api/admin/support?status=" + encodeURIComponent(supportFilter));
+    const el = document.getElementById("support-inbox-list"); if (!el) return;
+    el.innerHTML = (j.tickets || []).length ? j.tickets.map(t => supportThread(t, true)).join("") : viewEmpty("📭", "All caught up", "New messages from members land here.");
+  } catch (e) { const el = document.getElementById("support-inbox-list"); if (el) el.textContent = "⚠ " + e.message; }
+}
+
+async function supportStatus(id, status){
+  try { await supportApi("/api/admin/support/status", "POST", { ticket_id: id, status }); toast(status === "closed" ? "Closed" : status === "answered" ? "Marked answered" : "Reopened"); supportInbox(); }
+  catch (e) { toast("⚠ " + e.message); }
 }
 
 async function openOrders(){
