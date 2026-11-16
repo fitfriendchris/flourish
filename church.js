@@ -231,9 +231,17 @@ function fillView(id, producer){
 }
 
 /* ── discovery ──────────────────────────────────────────────────── */
+/* The directory is the churches that are ON Flourish: added in the app, or a
+   map listing its staff claimed and we verified, plus the member's own. An
+   unclaimed map listing (source "osm") appears only in a search, where it is
+   labelled "Not on Flourish yet". On 16 Nov 2026 the first live search imported
+   104 of them and this list showed a hundred, alphabetically, as if they had
+   joined. */
 async function loadChurches(force){
-  if (CH.churches && !force) return CH.churches;
-  CH.churches = await sbRest("/churches?select=id,slug,name,denomination,city,state,pastor_name,service_times,logo_url,is_verified&order=name.asc&limit=100");
+  const mine = ((await loadMembership().catch(() => [])) || []).map(m => m.church_id).filter(Boolean);
+  if (CH.churches && !force && mine.every(id => CH.churches.some(c => c.id === id))) return CH.churches;
+  const or = "(source.eq.flourish,is_verified.eq.true" + mine.map(id => ",id.eq." + id).join("") + ")";
+  CH.churches = await sbRest("/churches?select=id,slug,name,denomination,city,state,pastor_name,service_times,logo_url,is_verified&or=" + encodeURIComponent(or) + "&order=name.asc&limit=100");
   return CH.churches;
 }
 async function loadMembership(force){
@@ -280,6 +288,7 @@ async function discoveryBody(){
   try {
     // invitations waiting for this person come first (claimed from their
     // address on the first look each session); a failed lookup shows none
+    await loadMembership();                       // the directory needs it; one request, not two
     const [list, , invites] = await Promise.all([loadChurches(), loadMembership(),
       myPendingInvites().catch(() => [])]);
     const invitesHtml = inviteCardsHtml(invites);
