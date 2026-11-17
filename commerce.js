@@ -54,9 +54,11 @@ fetch(FLOURISH_API + "/api/products")
 /* ---- membership plans (mirrors Stripe prices + App Store products) ----
    16 Nov 2026: Apple offers no $29 / $197 / $497 points for these products, so
    the App Store products were created at $29.99 / $197.99 / $499.99 and the web
-   price moved with them: one price everywhere (3.1.2). */
+   price moved with them: one price everywhere (3.1.2). The same evening Monthly
+   was lowered to $19.99, in App Store Connect and here (owner's call). Yearly
+   at $197.99 is still about two months free against it. */
 const PLANS = [
-  { id:"monthly",  name:"Monthly",  price:"$29.99",  per:"/mo",  note:"Cancel anytime",        best:false },
+  { id:"monthly",  name:"Monthly",  price:"$19.99",  per:"/mo",  note:"Cancel anytime",        best:false },
   { id:"yearly",   name:"Yearly",   price:"$197.99", per:"/yr",  note:"2 months free",          best:true  },
   { id:"lifetime", name:"Lifetime", price:"$499.99", per:"",     note:"One payment, forever",   best:false }
 ];
@@ -107,7 +109,7 @@ function membershipSheet(reason){
          this disclosure is one of the most common auto-renewable subscription
          rejections; the sheet previously showed prices and nothing else. -->
     <div class="note" style="margin-top:12px;text-align:left;line-height:1.65">
-      <b>Monthly</b> — $29.99/month, renews monthly. &nbsp;<b>Yearly</b> — $197.99/year, renews yearly.
+      <b>Monthly</b> — $19.99/month, renews monthly. &nbsp;<b>Yearly</b> — $197.99/year, renews yearly.
       &nbsp;<b>Lifetime</b> — $499.99 once, never renews.<br>
       ${td ? `<b>Free trial</b> — a signed-in member's first Monthly or Yearly membership on the web starts with ${td} days free. You're charged on day ${td + 1} unless you cancel before then; one trial per person.<br>` : ""}
       Subscriptions renew automatically unless auto-renew is turned off at least 24 hours
