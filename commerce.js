@@ -83,8 +83,8 @@ function membershipSheet(reason){
   const td = trialDays(), signedIn = typeof isSignedIn === "function" && isSignedIn();
   const trialNote = p => td && p.id !== "lifetime" ? `${td} days free, then ${p.price}${p.per}` : p.note;
   const trialLine = !td ? ""
-    : signedIn ? `<div class="note" id="trial-line" style="margin-bottom:12px">🎁 Your first membership starts with <b>${td} days free</b>. Cancel before day ${td + 1} and you won't be charged.</div>`
-    : `<div class="note" id="trial-line" style="margin-bottom:12px">🎁 New members get <b>${td} days free</b> on Monthly or Yearly. <button class="btn sm" style="margin-left:6px" data-act="sign-in-sheet">Sign in to start free</button></div>`;
+    : signedIn ? `<div class="note" id="trial-line" style="display:block;margin-bottom:12px">🎁 Your first membership starts with <b>${td} days free</b>. Cancel before day ${td + 1} and you won't be charged.</div>`
+    : `<div class="note" id="trial-line" style="display:block;margin-bottom:12px">🎁 New members get <b>${td} days free</b> on Monthly or Yearly. <button class="btn sm" style="margin-left:6px" data-act="sign-in-sheet">Sign in to start free</button></div>`;
   sheet(`
     <div class="eyebrow">Flourish Membership</div>
     <h3 class="serif" style="font-size:21px;margin:6px 0 4px">Unlock all 1,095 days</h3>
@@ -99,9 +99,9 @@ function membershipSheet(reason){
                 data-act="join-membership" data-id="${esc(p.id)}">
           <span>
             <b style="font-size:15px">${p.name}</b>
-            <span class="faint" style="display:block;font-size:12px">${esc(signedIn ? trialNote(p) : p.note)}</span>
+            <span class="faint" style="display:block;font-size:12px${p.best ? ";color:inherit;opacity:.8" : ""}">${esc(signedIn ? trialNote(p) : p.note)}</span>
           </span>
-          <span class="serif" style="font-size:20px;color:var(--gold)">${p.price}<small style="font-size:12px">${p.per}</small></span>
+          <span class="serif" style="font-size:20px;color:${p.best ? "inherit" : "var(--gold)"}">${p.price}<small style="font-size:12px">${p.per}</small></span>
         </button>`).join("")}
     </div>
     <button class="btn sm block" style="margin-top:10px" data-act="restore-purchase">Restore a purchase</button>
@@ -109,7 +109,9 @@ function membershipSheet(reason){
          functional Terms/Privacy links to be visible AT THE POINT OF PURCHASE. Missing
          this disclosure is one of the most common auto-renewable subscription
          rejections; the sheet previously showed prices and nothing else. -->
-    <div class="note" style="margin-top:12px;text-align:left;line-height:1.65">
+    <!-- .note is a flex row; as one, every <b> and text run below became its own
+         column and the terms ran off a phone screen (18 Nov 2026). -->
+    <div class="note" style="display:block;margin-top:12px;text-align:left;line-height:1.65">
       <b>Monthly</b> — $19.99/month, renews monthly. &nbsp;<b>Yearly</b> — $119.99/year, renews yearly.
       &nbsp;<b>Lifetime</b> — $299.99 once, never renews.<br>
       ${td ? `<b>Free trial</b> — a signed-in member's first Monthly or Yearly membership on the web starts with ${td} days free. You're charged on day ${td + 1} unless you cancel before then; one trial per person.<br>` : ""}
