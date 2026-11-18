@@ -25,6 +25,7 @@ that has quietly fallen behind the code is worse than none, because you relied o
   <tr data-holds="messages"><td><b>Messages you send, including to a pastor</b></td><td>Only when you send one</td><td>To deliver them</td><td>Our database — see section 2</td></tr>
   <tr data-holds="conversations"><td>Which conversations you are part of</td><td>When you join one</td><td>To show you your messages</td><td>Our database</td></tr>
   <tr data-holds="group_members"><td>Which groups or ministries you joined</td><td><b>Not yet.</b> Groups are not available in the app. The table exists and is listed here so that this page is already correct if they are switched on.</td><td>Group content and rotas</td><td>Our database</td></tr>
+  <tr data-holds="invitations"><td>Invitations to a church or an event that were sent to you</td><td>When someone invites you</td><td>So you can accept or decline</td><td>Our database. Deleted with your account.</td></tr>
   <tr data-holds="event_rsvps"><td>Events you RSVP to</td><td>When you RSVP</td><td>So the host can plan</td><td>Our database</td></tr>
   <tr data-holds="event_checkins"><td><b>Events you checked in to</b></td><td>Only if you scan in at an event</td><td>Attendance for the host</td><td>Our database — this records that you attended a religious service, see section 2</td></tr>
   <tr data-holds="notifications"><td>Notifications we have sent you</td><td>As they are sent</td><td>So you can read them again</td><td>Our database</td></tr>
@@ -35,6 +36,7 @@ that has quietly fallen behind the code is worse than none, because you relied o
   <tr data-holds="giving"><td>Gift amount and campaign</td><td>Only if you give</td><td>Receipt and ministry accounting</td><td>Our database + Stripe</td></tr>
   <tr data-holds="recurring_gifts"><td>A recurring gift you set up</td><td>Only if you set one up</td><td>To keep it running, and to let you stop it</td><td>Our database + Stripe</td></tr>
   <tr data-holds="subscriptions"><td>Membership status</td><td>Only if you subscribe</td><td>To unlock your content on any device</td><td>Our database; Apple or Stripe holds the payment</td></tr>
+  <tr data-holds="support"><td>What you write to us for help, and the email address to reply to</td><td>Only when you contact support, in the app or on our support page</td><td>To answer you</td><td>Our database. Deleted with your account, or sooner if you ask.</td></tr>
   <tr data-holds="diagnostics"><td>Crash reports — the error, where in the app it happened, and your device type</td><td>Automatically, if the app breaks</td><td>So a broken release is visible to us instead of only to you</td><td>Our database. Deliberately holds <b>no</b> account id, no email, and no page address — see section 8.</td></tr>
   <tr data-holds="server_logs"><td>Server logs — the request, its outcome, and how long it took</td><td>Every request</td><td>Security, debugging, and abuse prevention</td><td>Our host. Kept 30 days. Your account id appears only when an export or deletion fails, because we are legally required to finish those.</td></tr>
 </table>
@@ -67,7 +69,7 @@ by deleting the content or your account, and it is deleted for real: see section
 </ul>
 
 <h2>4. Children</h2>
-<p>Flourish is rated 4+ and contains no objectionable content, but it is designed for adults and is not directed to children under 13. We do not knowingly collect personal information from a child under 13. Families are welcome to read together under a parent's account. If you believe a child has given us personal information, contact us at <a class="support-email" href="index.html#/me">Help &amp; support in the app (Me tab)</a> and we will delete it promptly.</p>
+<p>Flourish is rated 13+ on the App Store. It is designed for adults and is not directed to children under 13. We do not knowingly collect personal information from a child under 13. Families are welcome to read together under a parent's account. If you believe a child has given us personal information, contact us at <a class="support-email" href="index.html#/me">Help &amp; support in the app (Me tab)</a> and we will delete it promptly.</p>
 
 <h2>5. Payments</h2>
 <p>Card processing is performed by <b>Stripe</b> (PCI-DSS Level 1) on the web, and by <b>Apple</b> for purchases made inside the iOS app. Their handling of your payment data is governed by their own privacy policies. We receive only what we need to fulfil the order.</p>
@@ -89,6 +91,7 @@ by deleting the content or your account, and it is deleted for real: see section
   <li>Account and membership: until you delete your account.</li>
   <li>Financial records: 7 years, anonymised after account deletion, as tax law requires.</li>
   <li>Prayer requests, messages and church membership: until you delete them or your account. Deleting your account removes them from the church wall too — a deletion that leaves your prayer request in front of your congregation is not a deletion.</li>
+  <li>Support conversations: until you delete your account or ask us to remove them.</li>
   <li>Server logs: 30 days.</li>
   <li>Crash reports: until the fault is fixed, then cleared. They hold no account id or email.</li>
 </ul>
