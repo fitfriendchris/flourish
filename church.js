@@ -195,14 +195,20 @@ function viewError(msg, retryFn){
      decodes the entity before JS parses the string). */
   const key = typeof retryFn === "function" ? onRetry(retryFn) : "";
   return `<div class="card" style="text-align:center;padding:26px 18px;outline:1px solid var(--line2)">
-    <div style="font-size:26px">⚠️</div>
+    <div class="e-ic warn">${ico("triangle-alert")}</div>
     <p style="margin:10px 0 4px"><b>That didn't load</b></p>
     <p class="muted" style="font-size:13.5px;margin:0 0 12px">${esc(msg)}</p>
     ${key ? `<button class="btn primary" data-act="retry-view" data-id="${key}">Try again</button>` : ""}</div>`;
 }
+/* Empty states name an icon from the line set; the emoji keys are the ones the
+   callers were written with, so every empty state changes look at once. */
+const EMPTY_ICON = { "📍": "map-pin", "🔍": "search", "⛪": "church", "✅": "check", "👥": "users",
+  "💬": "message-circle", "📅": "calendar", "🔔": "bell", "🙏": "hand-heart", "🧾": "receipt",
+  "💝": "gift", "📭": "mailbox", "🛍️": "shopping-bag", "\u{1F6CD}\uFE0F": "shopping-bag", "\u{1F6CD}": "shopping-bag" };
 function viewEmpty(icon, title, body, action){
+  const name = EMPTY_ICON[icon] || (/^[a-z0-9-]+$/.test(icon) ? icon : "");
   return `<div class="empty" style="padding:26px 18px">
-    <div class="e-ic">${icon}</div><b style="display:block;margin-bottom:5px">${esc(title)}</b>
+    <div class="e-ic">${name ? ico(name) : icon}</div><b style="display:block;margin-bottom:5px">${esc(title)}</b>
     <span class="muted" style="font-size:13.5px">${esc(body)}</span>
     ${action ? `<div style="margin-top:14px">${action}</div>` : ""}</div>`;
 }
@@ -268,12 +274,12 @@ function discovery(){
   const signedIn = typeof isSignedIn === "function" && isSignedIn();
   return `<div class="row between" style="align-items:flex-start">
       <div class="page-title serif">Churches</div>
-      ${signedIn ? `<button class="btn sm ghost" data-act="notifications" aria-label="Alerts">🔔 <span id="notif-badge"></span></button>` : ""}
+      ${signedIn ? `<button class="btn sm ghost" data-act="notifications" aria-label="Alerts">${ico("bell")} <span id="notif-badge"></span></button>` : ""}
     </div>
     <p class="page-sub">Find your congregation, or browse what other churches nearby are doing.</p>
     <div id="near-zone">
       <div class="row" style="gap:8px;margin:2px 0 10px">
-        <button class="btn primary" style="flex:1" data-act="near-me">📍 Near me</button>
+        <button class="btn primary" style="flex:1" data-act="near-me">${ico("locate")} Near me</button>
       </div>
       <div class="row" style="gap:8px;margin:0 0 6px">
         <input id="near-zip" type="search" enterkeyhint="search" placeholder="ZIP, city or church name" maxlength="120" style="flex:1">
@@ -296,19 +302,19 @@ async function discoveryBody(){
     if (!list.length) {
       return invitesHtml + viewEmpty("📍", "Find churches near you",
         "Tap Near me, or search a ZIP, city or your church's name, to see churches around you and what they have coming up.",
-        `<button class="btn primary" data-act="near-me">📍 Near me</button>`);
+        `<button class="btn primary" data-act="near-me">${ico("locate")} Near me</button>`);
     }
     const mine = myChurchId();
     return invitesHtml + list.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
       <div class="row between">
         <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
-        ${c.id === mine ? '<span class="pill">your church</span>' : '<span style="font-size:18px">›</span>'}
+        ${c.id === mine ? '<span class="pill">your church</span>' : ico("chevron-right", "chev")}
       </div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">
         ${esc([c.denomination, [c.city, c.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "Church")}</p>
       ${c.pastor_name ? `<p class="faint" style="font-size:12.5px;margin:4px 0 0">${esc(c.pastor_name)}</p>` : ""}
     </button>`).join("") +
-    `<button class="btn ghost block" style="margin-top:10px" data-act="add-church">＋ Add your church</button>`;
+    `<button class="btn ghost block" style="margin-top:10px" data-act="add-church">${ico("plus")} Add your church</button>`;
   } catch (e) {
     return viewError(e.message, () => fillView("church-list", discoveryBody));
   }
@@ -343,14 +349,14 @@ async function churchDetailBody(id){
       </div>
       <div class="card" style="margin-top:14px">
         ${c.description ? `<p style="margin:0 0 10px">${esc(c.description)}</p>` : ""}
-        ${times.length && sectionOn(c, "times") ? `<b>🕘 Service times</b>${times.map(t => `<p style="margin:5px 0">• ${esc(String(t))}</p>`).join("")}` : ""}
-        ${[c.address, c.city, c.state].filter(Boolean).length ? `<p class="muted" style="margin:8px 0 0">📍 ${esc([c.address, c.city, c.state, c.postal_code].filter(Boolean).join(", "))}</p>` : ""}
-        ${sectionOn(c, "sermons") && /^https:\/\//i.test(c.sermons_url || "") ? `<button class="btn block" style="margin-top:10px" data-act="open-link" data-url="${esc(c.sermons_url)}">🎧 Sermons ↗</button>` : ""}
-        ${sectionOn(c, "giving") && /^https:\/\//i.test(c.giving_url || "") ? `<button class="btn block" style="margin-top:8px" data-act="give-church" data-url="${esc(c.giving_url)}">💝 Give to ${esc(c.name)} ↗</button>` : ""}
-        ${c.pastor_name ? `<p class="muted" style="margin-top:8px">👤 ${esc(c.pastor_name)}</p>` : ""}
-        ${/^https:\/\//i.test(c.website || "") ? `<button class="btn block" style="margin-top:8px" data-act="open-link" data-url="${esc(c.website)}">🌐 Website ↗</button>` : ""}
-        ${c.phone ? `<p class="muted" style="margin-top:8px">📞 <a href="tel:${esc(String(c.phone).replace(/[^0-9+]/g, ""))}">${esc(c.phone)}</a></p>` : ""}
-        <b style="display:block;margin-top:14px">📅 Coming up</b>
+        ${times.length && sectionOn(c, "times") ? `<b class="with-ico">${ico("clock")} Service times</b>${times.map(t => `<p style="margin:5px 0">• ${esc(String(t))}</p>`).join("")}` : ""}
+        ${[c.address, c.city, c.state].filter(Boolean).length ? `<p class="muted with-ico" style="margin:8px 0 0">${ico("map-pin")} ${esc([c.address, c.city, c.state, c.postal_code].filter(Boolean).join(", "))}</p>` : ""}
+        ${sectionOn(c, "sermons") && /^https:\/\//i.test(c.sermons_url || "") ? `<button class="btn block" style="margin-top:10px" data-act="open-link" data-url="${esc(c.sermons_url)}">${ico("headphones")} Sermons ↗</button>` : ""}
+        ${sectionOn(c, "giving") && /^https:\/\//i.test(c.giving_url || "") ? `<button class="btn block" style="margin-top:8px" data-act="give-church" data-url="${esc(c.giving_url)}">${ico("gift")} Give to ${esc(c.name)} ↗</button>` : ""}
+        ${c.pastor_name ? `<p class="muted with-ico" style="margin-top:8px">${ico("user")} ${esc(c.pastor_name)}</p>` : ""}
+        ${/^https:\/\//i.test(c.website || "") ? `<button class="btn block" style="margin-top:8px" data-act="open-link" data-url="${esc(c.website)}">${ico("globe")} Website ↗</button>` : ""}
+        ${c.phone ? `<p class="muted with-ico" style="margin-top:8px">${ico("phone")} <a href="tel:${esc(String(c.phone).replace(/[^0-9+]/g, ""))}">${esc(c.phone)}</a></p>` : ""}
+        <b class="with-ico" style="margin-top:16px">${ico("calendar")} Coming up</b>
         ${(upcoming || []).length ? upcoming.map(e => `<button class="card" style="margin-top:8px" data-act="event-open" data-id="${esc(e.id)}">
             <b>${esc(e.title)}</b><p class="muted" style="font-size:13px;margin:5px 0 0">${esc(whenEv(e.start_time))}${e.location_name ? " · " + esc(e.location_name) : ""}</p></button>`).join("")
           : `<p class="muted" style="font-size:13px;margin:6px 0 0">${fromMap ? "This church hasn't joined Flourish yet, so its events aren't here. Invite your pastor with the QR below." : "No public events posted yet."}</p>`}
@@ -486,7 +492,7 @@ async function myChurchBody(){
       <button class="card center" data-act="pastoral"><div style="font-size:26px">💬</div><b style="font-size:13px">Message</b></button>
     </div>
     ${leader ? `<button class="card center block" style="margin-top:2px" data-act="church-dash" data-id="${esc(id)}">
-        <div style="font-size:24px">🛠️</div><b style="font-size:13px">Church dashboard</b></button>` : ""}
+        <div style="font-size:24px">${ico("settings")} ️</div><b style="font-size:13px">Church dashboard</b></button>` : ""}
 
     <div class="grid g3" style="margin-top:6px">
       <button class="card center" data-act="chats"><div style="font-size:26px">💬</div><b style="font-size:13px">Chats</b></button>
@@ -494,7 +500,7 @@ async function myChurchBody(){
       <button class="card center" data-act="notifications"><div style="font-size:26px">🔔</div><b style="font-size:13px">Alerts <span id="notif-badge"></span></b></button>
     </div>
 
-    ${sectionOn(c, "events") ? `<div class="shead"><h2 class="serif">📅 Events</h2>${leader ? `<a data-act="event-new" data-id="${esc(id)}">+ New</a>` : ""}</div>
+    ${sectionOn(c, "events") ? `<div class="shead"><h2 class="serif">${ico("calendar")} Events</h2>${leader ? `<a data-act="event-new" data-id="${esc(id)}">+ New</a>` : ""}</div>
     ${events.length ? events.map(e => `<div class="list-item" data-act="event-open" data-id="${esc(e.id)}" style="cursor:pointer">
         <div class="av">${e.visibility === "private" ? "🔐" : e.visibility === "members_only" ? "🔒" : "📅"}</div>
         <div class="tx"><b>${esc(e.title)}</b><small>${esc(when(e.start_time))}${e.location_name ? " · " + esc(e.location_name) : ""}</small></div>
@@ -505,11 +511,11 @@ async function myChurchBody(){
           ? "Add your first event so members know what's happening."
           : "Your church hasn't posted any events yet.")}` : ""}
 
-    ${sectionOn(c, "announcements") && (notices.length || leader) ? `<div class="shead"><h2 class="serif">📣 Announcements</h2>${leader ? `<a data-act="notice-new" data-id="${esc(id)}">+ New</a>` : ""}</div>` +
+    ${sectionOn(c, "announcements") && (notices.length || leader) ? `<div class="shead"><h2 class="serif">${ico("megaphone")} Announcements</h2>${leader ? `<a data-act="notice-new" data-id="${esc(id)}">+ New</a>` : ""}</div>` +
       (notices.length ? notices.map(a => `<div class="card"><div class="row between"><b>${a.pinned ? "📌 " : ""}${esc(a.title)}</b>${leader ? `<button class="btn sm ghost" data-act="notice-delete" data-id="${esc(a.id)}" aria-label="Remove announcement">✕</button>` : ""}</div>
         <p class="muted" style="font-size:13px;margin-top:4px">${esc(a.body || "")}</p></div>`).join("") : `<p class="faint" style="font-size:13px;margin:0 4px">Nothing posted. Members see announcements here.</p>`) : ""}
 
-    ${sectionOn(c, "groups") ? `<div class="shead"><h2 class="serif">👥 Groups</h2>${leader
+    ${sectionOn(c, "groups") ? `<div class="shead"><h2 class="serif">${ico("users")} Groups</h2>${leader
         ? `<a data-act="new-group" data-id="${esc(id)}">+ New</a>` : ""}</div>
     ${grp.groups.length ? grp.groups.map(g => {
         const inIt = grp.mine.has(g.id);
@@ -522,7 +528,7 @@ async function myChurchBody(){
           ? "Start a small group — a Bible study, a men's or women's group — and members can join here."
           : "Your church hasn't started any groups in the app yet.")}` : ""}
 
-    ${sectionOn(c, "prayer") ? `<div class="shead"><h2 class="serif">🙏 Prayer Wall</h2><a data-act="new-prayer">+ Add</a></div>
+    ${sectionOn(c, "prayer") ? `<div class="shead"><h2 class="serif">${ico("hand-heart")} Prayer Wall</h2><a data-act="new-prayer">+ Add</a></div>
     ${prayers.length ? prayers.map(p => `<div class="card ${p.is_answered ? "glow" : ""}">
         <div class="row between"><b>${p.is_anonymous ? "🕊️ Anonymous" : "A member"}</b>
           <span class="faint" style="font-size:11px">${esc(when(p.created_at))}</span></div>
@@ -814,16 +820,16 @@ async function openChurchDashboard(id){
         ${stat("Prayer requests", d && (d.prayer_count ?? d.prayers))}
         ${stat("Groups", d && (d.group_count ?? d.groups))}
       </div>
-      <button class="btn gold block" style="margin-top:12px" data-act="church-edit" data-id="${esc(id)}">✏️ Edit church page</button>
+      <button class="btn gold block" style="margin-top:12px" data-act="church-edit" data-id="${esc(id)}">${ico("pencil")} Edit church page</button>
       <div class="grid g2" style="margin-top:8px">
-        <button class="btn block" data-act="event-new" data-id="${esc(id)}">📅 New event</button>
-        <button class="btn block" data-act="notice-new" data-id="${esc(id)}">📣 Announcement</button>
+        <button class="btn block" data-act="event-new" data-id="${esc(id)}">${ico("calendar")} New event</button>
+        <button class="btn block" data-act="notice-new" data-id="${esc(id)}">${ico("megaphone")} Announcement</button>
       </div>
       <button class="btn block" style="margin-top:8px" data-act="members-roster" data-id="${esc(id)}">
         👥 Members & roles</button>
       <div class="grid g2" style="margin-top:8px">
-        <button class="btn block" data-act="audit-log" data-id="${esc(id)}">🧾 Activity log</button>
-        <button class="btn block" data-act="pastoral-inbox" data-id="${esc(id)}">💬 Member threads</button>
+        <button class="btn block" data-act="audit-log" data-id="${esc(id)}">${ico("receipt")} Activity log</button>
+        <button class="btn block" data-act="pastoral-inbox" data-id="${esc(id)}">${ico("message-circle")} Member threads</button>
       </div>
       <button class="btn block" style="margin-top:8px" data-act="chat-new" data-id="${esc(id)}">
         👥 New group chat</button>
@@ -889,7 +895,7 @@ async function openPastoralThread(){
     return;
   }
   sheet(`<div class="eyebrow">Pastoral messaging</div>
-    <h3 class="serif" style="font-size:19px;margin:6px 0 6px">💬 Write to your church's leaders</h3>
+    <h3 class="serif" style="font-size:19px;margin:6px 0 6px">${ico("message-circle")} Write to your church's leaders</h3>
     <div id="pm-thread">${viewLoading("your messages")}</div>`);
   try {
     const conv = await sbRpc("get_or_create_pastoral_conversation", { p_church_id: cid });
@@ -934,7 +940,7 @@ async function sendPastoralMessage(convId){
 /* The leader's side: every member's thread for this church, newest first. */
 async function pastoralInbox(churchId){
   sheet(`<div class="eyebrow">Pastoral messages</div>
-    <h3 class="serif" style="font-size:19px;margin:6px 0 10px">💬 From your members</h3>
+    <h3 class="serif" style="font-size:19px;margin:6px 0 10px">${ico("message-circle")} From your members</h3>
     <div id="pm-inbox">${viewLoading("messages")}</div>`);
   try {
     const rows = await sbRest("/conversations?select=id,title,last_message_at,created_at" +
@@ -956,7 +962,7 @@ async function pastoralInbox(churchId){
 
 async function leaderThread(convId){
   sheet(`<div class="eyebrow">Pastoral messages</div>
-    <h3 class="serif" style="font-size:19px;margin:6px 0 6px">💬 Conversation</h3>
+    <h3 class="serif" style="font-size:19px;margin:6px 0 6px">${ico("message-circle")} Conversation</h3>
     <div id="pm-thread">${viewLoading("the conversation")}</div>`);
   try {
     const msgs = await loadThread(convId);
@@ -1066,7 +1072,7 @@ async function churchEditSheet(id){
     <label class="fl" for="ce-times">Service times (one per line)</label><textarea id="ce-times" rows="3">${esc(times.join("\n"))}</textarea>
     ${f("address", "Street address")}${f("city", "City")}${f("state", "State")}${f("postal_code", "ZIP code")}
     <div class="card" style="margin-top:10px">
-      <b>📍 Location on the map</b>
+      <b>${ico("map-pin")} Location on the map</b>
       <p class="muted" id="ce-loc" style="font-size:13px;margin:6px 0 8px">${c.lat != null && c.lng != null ? "Set ✓" : "Not set yet. People searching nearby won't find you until it is."}</p>
       <button class="btn block" data-act="church-locate">Use my location (stand at the church)</button>
       <input type="hidden" id="ce-lat" value="${c.lat == null ? "" : esc(String(c.lat))}"><input type="hidden" id="ce-lng" value="${c.lng == null ? "" : esc(String(c.lng))}">
@@ -1189,7 +1195,7 @@ async function eventSheet(churchId, eventId){
     <label class="fl" for="ev-location_name">Where</label><input id="ev-location_name" value="${v("location_name")}" placeholder="e.g. Fellowship hall">
     <label class="fl" for="ev-location_address">Address (optional)</label><input id="ev-location_address" value="${v("location_address")}">
     <div class="card" style="margin-top:10px">
-      <b>📍 Map pin</b>
+      <b>${ico("map-pin")} Map pin</b>
       <p class="muted" id="ev-loc" style="font-size:13px;margin:6px 0 8px">${e.lat != null && e.lng != null ? `Set ✓ (${e.lat.toFixed(4)}, ${e.lng.toFixed(4)})` : "No pin yet — add one so people get directions."}</p>
       <div class="row" style="gap:8px">
         <button class="btn block" style="flex:1" data-act="event-locate">Use my location</button>
@@ -1203,7 +1209,7 @@ async function eventSheet(churchId, eventId){
       <option value="private"${vis === "private" ? " selected" : ""}>Invite-only: only people you invite</option></select>
     <label class="fl" for="ev-max_capacity">Capacity (optional)</label><input id="ev-max_capacity" type="number" min="1" value="${v("max_capacity")}">
     ${eventId ? `<div class="card" style="margin-top:10px"><div class="row between">
-        <b>🔐 Invitations</b>
+        <b>${ico("lock")} Invitations</b>
         <button class="btn sm" data-act="event-invites" data-id="${esc(eventId)}">Edit list</button></div>
       <p class="muted" style="font-size:12.5px;margin:5px 0 0">Invite-only events show just to people
         you invite (and your church's platform team).</p></div>` : ""}
@@ -1314,11 +1320,11 @@ async function churchEventDetailBody(eventId){
       </div>
 
       <div class="card" style="margin-top:14px">
-        ${cancelled ? `<div class="note" style="margin:0 0 10px">🚫 This event has been cancelled.</div>` : ""}
+        ${cancelled ? `<div class="note" style="margin:0 0 10px">${ico("ban")} This event has been cancelled.</div>` : ""}
         ${e.description ? `<p style="margin:0 0 10px">${esc(e.description)}</p>` : ""}
         ${e.location_name || e.location_address ? `<div class="row between" style="align-items:flex-start;margin:8px 0">
           <div>
-            <b>📍 ${esc(e.location_name || "Location")}</b>
+            <b>${ico("map-pin")} ${esc(e.location_name || "Location")}</b>
             ${e.location_address ? `<p class="muted" style="font-size:13px;margin:3px 0 0">${esc(e.location_address)}</p>` : ""}
           </div>
           ${dirUrl ? `<button class="btn sm" data-act="event-directions" data-url="${esc(dirUrl)}">Directions ↗</button>` : ""}
@@ -1331,13 +1337,13 @@ async function churchEventDetailBody(eventId){
           <button class="btn ${S.rsvps[eventId] ? "" : "primary"} block" style="flex:1" data-act="rsvp" data-id="${esc(eventId)}"${shut ? " disabled aria-disabled=\"true\"" : ""}>
             ${S.rsvps[eventId] ? "✓ You're going" : full ? "Event full" : "RSVP"}
           </button>
-          ${!cancelled ? `<button class="btn block" style="flex:1" data-act="event-ics" data-id="${esc(eventId)}">📅 Add to calendar</button>` : ""}
+          ${!cancelled ? `<button class="btn block" style="flex:1" data-act="event-ics" data-id="${esc(eventId)}">${ico("calendar")} Add to calendar</button>` : ""}
         </div>
         ${full && !S.rsvps[eventId] ? `<p class="muted" style="font-size:12px;margin:8px 0 0">This event is full. Check back if someone changes their RSVP.</p>` : ""}
       </div>
 
       ${leader ? `<div class="card" style="margin-top:10px">
-        <div class="row between"><b>🛠️ Leader tools</b></div>
+        <div class="row between"><b>${ico("settings")} Leader tools</b></div>
         <div class="row" style="gap:8px;margin-top:10px">
           <button class="btn sm" data-act="event-edit" data-id="${esc(e.church_id)}" data-event="${esc(eventId)}">Edit event</button>
           <button class="btn sm" data-act="event-invites" data-id="${esc(eventId)}">Invites</button>
@@ -1504,7 +1510,7 @@ async function loadChurchInvites(churchId){
 async function memberSheet(churchId){
   if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
   sheet(`<div class="eyebrow">Members</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">👥 Church roster</h3>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">${ico("users")} Church roster</h3>
     <div id="roster">${viewLoading("your members")}</div>`);
   try {
     const leader = isLeaderOf(churchId);
@@ -1517,7 +1523,7 @@ async function memberSheet(churchId){
     const declined = (invites || []).filter(i => i.status === "declined");
     el.innerHTML =
       (leader ? `<div class="card" style="margin-bottom:10px">
-        <b style="font-size:14px">✉️ Invite someone to your church</b>
+        <b style="font-size:14px">${ico("mail")} Invite someone to your church</b>
         <div class="row" style="gap:8px;margin-top:8px">
           <input id="m-email" type="email" placeholder="Their email address" style="flex:1" autocomplete="off">
           <select id="m-role" style="width:118px" aria-label="Invite as">
@@ -1635,7 +1641,7 @@ async function myPendingInvites(){
 }
 function inviteCardsHtml(list){
   return (list || []).map(i => `<div class="card glow" style="margin-bottom:10px" data-invite-card="${esc(i.id)}">
-      <div class="eyebrow">⛪ You're invited</div>
+      <div class="eyebrow">${ico("church")} You're invited</div>
       <b class="serif" style="font-size:17px">${esc((i.church && i.church.name) || "A church")}</b>
       ${i.church && (i.church.city || i.church.state) ? `<p class="muted" style="font-size:12.5px;margin:3px 0 0">${esc([i.church.city, i.church.state].filter(Boolean).join(", "))}</p>` : ""}
       <p class="faint" style="font-size:12px;margin:6px 0 0">As ${esc(ROLE_LABELS[i.role] || "a member")}. Nothing changes until you choose.</p>
@@ -1670,7 +1676,7 @@ async function memberRemove(rowId, churchId){
 async function auditSheet(churchId){
   if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
   sheet(`<div class="eyebrow">Activity</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">🧾 What your leaders did</h3>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">${ico("receipt")} What your leaders did</h3>
     <div id="audit">${viewLoading("the action log")}</div>`);
   try {
     const rows = await sbRest("/audit_logs?select=id,action,table_name,record_id,new_data,old_data,created_at" +
@@ -1729,7 +1735,7 @@ async function chatPartners(convIds){
 async function chatsOpen(){
   if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
   sheet(`<div class="eyebrow">Messages</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">💬 Your conversations</h3>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">${ico("message-circle")} Your conversations</h3>
     <div id="chats">${viewLoading("your conversations")}</div>`);
   try {
     const mine = await sbRest("/conversation_participants?select=conversation_id" +
@@ -1755,7 +1761,7 @@ async function chatsOpen(){
         ${c.last_message_at ? `<div class="faint" style="font-size:11.5px;margin-top:2px">${esc(new Date(c.last_message_at).toLocaleString())}</div>` : ""}
       </button>`;
     }).join("") +
-    `<button class="btn ghost block" style="margin-top:12px" data-act="pastoral">🤲 Write to your church's leaders</button>
+    `<button class="btn ghost block" style="margin-top:12px" data-act="pastoral">${ico("hand-helping")} Write to your church's leaders</button>
     <p class="faint center" style="font-size:11.5px;margin-top:8px">Group chats come with your church's
       small groups — join one under Groups on My Church and its chat appears here.</p>`;
   } catch (err) {
@@ -1830,7 +1836,7 @@ async function chatMarkRead(convId){
 async function chatOpen(convId){
   if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
   sheet(`<div class="eyebrow">Conversation</div>
-    <h3 class="serif" id="chat-title" style="font-size:19px;margin:6px 0 6px">💬 Chat</h3>
+    <h3 class="serif" id="chat-title" style="font-size:19px;margin:6px 0 6px">${ico("message-circle")} Chat</h3>
     <div id="chat-view">${viewLoading("the conversation")}</div>`);
   try {
     const [msgs, parts, convRows] = await Promise.all([
@@ -2000,7 +2006,7 @@ async function unreadCount(){
 async function notificationsSheet(){
   if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
   sheet(`<div class="eyebrow">Notifications</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">🔔 What's new</h3>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">${ico("bell")} What's new</h3>
     <div id="notifs">${viewLoading("your notifications")}</div>
     <button class="btn ghost block" style="margin-top:10px" data-act="notif-read-all">Mark all read</button>`);
   try {
@@ -2033,7 +2039,7 @@ async function notificationsSheet(){
         <div class="faint" style="font-size:11px;margin-top:5px">${esc(when(n.created_at))}${n.is_read ? " · read" : " · NEW"}</div>
       </div>`;
     };
-    el.innerHTML = (admin ? `<button class="btn block" style="margin-bottom:6px" data-act="platform-reports">🛡️ Reports waiting for review</button>` : "") +
+    el.innerHTML = (admin ? `<button class="btn block" style="margin-bottom:6px" data-act="platform-reports">${ico("shield")} Reports waiting for review</button>` : "") +
       ((rows || []).length ? (rows || []).map(card).join("")
         : viewEmpty("🔔", "Nothing yet", "Invitations, messages, event invites and announcements land here."));
   } catch (err) {
@@ -2084,7 +2090,7 @@ const REPORT_LABELS = { offensive:"Offensive", harassment:"Harassment", spam:"Sp
 async function platformReportsSheet(){
   if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
   sheet(`<div class="eyebrow">Platform moderation</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 4px">🛡️ Reports to review</h3>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 4px">${ico("shield")} Reports to review</h3>
     <p class="muted" style="font-size:12.5px;margin:0 0 8px">Remove takes the message or prayer
       down for everyone. Dismiss keeps it and closes the report.</p>
     <div id="pr-list">${viewLoading("the reports")}</div>`);
@@ -2252,7 +2258,7 @@ async function inviteRows(eventId){
 async function inviteSheet(eventId){
   if (!(typeof isSignedIn === "function" && isSignedIn())) { signInSheet(); return; }
   sheet(`<div class="eyebrow">Invite-only event</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">🔐 Who's invited</h3>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 10px">${ico("lock")} Who's invited</h3>
     <div class="row" style="gap:8px">
       <input id="inv-email" type="email" placeholder="Invite by email" style="flex:1">
       <button class="btn primary" data-act="invite-add" data-id="${esc(eventId)}">Invite</button>
@@ -2273,7 +2279,7 @@ async function inviteRender(eventId){
     if (!el) return;
     el.innerHTML = (rows || []).length
       ? rows.map(r => `<div class="card" style="margin-top:8px"><div class="row between">
-          <b style="font-size:13.5px">✉️ ${esc(r.invitee_email || (r.invitee_user ? "A member" : ""))}</b>
+          <b style="font-size:13.5px">${ico("mail")} ${esc(r.invitee_email || (r.invitee_user ? "A member" : ""))}</b>
           <div class="row" style="gap:6px">
             <span class="faint" style="font-size:11px">${esc(when(r.created_at))}</span>
             <button class="btn sm ghost" data-act="invite-del" data-id="${esc(r.id)}" data-event="${esc(eventId)}">✕</button>
