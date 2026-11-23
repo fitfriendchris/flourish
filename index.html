@@ -520,6 +520,10 @@ html[data-theme="light"] .garden{background:linear-gradient(180deg,#bfe2ec 0%,#d
 .hero .ch-hero-art{position:relative;z-index:1;width:84px;height:84px;margin:0 0 10px -6px}
 .welcome-scene{position:relative;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:14px;border:1px solid var(--line2);box-shadow:var(--sh);background:#091410}
 .welcome-scene .ws-art{display:block;width:100%;height:auto;aspect-ratio:12/5;object-fit:cover;object-position:50% 46%}
+/* iOS can block autoplay (Low Power Mode) and would draw its start button on
+   the poster; hide it, so a blocked loop just shows the still. */
+.welcome-scene video::-webkit-media-controls-start-playback-button{display:none!important;-webkit-appearance:none}
+.welcome-scene video::-webkit-media-controls{display:none!important}
 .welcome-scene .ws-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 16px 13px;background:linear-gradient(180deg,transparent,rgba(5,12,9,.9));color:#fbf6e6}
 .welcome-scene .ws-cap b{display:block;font-size:19px;line-height:1.2;margin-top:2px}
 
@@ -552,7 +556,7 @@ html[data-theme="light"] .garden .m{background:radial-gradient(circle,#d9a921,rg
 <script async src="book.js?v=f3a5e4ca"></script>
 <script defer src="rebuild.js?v=f9a78c01"></script>
 <script async src="seasons.js?v=61c1a170"></script>
-<script defer src="app.js?v=74193478"></script>
+<script defer src="app.js?v=4875ed24"></script>
 <script defer src="entitlement.js?v=01f45f42"></script>
 <script defer src="sync.js?v=c328a026"></script>
 <script defer src="church.js?v=806fd94a"></script>

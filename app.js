@@ -456,7 +456,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="a2260fed36";
+const APP_VERSION="30267c19ab";
 const PILLAR_ICON={health:"heart-pulse",wealth:"coins",relationships:"handshake",integration:"compass"};
 const pillarIcon=(p,c="")=>ico(PILLAR_ICON[String(p||"").toLowerCase()]||"handshake",c);
 /* Phase 2 art: one stained-glass look across the app (Nov 2026), in src/art.
@@ -3654,7 +3654,8 @@ function growthSVG(stage){
    until their first lesson is done. Never in the single-file build. */
 function welcomeScene(){
   if (!ART || Object.keys(S.done || {}).length) return "";
-  // The sunrise moves: a slow loop made in Google Flow from the same picture.
+  // The scene moves: a slow loop made in Google Flow from the same picture, the
+  // lion and the lamb resting where the sun rises (Isaiah 11:6).
   // The still is its poster, so nothing jumps while it loads. Never for
   // reduced motion or Save-Data, where the still stays.
   const c = navigator.connection || {};
