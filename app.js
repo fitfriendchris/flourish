@@ -456,7 +456,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="bd19d3f27e";
+const APP_VERSION="a2260fed36";
 const PILLAR_ICON={health:"heart-pulse",wealth:"coins",relationships:"handshake",integration:"compass"};
 const pillarIcon=(p,c="")=>ico(PILLAR_ICON[String(p||"").toLowerCase()]||"handshake",c);
 /* Phase 2 art: one stained-glass look across the app (Nov 2026), in src/art.
@@ -3654,7 +3654,14 @@ function growthSVG(stage){
    until their first lesson is done. Never in the single-file build. */
 function welcomeScene(){
   if (!ART || Object.keys(S.done || {}).length) return "";
-  return `<div class="welcome-scene">${artImg("welcome","ws-art",1080,603)}
+  // The sunrise moves: a slow loop made in Google Flow from the same picture.
+  // The still is its poster, so nothing jumps while it loads. Never for
+  // reduced motion or Save-Data, where the still stays.
+  const c = navigator.connection || {};
+  const calm = (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches) || c.saveData;
+  const scene = calm ? artImg("welcome","ws-art",1080,603)
+    : `<video class="ws-art ws-video" src="${ART}welcome-loop.mp4" poster="${ART}welcome.webp" width="1280" height="534" autoplay muted loop playsinline disablepictureinpicture preload="auto" aria-hidden="true"></video>`;
+  return `<div class="welcome-scene">${scene}
     <div class="ws-cap"><span class="eyebrow" style="color:var(--gold-300)">Welcome to Flourish</span><b class="serif">Your garden path starts today</b></div></div>`;
 }
 function gardenHero(){

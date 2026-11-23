@@ -13,10 +13,10 @@
    mid-session leaves the page running old JS while new assets are served —
    intermittent, and worse than being stale. It waits; the page offers a
    reload; the user decides.                                                */
-const VERSION = "flourish-99b9c01b6ae2";
+const VERSION = "flourish-29ec5819ee04";
 const SHELL = [
   "./",
-  "./app.js?v=1ff84cd1",
+  "./app.js?v=74193478",
   "./book.js?v=f3a5e4ca",
   "./boot.js?v=875f8247",
   "./church.js?v=806fd94a",
@@ -120,6 +120,9 @@ self.addEventListener("fetch", e => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;          // Stripe, Supabase: always live
   if (url.pathname.includes("/api/")) return;          // never cache API responses
+  // Video goes straight to the network: the browser asks for byte ranges, and
+  // the Cache API refuses a partial (206) response. The poster still is cached.
+  if (req.headers.has("range") || url.pathname.endsWith(".mp4")) return;
 
   // navigations: network-first so a redeploy is picked up, cache as offline fallback
   if (req.mode === "navigate") {
