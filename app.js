@@ -464,7 +464,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="74b44ba410";
+const APP_VERSION="e48ac7823a";
 const PILLAR_ICON={health:"heart-pulse",wealth:"coins",relationships:"handshake",integration:"compass"};
 const pillarIcon=(p,c="")=>ico(PILLAR_ICON[String(p||"").toLowerCase()]||"handshake",c);
 /* Phase 2 art: one stained-glass look across the app (Nov 2026), in src/art.

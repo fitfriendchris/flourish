@@ -490,22 +490,22 @@ async function myChurchBody(){
     </div>
 
     <div class="grid g3" style="margin-top:4px">
-      <button class="card center" data-act="give" data-id=""><div style="font-size:26px">💝</div><b style="font-size:13px">Give</b></button>
-      <button class="card center" data-act="new-prayer"><div style="font-size:26px">🙏</div><b style="font-size:13px">Prayer</b></button>
-      <button class="card center" data-act="pastoral"><div style="font-size:26px">💬</div><b style="font-size:13px">Message</b></button>
+      <button class="card center" data-act="give" data-id=""><div class="tile-ico">${ico("gift")}</div><b style="font-size:13px">Give</b></button>
+      <button class="card center" data-act="new-prayer"><div class="tile-ico">${ico("hand-heart")}</div><b style="font-size:13px">Prayer</b></button>
+      <button class="card center" data-act="pastoral"><div class="tile-ico">${ico("mail")}</div><b style="font-size:13px">Message</b></button>
     </div>
     ${leader ? `<button class="card center block" style="margin-top:2px" data-act="church-dash" data-id="${esc(id)}">
-        <div style="font-size:24px">${ico("settings")} ️</div><b style="font-size:13px">Church dashboard</b></button>` : ""}
+        <div class="tile-ico">${ico("settings")}</div><b style="font-size:13px">Church dashboard</b></button>` : ""}
 
     <div class="grid g3" style="margin-top:6px">
-      <button class="card center" data-act="chats"><div style="font-size:26px">💬</div><b style="font-size:13px">Chats</b></button>
-      <button class="card center" data-act="members-roster" data-id="${esc(id)}"><div style="font-size:26px">👥</div><b style="font-size:13px">Members</b></button>
-      <button class="card center" data-act="notifications"><div style="font-size:26px">🔔</div><b style="font-size:13px">Alerts <span id="notif-badge"></span></b></button>
+      <button class="card center" data-act="chats"><div class="tile-ico">${ico("message-circle")}</div><b style="font-size:13px">Chats</b></button>
+      <button class="card center" data-act="members-roster" data-id="${esc(id)}"><div class="tile-ico">${ico("users")}</div><b style="font-size:13px">Members</b></button>
+      <button class="card center" data-act="notifications"><div class="tile-ico">${ico("bell")}</div><b style="font-size:13px">Alerts <span id="notif-badge"></span></b></button>
     </div>
 
     ${sectionOn(c, "events") ? `<div class="shead"><h2 class="serif">${ico("calendar")} Events</h2>${leader ? `<a data-act="event-new" data-id="${esc(id)}">+ New</a>` : ""}</div>
     ${events.length ? events.map(e => `<div class="list-item" data-act="event-open" data-id="${esc(e.id)}" style="cursor:pointer">
-        <div class="av">${e.visibility === "private" ? "🔐" : e.visibility === "members_only" ? "🔒" : "📅"}</div>
+        <div class="av">${e.visibility === "private" ? ico("key-round") : e.visibility === "members_only" ? ico("lock") : ico("calendar")}</div>
         <div class="tx"><b>${esc(e.title)}</b><small>${esc(when(e.start_time))}${e.location_name ? " · " + esc(e.location_name) : ""}</small></div>
         ${leader ? `<button class="btn sm ghost" data-act="event-edit" data-id="${esc(id)}" data-event="${esc(e.id)}" onclick="event.stopPropagation()">Edit</button>` : ""}
         <button class="btn sm ${S.rsvps[e.id] ? "" : "primary"}" data-act="rsvp" data-id="${esc(e.id)}" onclick="event.stopPropagation()">${S.rsvps[e.id] ? "✓" : "RSVP"}</button>
@@ -515,7 +515,7 @@ async function myChurchBody(){
           : "Your church hasn't posted any events yet.")}` : ""}
 
     ${sectionOn(c, "announcements") && (notices.length || leader) ? `<div class="shead"><h2 class="serif">${ico("megaphone")} Announcements</h2>${leader ? `<a data-act="notice-new" data-id="${esc(id)}">+ New</a>` : ""}</div>` +
-      (notices.length ? notices.map(a => `<div class="card"><div class="row between"><b>${a.pinned ? "📌 " : ""}${esc(a.title)}</b>${leader ? `<button class="btn sm ghost" data-act="notice-delete" data-id="${esc(a.id)}" aria-label="Remove announcement">✕</button>` : ""}</div>
+      (notices.length ? notices.map(a => `<div class="card"><div class="row between"><b>${a.pinned ? ico("pin") + " " : ""}${esc(a.title)}</b>${leader ? `<button class="btn sm ghost" data-act="notice-delete" data-id="${esc(a.id)}" aria-label="Remove announcement">✕</button>` : ""}</div>
         <p class="muted" style="font-size:13px;margin-top:4px">${esc(a.body || "")}</p></div>`).join("") : `<p class="faint" style="font-size:13px;margin:0 4px">Nothing posted. Members see announcements here.</p>`) : ""}
 
     ${sectionOn(c, "groups") ? `<div class="shead"><h2 class="serif">${ico("users")} Groups</h2>${leader
@@ -523,7 +523,7 @@ async function myChurchBody(){
     ${grp.groups.length ? grp.groups.map(g => {
         const inIt = grp.mine.has(g.id);
         return `<div class="list-item">
-          <div class="av">${esc(g.emoji || "👥")}</div>
+          <div class="av">${ico("users")}</div>
           <div class="tx"><b>${esc(g.name)}</b><small>${esc(g.meeting_info || g.description || "")}</small></div>
           <button class="btn sm ${inIt ? "" : "primary"}" data-act="${inIt ? "leave-group" : "join-group"}"
             data-id="${esc(g.id)}">${inIt ? "✓ Joined" : "Join"}</button></div>`; }).join("")
@@ -533,7 +533,7 @@ async function myChurchBody(){
 
     ${sectionOn(c, "prayer") ? `<div class="shead"><h2 class="serif">${ico("hand-heart")} Prayer Wall</h2><a data-act="new-prayer">+ Add</a></div>
     ${prayers.length ? prayers.map(p => `<div class="card ${p.is_answered ? "glow" : ""}">
-        <div class="row between"><b>${p.is_anonymous ? "🕊️ Anonymous" : "A member"}</b>
+        <div class="row between"><b>${p.is_anonymous ? ico("bird") + " Anonymous" : "A member"}</b>
           <span class="faint" style="font-size:11px">${esc(when(p.created_at))}</span></div>
         ${p.moderation && p.moderation !== "visible" ? `<div class="note" style="margin:6px 0;font-size:12.5px">
           ${p.moderation === "flagged"
@@ -541,11 +541,11 @@ async function myChurchBody(){
             : "🚫 Hidden while a leader reviews reports. Only you can see it."}</div>` : ""}
         <p style="margin:7px 0;font-size:14px">${esc(p.body || "")}</p>
         <div class="row between">
-          <span class="faint" style="font-size:12px">${p.is_answered ? "🎉 Answered" : ((p.prayer_count || 0) + (S.prayed[p.id] ? 1 : 0)) + " praying"}</span>
+          <span class="faint" style="font-size:12px">${p.is_answered ? ico("sparkles") + " Answered" : ((p.prayer_count || 0) + (S.prayed[p.id] ? 1 : 0)) + " praying"}</span>
           <div class="row" style="gap:6px">
             ${p.is_mine ? "" : `<button class="btn sm ghost" aria-label="Report or block"
               data-act="report-prayer" data-id="${esc(p.id)}">⋯</button>`}
-            <button class="btn sm ${S.prayed[p.id] ? "" : "primary"}" data-act="pray" data-id="${esc(p.id)}">${S.prayed[p.id] ? "✓ Prayed" : "🙏 I prayed"}</button>
+            <button class="btn sm ${S.prayed[p.id] ? "" : "primary"}" data-act="pray" data-id="${esc(p.id)}">${S.prayed[p.id] ? "✓ Prayed" : ico("hand-heart") + "I prayed"}</button>
           </div>
         </div></div>`).join("")
       : viewEmpty("🙏","No prayer requests yet","Be the first to ask your church to pray with you.",
