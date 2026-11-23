@@ -104,7 +104,7 @@ async function submitCampaign(id){
         p_description: v("cmp-desc"), p_goal_cents: goal });
     });
     CH.campaigns = null;
-    closeSheet(); toast(id ? "Campaign updated" : "Campaign created 💝"); render();
+    closeSheet(); toast(id ? "Campaign updated" : "Campaign created"); render();
     if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
   } catch (err) {
     toast("⚠ " + err.message);
@@ -200,13 +200,9 @@ function viewError(msg, retryFn){
     <p class="muted" style="font-size:13.5px;margin:0 0 12px">${esc(msg)}</p>
     ${key ? `<button class="btn primary" data-act="retry-view" data-id="${key}">Try again</button>` : ""}</div>`;
 }
-/* Empty states name an icon from the line set; the emoji keys are the ones the
-   callers were written with, so every empty state changes look at once. */
-const EMPTY_ICON = { "📍": "map-pin", "🔍": "search", "⛪": "church", "✅": "check", "👥": "users",
-  "💬": "message-circle", "📅": "calendar", "🔔": "bell", "🙏": "hand-heart", "🧾": "receipt",
-  "💝": "gift", "📭": "mailbox", "🛍️": "shopping-bag", "\u{1F6CD}\uFE0F": "shopping-bag", "\u{1F6CD}": "shopping-bag" };
+/* Empty states name an icon from the line set (src/icons.svg). */
 function viewEmpty(icon, title, body, action){
-  const name = EMPTY_ICON[icon] || (/^[a-z0-9-]+$/.test(icon) ? icon : "");
+  const name = /^[a-z0-9-]+$/.test(icon) ? icon : "";
   return `<div class="empty" style="padding:26px 18px">
     <div class="e-ic">${name ? ico(name) : icon}</div><b style="display:block;margin-bottom:5px">${esc(title)}</b>
     <span class="muted" style="font-size:13.5px">${esc(body)}</span>
@@ -300,7 +296,7 @@ async function discoveryBody(){
     const invitesHtml = inviteCardsHtml(invites);
     setTimeout(notificationBadge, 0);
     if (!list.length) {
-      return invitesHtml + viewEmpty("📍", "Find churches near you",
+      return invitesHtml + viewEmpty("map-pin", "Find churches near you",
         "Tap Near me, or search a ZIP, city or your church's name, to see churches around you and what they have coming up.",
         `<button class="btn primary" data-act="near-me">${ico("locate")} Near me</button>`);
     }
@@ -337,7 +333,7 @@ async function churchDetailBody(id){
       loadMembership()
     ]);
     const c = rows && rows[0];
-    if (!c) return viewEmpty("🔍", "Church not found", "It may have been removed.");
+    if (!c) return viewEmpty("search", "Church not found", "It may have been removed.");
     const fromMap = c.source === "osm" && !c.is_verified;
     const upcoming = await sbRest("/events?church_id=eq." + encodeURIComponent(c.id) +
       "&select=id,title,start_time,location_name&visibility=eq.public&cancelled_at=is.null" +
@@ -389,7 +385,7 @@ async function joinChurch(id){
       body: JSON.stringify({ church_id:id, user_id: authUserId(), role:"member", is_primary:true }) });
     await loadMembership(true);
     if (typeof earn === "function") earn("connector");
-    toast("⛪ Welcome — you're in");
+    toast("Welcome — you're in");
     S.route = {}; render();
   } catch (e) { toast("⚠ " + e.message); }
 }
@@ -413,12 +409,12 @@ async function requestClaim(id){
       return;
     }
     sheet(res && res.status === "approved"
-      ? `<div class="center"><div class="e-ic" style="font-size:48px">✅</div>
+      ? `<div class="center"><div class="big-ico">${ico("check")}</div>
          <h3 class="serif" style="font-size:20px">You're the administrator</h3>
          <p class="muted" style="margin:10px 0 16px">Your sign-in address matched the one on
          this church's record, so we could verify it straight away.</p>
          <button class="btn gold block" data-act="close-render">Open the dashboard</button></div>`
-      : `<div class="center"><div class="e-ic" style="font-size:48px">📨</div>
+      : `<div class="center"><div class="big-ico">${ico("mail")}</div>
          <h3 class="serif" style="font-size:20px">Claim submitted</h3>
          <p class="muted" style="margin:10px 0 16px">We review claims by hand so nobody can take
          over a congregation they don't lead. We'll email you once it's approved.</p>
@@ -446,7 +442,7 @@ async function submitChurch(){
       p_denomination: v("ch-denom").trim(), p_pastor_name: v("ch-pastor").trim(), p_description: ""
     });
     await loadChurches(true); await loadMembership(true);
-    closeSheet(); toast("Church added ⛪"); render();
+    closeSheet(); toast("Church added"); render();
   } catch (e) { toast("⚠ " + e.message); }
 }
 
@@ -510,7 +506,7 @@ async function myChurchBody(){
         ${leader ? `<button class="btn sm ghost" data-act="event-edit" data-id="${esc(id)}" data-event="${esc(e.id)}" onclick="event.stopPropagation()">Edit</button>` : ""}
         <button class="btn sm ${S.rsvps[e.id] ? "" : "primary"}" data-act="rsvp" data-id="${esc(e.id)}" onclick="event.stopPropagation()">${S.rsvps[e.id] ? "✓" : "RSVP"}</button>
       </div>`).join("")
-      : viewEmpty("📅","Nothing on the calendar yet", leader
+      : viewEmpty("calendar","Nothing on the calendar yet", leader
           ? "Add your first event so members know what's happening."
           : "Your church hasn't posted any events yet.")}` : ""}
 
@@ -527,7 +523,7 @@ async function myChurchBody(){
           <div class="tx"><b>${esc(g.name)}</b><small>${esc(g.meeting_info || g.description || "")}</small></div>
           <button class="btn sm ${inIt ? "" : "primary"}" data-act="${inIt ? "leave-group" : "join-group"}"
             data-id="${esc(g.id)}">${inIt ? "✓ Joined" : "Join"}</button></div>`; }).join("")
-      : viewEmpty("👥", "No groups yet", leader
+      : viewEmpty("users", "No groups yet", leader
           ? "Start a small group — a Bible study, a men's or women's group — and members can join here."
           : "Your church hasn't started any groups in the app yet.")}` : ""}
 
@@ -537,8 +533,8 @@ async function myChurchBody(){
           <span class="faint" style="font-size:11px">${esc(when(p.created_at))}</span></div>
         ${p.moderation && p.moderation !== "visible" ? `<div class="note" style="margin:6px 0;font-size:12.5px">
           ${p.moderation === "flagged"
-            ? "⏳ Waiting for a leader to review this. Only you can see it."
-            : "🚫 Hidden while a leader reviews reports. Only you can see it."}</div>` : ""}
+            ? ico("hourglass") + " Waiting for a leader to review this. Only you can see it."
+            : ico("eye-off") + " Hidden while a leader reviews reports. Only you can see it."}</div>` : ""}
         <p style="margin:7px 0;font-size:14px">${esc(p.body || "")}</p>
         <div class="row between">
           <span class="faint" style="font-size:12px">${p.is_answered ? ico("sparkles") + " Answered" : ((p.prayer_count || 0) + (S.prayed[p.id] ? 1 : 0)) + " praying"}</span>
@@ -548,7 +544,7 @@ async function myChurchBody(){
             <button class="btn sm ${S.prayed[p.id] ? "" : "primary"}" data-act="pray" data-id="${esc(p.id)}">${S.prayed[p.id] ? "✓ Prayed" : ico("hand-heart") + "I prayed"}</button>
           </div>
         </div></div>`).join("")
-      : viewEmpty("🙏","No prayer requests yet","Be the first to ask your church to pray with you.",
+      : viewEmpty("hand-heart","No prayer requests yet","Be the first to ask your church to pray with you.",
           `<button class="btn primary" data-act="new-prayer">Share a request</button>`)}` : ""}
 
     <button class="btn ghost block" style="margin-top:14px" data-act="leave-church" data-id="${esc(id)}">Leave church</button>`;
@@ -639,7 +635,7 @@ async function moderationQueueSheet(churchId){
     const rows = await sbRpc("moderation_queue", { p_church_id: churchId });
     const el = document.getElementById("mod-queue"); if (!el) return;
     if (!rows || !rows.length) {
-      el.innerHTML = viewEmpty("✅", "Nothing to review",
+      el.innerHTML = viewEmpty("check", "Nothing to review",
         "Reported and filtered requests appear here. Your congregation sees none of them until you approve.");
       return;
     }
@@ -692,7 +688,7 @@ function reportPrayerSheet(prayerId){
         data-act="do-report" data-id="${esc(prayerId)}" data-reason="${esc(v)}">${esc(label)}</button>`).join("")}
     <div class="divider" style="margin:14px 0 10px"></div>
     <button class="btn ghost block" data-act="do-block" data-id="${esc(prayerId)}">
-      🚫 Block this person</button>
+      ${ico("ban")} Block this person</button>
     <p class="muted" style="font-size:12.5px;margin-top:8px">Blocking hides everything they post,
       including anonymous requests. They are not told. You can undo this in Settings.</p>
     <p class="muted" style="font-size:12.5px;margin-top:10px">Urgent concern?
@@ -794,7 +790,7 @@ async function submitPrayer(){
   try {
     await pushPrayer({ row });
     closeSheet();
-    toast(row.privacy === "pastoral_only" ? "Sent to your leaders 🙏" : "Shared 🙏");
+    toast(row.privacy === "pastoral_only" ? "Sent to your leaders" : "Shared with your church");
     render();
   } catch (e) {
     const m = String(e.message || "");
@@ -826,18 +822,18 @@ async function openChurchDashboard(id){
       <button class="btn gold block" style="margin-top:12px" data-act="church-edit" data-id="${esc(id)}">${ico("pencil")} Edit church page</button>
       <div class="grid g2" style="margin-top:8px">
         <button class="btn block" data-act="event-new" data-id="${esc(id)}">${ico("calendar")} New event</button>
-        <button class="btn block" data-act="notice-new" data-id="${esc(id)}">${ico("megaphone")} Announcement</button>
+        <button class="btn block" data-act="notice-new" data-id="${esc(id)}">${ico("megaphone")} Announce</button>
       </div>
       <button class="btn block" style="margin-top:8px" data-act="members-roster" data-id="${esc(id)}">
-        👥 Members & roles</button>
+        ${ico("users")} Members & roles</button>
       <div class="grid g2" style="margin-top:8px">
         <button class="btn block" data-act="audit-log" data-id="${esc(id)}">${ico("receipt")} Activity log</button>
         <button class="btn block" data-act="pastoral-inbox" data-id="${esc(id)}">${ico("message-circle")} Member threads</button>
       </div>
       <button class="btn block" style="margin-top:8px" data-act="chat-new" data-id="${esc(id)}">
-        👥 New group chat</button>
+        ${ico("message-circle-plus")} New group chat</button>
       <button class="btn block" style="margin-top:8px" data-act="moderation-queue" data-id="${esc(id)}">
-        🛡️ Review reported requests</button>
+        ${ico("shield")} Review reported requests</button>
       <div class="note" style="margin-top:12px">Roles are audited: every change lands in your activity log.</div>`;
   } catch (e) {
     const el = document.getElementById("ch-dash");
@@ -956,7 +952,7 @@ async function pastoralInbox(churchId){
         <b style="font-size:14px">${esc((r.title || "Member").replace(/\s*↔\s*Leaders$/, ""))}</b>
         <div class="faint" style="font-size:11.5px;margin-top:2px">${esc(new Date(r.last_message_at).toLocaleString())}</div>
       </button>`).join("")
-      : viewEmpty("💬", "No messages yet", "When a member writes to your leaders it appears here.");
+      : viewEmpty("message-circle", "No messages yet", "When a member writes to your leaders it appears here.");
   } catch (err) {
     const el = document.getElementById("pm-inbox");
     if (el) el.innerHTML = viewError(err.message, () => pastoralInbox(churchId));
@@ -1031,7 +1027,7 @@ async function submitGroup(churchId){
   if (!name) { toast("Give the group a name"); return; }
   try {
     await sbRpc("create_group", { p_church_id: churchId, p_name: name, p_description: v("grp-desc"),
-      p_emoji: "👥", p_meeting_info: v("grp-when") });
+      p_emoji: "", p_meeting_info: v("grp-when") });
     closeSheet(); toast("Group created — its chat is in Chats");
     fillView("my-church", myChurchBody);
   } catch (err) { toast("⚠ " + (err.message || "Could not create the group")); }
@@ -1048,8 +1044,8 @@ async function submitGroup(churchId){
    announcements". The screens are a convenience, not the control.
    ══════════════════════════════════════════════════════════════════ */
 const CH_SECTIONS = [
-  ["times", "🕘 Service times"], ["events", "📅 Events"], ["announcements", "📣 Announcements"],
-  ["groups", "👥 Groups"], ["prayer", "🙏 Prayer wall"], ["giving", "💝 Giving"], ["sermons", "🎧 Sermons"]
+  ["times", "clock", "Service times"], ["events", "calendar", "Events"], ["announcements", "megaphone", "Announcements"],
+  ["groups", "users", "Groups"], ["prayer", "hand-heart", "Prayer wall"], ["giving", "gift", "Giving"], ["sermons", "headphones", "Sermons"]
 ];
 function sectionOn(c, id){
   const hidden = c && c.settings && Array.isArray(c.settings.sections_hidden) ? c.settings.sections_hidden : [];
@@ -1087,7 +1083,7 @@ async function churchEditSheet(id){
     ${f("sermons_url", "Sermons (https://…)", "url")}
     <div class="card" style="margin-top:12px"><b>Show on your page</b>
       <p class="muted" style="font-size:13px;margin:6px 0 4px">Switch off anything your church doesn't use.</p>
-      ${CH_SECTIONS.map(([sid, label]) => `<label class="row" style="gap:10px;margin:8px 0"><input type="checkbox" class="ce-sec" value="${sid}" style="width:18px"${sectionOn(c, sid) ? " checked" : ""}> <span>${label}</span></label>`).join("")}
+      ${CH_SECTIONS.map(([sid, icon, label]) => `<label class="row" style="gap:10px;margin:8px 0"><input type="checkbox" class="ce-sec" value="${sid}" style="width:18px"${sectionOn(c, sid) ? " checked" : ""}> <span class="with-ico">${ico(icon)} ${esc(label)}</span></label>`).join("")}
     </div>
     <p class="muted" id="ce-err" role="alert" style="color:var(--rose,#e77);font-size:13px;min-height:1em;margin:10px 0 0"></p>
     <button class="btn gold block lg" style="margin-top:8px" data-act="church-save" data-id="${esc(id)}">Save page</button>`;
@@ -1295,7 +1291,7 @@ async function churchEventDetailBody(eventId){
     const tapsBefore = rsvpTapCount(eventId), waitingBefore = rsvpWaiting(eventId);
     const raw = await sbRpc("event_detail", { p_event_id: eventId });
     const e = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
-    if (!e.id) return viewEmpty("📅", "Event not found", "It may have been removed or you may not be able to see it.");
+    if (!e.id) return viewEmpty("calendar", "Event not found", "It may have been removed or you may not be able to see it.");
 
     const whenFull = t => { try { return new Date(t).toLocaleString(undefined,
       { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" }); } catch (x) { return ""; } };
@@ -1334,7 +1330,7 @@ async function churchEventDetailBody(eventId){
         </div>` : ""}
         <div class="row between" style="margin:8px 0 0">
           <span class="pill">${esc(capText)}</span>
-          <span class="faint" style="font-size:12px">${e.visibility === "private" ? "🔐 Invite-only" : e.visibility === "members_only" ? "🔒 Members only" : "🌐 Public"}</span>
+          <span class="faint" style="font-size:12px">${e.visibility === "private" ? ico("key-round") + " Invite-only" : e.visibility === "members_only" ? ico("lock") + " Members only" : ico("globe") + " Public"}</span>
         </div>
         <div class="row" style="gap:8px;margin-top:12px">
           <button class="btn ${S.rsvps[eventId] ? "" : "primary"} block" style="flex:1" data-act="rsvp" data-id="${esc(eventId)}"${shut ? " disabled aria-disabled=\"true\"" : ""}>
@@ -1546,7 +1542,7 @@ async function memberSheet(churchId){
         declined.map(i => `<div class="card" style="margin-top:6px;opacity:.62">
           <b style="font-size:13.5px">${esc(i.invitee_email)}</b>
           <div class="faint" style="font-size:11.5px">Declined</div></div>`).join("") : "")
-      : `<p class="faint" style="font-size:12px;margin:0 0 8px">Message any member with 💬.</p>`) +
+      : `<p class="faint" style="font-size:12px;margin:0 0 8px">Message any member with ${ico("message-circle")}.</p>`) +
       (rows.length ? `<div class="eyebrow" style="margin:10px 0 2px">Members · ${rows.length}</div>` + rows.map(r => {
         const isMe = r.user_id === me;
         const canTouch = leader && !isMe && r.role !== "super_admin" &&
@@ -1559,7 +1555,7 @@ async function memberSheet(churchId){
               <div class="faint" style="font-size:11.5px">${esc(ROLE_LABELS[r.role] || r.role || "Member")}${isMe ? " · you" : ""}</div>
             </div>
             ${r.user_id && !isMe ? `<button class="btn sm ghost" data-act="dm-start"
-              data-id="${esc(r.user_id)}" data-church="${esc(churchId)}" title="Direct message">💬</button>` : ""}
+              data-id="${esc(r.user_id)}" data-church="${esc(churchId)}" title="Direct message" aria-label="Direct message">${ico("message-circle")}</button>` : ""}
           </div>
           ${canTouch
             ? `<div class="row" style="gap:8px;margin-top:8px">
@@ -1573,7 +1569,7 @@ async function memberSheet(churchId){
               </div>`
             : ""}
         </div>`; }).join("")
-      : viewEmpty("👥", "No members listed", "Members appear here as they join."));
+      : viewEmpty("users", "No members listed", "Members appear here as they join."));
   } catch (err) {
     const el = document.getElementById("roster");
     if (el) el.innerHTML = viewError(err.message, () => memberSheet(churchId));
@@ -1614,7 +1610,7 @@ async function respondChurchInvite(inviteId, accept){
     if (accept) {
       await loadMembership(true).catch(() => []);
       if (typeof earn === "function") earn("connector");
-      toast("⛪ Welcome — you're in");
+      toast("Welcome — you're in");
       if (typeof window.flourishHaptic === "function") window.flourishHaptic("success");
     } else toast("Declined. They won't ask again.");
     closeSheet(); notificationBadge();
@@ -1699,7 +1695,7 @@ async function auditSheet(churchId){
     };
     const el = document.getElementById("audit"); if (!el) return;
     el.innerHTML = (rows || []).length ? (rows || []).map(line).join("")
-      : viewEmpty("🧾", "Nothing logged yet", "Roster, verification and messaging actions appear here.");
+      : viewEmpty("receipt", "Nothing logged yet", "Roster, verification and messaging actions appear here.");
   } catch (err) {
     const el = document.getElementById("audit");
     if (el) el.innerHTML = viewError(err.message, () => auditSheet(churchId));
@@ -1746,7 +1742,7 @@ async function chatsOpen(){
     const convIds = Array.from(new Set((mine || []).map(p => p.conversation_id)));
     const el = document.getElementById("chats"); if (!el) return;
     if (!convIds.length) {
-      el.innerHTML = viewEmpty("💬", "No conversations yet",
+      el.innerHTML = viewEmpty("message-circle", "No conversations yet",
         "Group chats and direct messages you're part of appear here — start one from your roster.",
         `<button class="btn primary" data-act="pastoral">Write to your leaders</button>`);
       return;
@@ -1760,7 +1756,7 @@ async function chatsOpen(){
         : c.type === "group" ? chatTitle(c.title) || "Group chat"
         : (others.join(", ") || "Direct message");
       return `<button class="card" style="text-align:left;margin-top:8px" data-act="chat-open" data-id="${esc(c.id)}">
-        <b style="font-size:14px">${c.type === "pastoral" ? "🤲" : c.type === "group" ? "👥" : "👤"} ${esc(who)}</b>
+        <b style="font-size:14px">${ico(c.type === "pastoral" ? "hand-heart" : c.type === "group" ? "users" : "user")} ${esc(who)}</b>
         ${c.last_message_at ? `<div class="faint" style="font-size:11.5px;margin-top:2px">${esc(new Date(c.last_message_at).toLocaleString())}</div>` : ""}
       </button>`;
     }).join("") +
@@ -1859,9 +1855,9 @@ async function chatOpen(convId){
     const conv = (convRows || [])[0] || {};
     const others = ids.filter(x => x !== me).map(x => names[x] || "Member");
     const head = document.getElementById("chat-title");
-    if (head) head.textContent = conv.type === "group" ? "👥 " + (chatTitle(conv.title) || "Group chat")
-      : conv.type === "pastoral" ? "🤲 " + (chatTitle(conv.title) || "Pastoral")
-      : "👤 " + (others.join(", ") || "Direct message");
+    if (head) head.innerHTML = conv.type === "group" ? ico("users") + " " + esc(chatTitle(conv.title) || "Group chat")
+      : conv.type === "pastoral" ? ico("hand-heart") + " " + esc(chatTitle(conv.title) || "Pastoral")
+      : ico("user") + " " + esc(others.join(", ") || "Direct message");
     const el = document.getElementById("chat-view"); if (!el) return;
     el.innerHTML = `<div id="chat-list" data-conv="${esc(convId)}" style="max-height:52vh;overflow-y:auto">${chatHtml(msgs, me, names)}</div>
       ${composerHtml(convId, "chat-send")}
@@ -1943,7 +1939,7 @@ function reportMessageSheet(msgId, senderId){
         data-act="do-report-msg" data-id="${esc(msgId)}" data-reason="${esc(v)}">${esc(label)}</button>`).join("")}
     ${senderId ? `<div class="divider" style="margin:14px 0 10px"></div>
     <button class="btn ghost block" data-act="msg-block" data-id="${esc(senderId)}">
-      🚫 Block this person</button>
+      ${ico("ban")} Block this person</button>
     <p class="muted" style="font-size:12.5px;margin-top:8px">Blocking ends all DMs between you
       and them — they are not told. Undo it by unblocking.</p>` : ""}`);
 }
@@ -1976,8 +1972,8 @@ async function deleteMessage(msgId){
 }
 
 /* ── notifications (migration F) ──────────────────────────────────── */
-const NOTIF_ICONS = { event_invite:"🔐", announcement:"📣", prayer_update:"🙏", message:"💬",
-  church_invite:"⛪", event_reminder:"📅", system:"🛡️" };
+const NOTIF_ICONS = { event_invite:"key-round", announcement:"megaphone", prayer_update:"hand-heart", message:"message-circle",
+  church_invite:"church", event_reminder:"calendar", system:"shield" };
 
 /* Platform admins (a super_admin membership) review the reports no church can
    see. Asked once per session; the server decides, this only shows a button. */
@@ -2026,7 +2022,7 @@ async function notificationsSheet(){
       const inviteOpen = n.type === "church_invite" && d.invite_id && !n.is_read;
       return `<div class="card" style="margin-top:8px;${n.is_read ? "opacity:.62" : ""}">
         <div class="row between">
-          <b style="font-size:14px">${NOTIF_ICONS[n.type] || "🔔"} ${esc(n.title || "Notification")}</b>
+          <b style="font-size:14px">${ico(NOTIF_ICONS[n.type] || "bell")} ${esc(n.title || "Notification")}</b>
           <div class="row" style="gap:6px">
             ${!n.is_read && !inviteOpen ? `<button class="btn sm ghost" data-act="notif-read" data-id="${esc(n.id)}" title="Mark read">✓</button>` : ""}
             <button class="btn sm ghost" data-act="notif-del" data-id="${esc(n.id)}" title="Delete">✕</button>
@@ -2044,7 +2040,7 @@ async function notificationsSheet(){
     };
     el.innerHTML = (admin ? `<button class="btn block" style="margin-bottom:6px" data-act="platform-reports">${ico("shield")} Reports waiting for review</button>` : "") +
       ((rows || []).length ? (rows || []).map(card).join("")
-        : viewEmpty("🔔", "Nothing yet", "Invitations, messages, event invites and announcements land here."));
+        : viewEmpty("bell", "Nothing yet", "Invitations, messages, event invites and announcements land here."));
   } catch (err) {
     const el = document.getElementById("notifs");
     if (el) el.innerHTML = viewError(err.message, notificationsSheet);
@@ -2107,7 +2103,7 @@ async function platformReportsSheet(){
       : r.conversation_type === "direct" ? "Direct message" : "Message";
     const el = document.getElementById("pr-list"); if (!el) return;
     el.innerHTML = list.length ? list.map(r => `<div class="card" style="margin-top:8px">
-        <div class="row between"><b style="font-size:13.5px">${r.reason === "self_harm" ? "🚨 " : ""}${esc(REPORT_LABELS[r.reason] || r.reason || "Report")}</b>
+        <div class="row between"><b style="font-size:13.5px">${r.reason === "self_harm" ? ico("siren") + " " : ""}${esc(REPORT_LABELS[r.reason] || r.reason || "Report")}</b>
           <span class="faint" style="font-size:11px">${esc(when(r.created_at))}</span></div>
         <div class="faint" style="font-size:11.5px;margin-top:3px">${esc(where(r))}${r.church_name ? " · " + esc(r.church_name) : ""}
           · by ${esc(r.author_name || "a member")}${Number(r.reports) > 1 ? " · " + esc(String(r.reports)) + " reports" : ""}</div>
@@ -2117,7 +2113,7 @@ async function platformReportsSheet(){
           <button class="btn sm primary" style="flex:1" data-act="report-resolve" data-id="${esc(r.id)}" data-action="remove">Remove</button>
           <button class="btn sm ghost" style="flex:1" data-act="report-resolve" data-id="${esc(r.id)}" data-action="dismiss">Dismiss</button>
         </div></div>`).join("")
-      : viewEmpty("✅", "Nothing waiting", "New reports land here, and in your alerts the moment they're filed.");
+      : viewEmpty("check", "Nothing waiting", "New reports land here, and in your alerts the moment they're filed.");
   } catch (err) {
     const el = document.getElementById("pr-list");
     if (el) el.innerHTML = viewError(err.message, platformReportsSheet);
@@ -2180,7 +2176,7 @@ async function nearbyAt(lat, lng, focusId, title){
   if (!el) return;
   if (!rows.length) {
     nearNote("");
-    el.innerHTML = viewEmpty("⛪", `No churches within ${NEAR.miles ? "30 miles" : "50 km"}`,
+    el.innerHTML = viewEmpty("church", `No churches within ${NEAR.miles ? "30 miles" : "50 km"}`,
       "Try a nearby town or ZIP, or add your church yourself.",
       `<button class="btn primary" data-act="add-church">Add your church</button>`);
     return;
