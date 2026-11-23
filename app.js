@@ -456,9 +456,27 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="51e54ab92f";
+const APP_VERSION="bd19d3f27e";
 const PILLAR_ICON={health:"heart-pulse",wealth:"coins",relationships:"handshake",integration:"compass"};
 const pillarIcon=(p,c="")=>ico(PILLAR_ICON[String(p||"").toLowerCase()]||"handshake",c);
+/* Phase 2 art: one stained-glass look across the app (Nov 2026), in src/art.
+   The web build and the iOS bundle serve art/ beside index.html. The
+   single-file build (file:) has no art/ folder, so there ART is null, artImg()
+   returns "" and every caller keeps what it drew before. Each picture also
+   keeps its drawn fallback next to it: a file that fails to load (offline
+   before the worker cached it) gets .art-missing, which hides it and shows the
+   fallback (see the .art rules in head.html). */
+const ART = location.protocol === "file:" ? null : "art/";
+function artImg(name, cls, w, h){
+  if (!ART) return "";
+  return `<img class="art ${cls||""}" src="${ART}${name}.webp" width="${w}" height="${h||w}" alt="" aria-hidden="true" decoding="async">`;
+}
+document.addEventListener("error", e => {
+  const t = e.target;
+  if (t && t.tagName === "IMG" && t.classList && t.classList.contains("art")) t.classList.add("art-missing");
+}, true);
+const PILLAR_ART={health:"pillar-health",wealth:"pillar-wealth",relationships:"pillar-relationships",integration:"pillar-integration"};
+const pillarArt=p=>PILLAR_ART[String(p||"").toLowerCase()]||"pillar-relationships";
 
 /* ============ GAMIFICATION ============ */
 const LEVELS=[0,100,250,450,700,1000,1400,1900,2500,3200,4000,5000,6200,7600,9200];
@@ -1028,6 +1046,7 @@ function renderToday(){
     <button class="dn" data-act="day-next" ${d>=N?"disabled":""}>›</button>
   </div>
   ${d!==today?`<button class="btn sm ghost block" data-act="today-jump" style="margin:-4px 0 12px">↩ Back to today (Day ${today})</button>`:""}
+  ${welcomeScene()}
   ${gardenHero()}
   ${listenButton("day", d)}
   <div class="hero">
@@ -2675,11 +2694,11 @@ function renderAcademy(){
   <div class="card glow"><div class="row between"><b>Your enrollment</b><span class="pill">${doneTotal}/${N.toLocaleString()} lessons</span></div>
     <div class="bar" style="margin-top:10px"><i style="width:${(doneTotal/N*100).toFixed(1)}%"></i></div></div>
   ${order.map(p=>{const subs=idx[p];const all=[].concat(...Object.values(subs));const dn=doneIn(all);
-    return `<button class="card" data-act="open-pillar" data-id="${esc(p)}">
-      <div class="row between"><b class="serif t-h3 with-ico">${pillarIcon(p)} ${esc(p)}</b>${ico("chevron-right","chev")}</div>
+    return `<button class="card${ART?" art-row":""}" data-act="open-pillar" data-id="${esc(p)}">${artImg(pillarArt(p),"row-art",64,64)}<div class="art-row-body">
+      <div class="row between"><b class="serif t-h3 with-ico">${ART?"":pillarIcon(p)+" "}${esc(p)}</b>${ico("chevron-right","chev")}</div>
       <p class="muted" style="font-size:13px;margin:6px 0 9px">${Object.keys(subs).length} sub-pillars · ${all.length} lessons</p>
       <div class="bar"><i style="width:${(dn/all.length*100).toFixed(0)}%"></i></div>
-      <div class="faint" style="font-size:11px;margin-top:6px">${dn}/${all.length} complete</div></button>`;}).join("")}
+      <div class="faint" style="font-size:11px;margin-top:6px">${dn}/${all.length} complete</div></div></button>`;}).join("")}
   <button class="card" data-act="open-virtues"><div class="row between"><b class="serif t-h3 with-ico">${ico("gem")} Virtues & Character</b>${ico("chevron-right","chev")}</div>
     <p class="muted" style="font-size:13px;margin-top:6px">Daily practices for humility, patience, courage, diligence, gratitude & self-control.</p></button>`;
 }
@@ -2778,6 +2797,7 @@ function renderPillar(p){
   const {idx}=academyIndex();const subs=idx[p]||{};
   return `<div class="subhead"><button class="nb" data-act="church-home">‹</button>
     <div class="st"><b>${pillarIcon(p)} ${esc(p)}</b><small>${Object.keys(subs).length} sub-pillars</small></div></div>
+  ${artImg(pillarArt(p),"pillar-hero-art",140,140)}
   ${Object.keys(subs).map(s=>{const arr=subs[s];const dn=doneIn(arr);
     return `<button class="list-item" data-act="open-sub" data-id="${esc(p)}|${esc(s)}">
       <div class="av">${pillarIcon(p)}</div>
@@ -2858,13 +2878,13 @@ function renderPlay(){
   <p class="page-sub">Iron sharpens iron (Prov 27:17). Learn together, challenge friends, climb your church board.</p>
   <div class="grid g2">
     <button class="game-card gc-green" data-act="play-game" data-id="trivia">
-      <span class="gi">${ico("swords")}</span><div class="gt">Bible Trivia Duel</div><div class="gd">Solo · Pass-&-play · Challenge a friend</div></button>
+      ${artImg("play-trivia","gart",64,64)}<span class="gi">${ico("swords")}</span><div class="gt">Bible Trivia Duel</div><div class="gd">Solo · Pass-&-play · Challenge a friend</div></button>
     <button class="game-card gc-gold" data-act="play-game" data-id="memory">
-      <span class="gi">${ico("puzzle")}</span><div class="gt">Verse Memory Match</div><div class="gd">Match the reference to the verse</div></button>
+      ${artImg("play-memory","gart",64,64)}<span class="gi">${ico("puzzle")}</span><div class="gt">Verse Memory Match</div><div class="gd">Match the reference to the verse</div></button>
     <button class="game-card gc-gold" data-act="play-game" data-id="scenarios">
-      <span class="gi">${ico("compass")}</span><div class="gt">Wisdom Path</div><div class="gd">Choose the wise response</div></button>
+      ${artImg("play-wisdom","gart",64,64)}<span class="gi">${ico("compass")}</span><div class="gt">Wisdom Path</div><div class="gd">Choose the wise response</div></button>
     <button class="game-card gc-green" data-act="play-game" data-id="enter-code">
-      <span class="gi">${ico("key-round")}</span><div class="gt">Enter Challenge</div><div class="gd">Got a friend's code? Play their set</div></button>
+      ${artImg("play-challenge","gart",64,64)}<span class="gi">${ico("key-round")}</span><div class="gt">Enter Challenge</div><div class="gd">Got a friend's code? Play their set</div></button>
   </div>
 
   ${played ? `<div class="card" style="margin-top:16px">
@@ -3630,6 +3650,13 @@ function growthSVG(stage){
   return `<svg viewBox="0 0 200 188" width="190" height="178" xmlns="http://www.w3.org/2000/svg">${defs}${soil}${b}</svg>`;
 }
 
+/* The welcome scene greets a new member on Today, the first launch, and stays
+   until their first lesson is done. Never in the single-file build. */
+function welcomeScene(){
+  if (!ART || Object.keys(S.done || {}).length) return "";
+  return `<div class="welcome-scene">${artImg("welcome","ws-art",1080,603)}
+    <div class="ws-cap"><span class="eyebrow" style="color:var(--gold-300)">Welcome to Flourish</span><b class="serif">Your garden path starts today</b></div></div>`;
+}
 function gardenHero(){
   const stage=growthStage(), pts=growthPoints();
   const names=["a buried seed","a tender sprout","a growing seedling","a young plant","a strong tree","a tree bearing fruit"];
@@ -3644,7 +3671,7 @@ function gardenHero(){
     <div class="gsky">${drops}</div>
     <div class="stage">
       <div class="eyebrow" style="color:var(--gold-300)">Your Garden · Stage ${stage+1}/6</div>
-      ${growthSVG(stage)}
+      ${artImg("garden-"+(stage+1),"garden-art",200,200)}${growthSVG(stage)}
       <div class="serif shimmer" style="font-size:21px;margin-top:2px">${capF(names[stage])}</div>
       <p style="color:#cfe6d6;font-size:13px;margin-top:3px;position:relative;z-index:1">${stage>=5?"You are bearing fruit in every pillar. 🍇 Well done.":"Manna falls as you walk with Him. Keep going — your tree is growing."}</p>
       ${target?`<div class="bar gold" style="margin:13px 16px 0"><i style="width:${pct}%"></i></div>

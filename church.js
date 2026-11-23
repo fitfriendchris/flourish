@@ -305,7 +305,10 @@ async function discoveryBody(){
         `<button class="btn primary" data-act="near-me">${ico("locate")} Near me</button>`);
     }
     const mine = myChurchId();
-    return invitesHtml + list.map(c => `<button class="card" data-act="open-church" data-id="${esc(c.id)}">
+    // The stained-glass chapel stands in for a photo on every card: logo_url
+    // is off-origin, which the CSP (img-src 'self') would refuse anyway.
+    const chArt = typeof artImg === "function" ? artImg("church", "row-art ch-art", 52, 52) : "";
+    return invitesHtml + list.map(c => `<button class="card${chArt ? " art-row" : ""}" data-act="open-church" data-id="${esc(c.id)}">${chArt}<div class="art-row-body">
       <div class="row between">
         <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
         ${c.id === mine ? '<span class="pill">your church</span>' : ico("chevron-right", "chev")}
@@ -313,7 +316,7 @@ async function discoveryBody(){
       <p class="muted" style="font-size:13px;margin:6px 0 0">
         ${esc([c.denomination, [c.city, c.state].filter(Boolean).join(", ")].filter(Boolean).join(" · ") || "Church")}</p>
       ${c.pastor_name ? `<p class="faint" style="font-size:12.5px;margin:4px 0 0">${esc(c.pastor_name)}</p>` : ""}
-    </button>`).join("") +
+    </div></button>`).join("") +
     `<button class="btn ghost block" style="margin-top:10px" data-act="add-church">${ico("plus")} Add your church</button>`;
   } catch (e) {
     return viewError(e.message, () => fillView("church-list", discoveryBody));
@@ -343,7 +346,7 @@ async function churchDetailBody(id){
     const joined = (CH.membership || []).some(m => m.church_id === c.id);
     const times = Array.isArray(c.service_times) ? c.service_times
                 : (c.service_times && typeof c.service_times === "object" ? Object.values(c.service_times) : []);
-    return `<div class="hero">
+    return `<div class="hero">${typeof artImg === "function" ? artImg("church", "ch-hero-art", 84, 84) : ""}
         <div class="v" style="font-size:24px">${esc(c.name)}</div>
         <div class="ref">${esc([c.denomination, [c.city, c.state].filter(Boolean).join(", ")].filter(Boolean).join(" · "))}</div>
       </div>

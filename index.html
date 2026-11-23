@@ -501,6 +501,28 @@ html[data-theme="light"] .garden{background:linear-gradient(180deg,#bfe2ec 0%,#d
 .game-card.gc-gold .gi{color:#2a1d04}
 .game-card .gi .ico{stroke-width:1.6}
 
+/* Phase 2 art: stained glass (src/art). Every <img class="art"> keeps its
+   drawn fallback beside it; one that fails to load gets .art-missing, hides,
+   and the fallback shows (offline before it was cached; never the norm). */
+.art{display:block;max-width:100%;height:auto}
+.art.art-missing{display:none!important}
+.garden .garden-art{width:200px;height:200px;margin:2px auto 0;filter:drop-shadow(0 8px 14px rgba(0,0,0,.45))}
+.garden .garden-art+svg{display:none}
+.garden .garden-art.art-missing+svg{display:block}
+.game-card .gart{position:relative;z-index:1;width:64px;height:64px;margin-bottom:auto;padding-bottom:10px;box-sizing:content-box;filter:drop-shadow(0 4px 8px rgba(0,0,0,.35))}
+.game-card .gart+.gi{display:none}
+.game-card .gart.art-missing+.gi{display:block}
+.card.art-row{display:flex;align-items:center;gap:14px;width:100%;text-align:left}
+.art-row>.row-art{width:64px;height:64px;flex:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,.3))}
+.art-row>.ch-art{width:52px;height:52px}
+.art-row-body{flex:1;min-width:0}
+.pillar-hero-art{width:140px;height:140px;margin:0 auto 14px;filter:drop-shadow(0 8px 14px rgba(0,0,0,.4))}
+.hero .ch-hero-art{position:relative;z-index:1;width:84px;height:84px;margin:0 0 10px -6px}
+.welcome-scene{position:relative;border-radius:var(--radius-lg);overflow:hidden;margin-bottom:14px;border:1px solid var(--line2);box-shadow:var(--sh);background:#091410}
+.welcome-scene .ws-art{width:100%;height:auto;aspect-ratio:12/5;object-fit:cover;object-position:50% 46%}
+.welcome-scene .ws-cap{position:absolute;left:0;right:0;bottom:0;padding:28px 16px 13px;background:linear-gradient(180deg,transparent,rgba(5,12,9,.9));color:#fbf6e6}
+.welcome-scene .ws-cap b{display:block;font-size:19px;line-height:1.2;margin-top:2px}
+
 /* spacing on the 8-point grid, one radius */
 .card{padding:var(--s2);margin-bottom:var(--s2)}
 .card-hd h3{font-size:var(--fs-h3)}
@@ -530,10 +552,10 @@ html[data-theme="light"] .garden .m{background:radial-gradient(circle,#d9a921,rg
 <script async src="book.js?v=f3a5e4ca"></script>
 <script defer src="rebuild.js?v=f9a78c01"></script>
 <script async src="seasons.js?v=61c1a170"></script>
-<script defer src="app.js?v=b58e93e0"></script>
+<script defer src="app.js?v=1ff84cd1"></script>
 <script defer src="entitlement.js?v=01f45f42"></script>
 <script defer src="sync.js?v=c328a026"></script>
-<script defer src="church.js?v=ee725cbe"></script>
+<script defer src="church.js?v=806fd94a"></script>
 <script defer src="commerce.js?v=4b0327ac"></script>
 <script defer src="boot.js?v=875f8247"></script>
 </head>

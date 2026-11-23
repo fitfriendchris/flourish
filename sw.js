@@ -13,13 +13,13 @@
    mid-session leaves the page running old JS while new assets are served —
    intermittent, and worse than being stale. It waits; the page offers a
    reload; the user decides.                                                */
-const VERSION = "flourish-290abc2b28c5";
+const VERSION = "flourish-99b9c01b6ae2";
 const SHELL = [
   "./",
-  "./app.js?v=b58e93e0",
+  "./app.js?v=1ff84cd1",
   "./book.js?v=f3a5e4ca",
   "./boot.js?v=875f8247",
-  "./church.js?v=ee725cbe",
+  "./church.js?v=806fd94a",
   "./commerce.js?v=4b0327ac",
   "./config.js",
   "./entitlement.js?v=01f45f42",
@@ -41,7 +41,23 @@ const SHELL = [
   "./terms.html",
   "./fonts/inter.woff2?v=3100e775",
   "./fonts/playfair.woff2?v=1d1889ac",
-  "./vendor/qrcode.min.js?v=c541ef06"
+  "./vendor/qrcode.min.js?v=c541ef06",
+  "./art/church.webp",
+  "./art/garden-1.webp",
+  "./art/garden-2.webp",
+  "./art/garden-3.webp",
+  "./art/garden-4.webp",
+  "./art/garden-5.webp",
+  "./art/garden-6.webp",
+  "./art/pillar-health.webp",
+  "./art/pillar-integration.webp",
+  "./art/pillar-relationships.webp",
+  "./art/pillar-wealth.webp",
+  "./art/play-challenge.webp",
+  "./art/play-memory.webp",
+  "./art/play-trivia.webp",
+  "./art/play-wisdom.webp",
+  "./art/welcome.webp"
 ];
 const CURRICULUM = ["./curriculum-1.js?v=af5f4994", "./curriculum-2.js?v=d79c224c", "./curriculum-3.js?v=24cde8de"];
 
