@@ -13,10 +13,10 @@
    mid-session leaves the page running old JS while new assets are served —
    intermittent, and worse than being stale. It waits; the page offers a
    reload; the user decides.                                                */
-const VERSION = "flourish-737201c094b6";
+const VERSION = "flourish-652ac2a9ad64";
 const SHELL = [
   "./",
-  "./app.js?v=a5d30f00",
+  "./app.js?v=05922116",
   "./book.js?v=f3a5e4ca",
   "./boot.js?v=875f8247",
   "./church.js?v=d1e8f088",
@@ -37,7 +37,7 @@ const SHELL = [
   "./refund.html",
   "./seasons.js?v=61c1a170",
   "./support.html",
-  "./sync.js?v=c328a026",
+  "./sync.js?v=dcc141ec",
   "./terms.html",
   "./fonts/inter.woff2?v=3100e775",
   "./fonts/playfair.woff2?v=1d1889ac",

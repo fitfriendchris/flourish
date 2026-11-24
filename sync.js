@@ -20,6 +20,40 @@ const SYNC_DIRTY_KEY = "flourish_sync_dirty";
 const SYNC_STATE_KEYS = ["track","theme","startDate","xp","streak","lastActive","badges",
                          "quizzes","prayed","virtuesDone","gameWins","bestTrivia","onboarded","graceDay","__v"];
 let _syncing = false;
+/* Journal (24 Nov): the whole journal goes up and the merged whole comes back,
+   so an entry this device missed arrives and one the server lost is re-sent.
+   Per entry, newer wins on both sides. Not part of /api/progress: a long
+   journal must never be able to push the progress sync over its size limit. */
+let _journalTimer = null;
+function queueJournalSync(){
+  clearTimeout(_journalTimer);
+  _journalTimer = setTimeout(() => { if (navigator.onLine !== false) syncJournal().catch(e => console.warn("[flourish] journal sync deferred", e)); }, 2500);
+}
+async function syncJournal(){
+  const token = (typeof authToken === "function") ? await authToken() : "";
+  if (!token) return null;                       // signed out: the journal stays on this device
+  const local = S.journal && typeof S.journal === "object" ? S.journal : {};
+  const r = await fetchWithTimeout(FLOURISH_API + "/api/journal", {
+    method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify({ entries: local })
+  }, 15000);
+  if (!r.ok) throw new Error("journal sync failed: " + r.status);
+  const out = await r.json();
+  const remote = out && typeof out.entries === "object" && out.entries ? out.entries : {};
+  if (!S.journal || typeof S.journal !== "object") S.journal = {};
+  let changed = 0;
+  for (const [k, e] of Object.entries(remote)) {
+    const l = S.journal[k];
+    if (e && typeof e.at === "number" && (!l || e.at > (l.at || 0))) { S.journal[k] = e; changed++; }
+  }
+  if (changed) {
+    save();
+    // Never re-render under someone typing an answer: it would take the caret away.
+    const a = document.activeElement;
+    if (window.render && !(a && a.classList && a.classList.contains("refl-ans"))) render();
+  }
+  return out;
+}
 
 function localDoneDays(){
   return Object.keys(S.done || {})
@@ -101,6 +135,7 @@ async function syncProgress(opts){
 
     if (gained || adopted) { save(); if (window.render) render(); }
     markDirty(false);
+    syncJournal().catch(e => console.warn("[flourish] journal sync deferred", e));
     if (opts && opts.announce && gained)
       toast(`Restored ${gained} day${gained === 1 ? "" : "s"} from your account`);
     return merged;
