@@ -464,7 +464,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="c1e4ab5d58";
+const APP_VERSION="5f73c87c09";
 const PILLAR_ICON={health:"heart-pulse",wealth:"coins",relationships:"handshake",integration:"compass"};
 const pillarIcon=(p,c="")=>ico(PILLAR_ICON[String(p||"").toLowerCase()]||"handshake",c);
 /* Phase 2 art: one stained-glass look across the app (Nov 2026), in src/art.
@@ -903,7 +903,8 @@ function handle(act,id,el){
     case"event-save":if(typeof eventSave==="function")eventSave(id,el.dataset.event||null);break;
     case"event-cancel":if(typeof eventCancel==="function")eventCancel(id);break;
     case"notice-new":if(typeof noticeSheet==="function")noticeSheet(id);break;
-    case"notice-save":if(typeof noticeSave==="function")noticeSave(id);break;
+    case"notice-save":if(typeof noticeSave==="function")noticeSave(id,el.dataset.notice||null);break;
+    case"notice-edit":if(typeof noticeEdit==="function")noticeEdit(id);break;
     case"notice-delete":if(typeof noticeDelete==="function")noticeDelete(id);break;
     case"give-flourish-web":openExternal(PUBLIC_SITE+"#/give");break;
     case"open-orders":if(typeof openOrders==="function")openOrders();break;
@@ -956,7 +957,8 @@ function handle(act,id,el){
     case"join-group":if(typeof joinGroup==="function")joinGroup(id,true);break;
     case"leave-group":if(typeof joinGroup==="function")joinGroup(id,false);break;
     case"new-group":if(typeof newGroupSheet==="function")newGroupSheet(id);break;
-    case"submit-group":if(typeof submitGroup==="function")submitGroup(id);break;
+    case"submit-group":if(typeof submitGroup==="function")submitGroup(id,el.dataset.group||null);break;
+    case"group-edit":if(typeof groupEdit==="function")groupEdit(id);break;
     case"pastoral-inbox":if(typeof pastoralInbox==="function")pastoralInbox(id);break;
     case"pastoral-open":if(typeof leaderThread==="function")leaderThread(id);break;
     case"members-roster":if(typeof memberSheet==="function")memberSheet(id);break;

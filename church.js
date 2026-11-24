@@ -511,7 +511,7 @@ async function myChurchBody(){
           : "Your church hasn't posted any events yet.")}` : ""}
 
     ${sectionOn(c, "announcements") && (notices.length || leader) ? `<div class="shead"><h2 class="serif">${ico("megaphone")} Announcements</h2>${leader ? `<a data-act="notice-new" data-id="${esc(id)}">+ New</a>` : ""}</div>` +
-      (notices.length ? notices.map(a => `<div class="card"><div class="row between"><b>${a.pinned ? ico("pin") + " " : ""}${esc(a.title)}</b>${leader ? `<button class="btn sm ghost" data-act="notice-delete" data-id="${esc(a.id)}" aria-label="Remove announcement">✕</button>` : ""}</div>
+      (notices.length ? notices.map(a => `<div class="card"><div class="row between"><b>${a.pinned ? ico("pin") + " " : ""}${esc(a.title)}</b>${leader ? `<span class="row" style="gap:6px;flex:none"><button class="btn sm ghost" data-act="notice-edit" data-id="${esc(a.id)}" aria-label="Edit announcement">${ico("pencil")}</button><button class="btn sm ghost" data-act="notice-delete" data-id="${esc(a.id)}" aria-label="Remove announcement">✕</button></span>` : ""}</div>
         <p class="muted" style="font-size:13px;margin-top:4px">${esc(a.body || "")}</p></div>`).join("") : `<p class="faint" style="font-size:13px;margin:0 4px">Nothing posted. Members see announcements here.</p>`) : ""}
 
     ${sectionOn(c, "groups") ? `<div class="shead"><h2 class="serif">${ico("users")} Groups</h2>${leader
@@ -521,6 +521,7 @@ async function myChurchBody(){
         return `<div class="list-item">
           <div class="av">${ico("users")}</div>
           <div class="tx"><b>${esc(g.name)}</b><small>${esc(g.meeting_info || g.description || "")}</small></div>
+          ${leader ? `<button class="btn sm ghost" data-act="group-edit" data-id="${esc(g.id)}" aria-label="Edit ${esc(g.name)}">${ico("pencil")}</button>` : ""}
           <button class="btn sm ${inIt ? "" : "primary"}" data-act="${inIt ? "leave-group" : "join-group"}"
             data-id="${esc(g.id)}">${inIt ? "✓ Joined" : "Join"}</button></div>`; }).join("")
       : viewEmpty("users", "No groups yet", leader
@@ -1007,24 +1008,46 @@ async function joinGroup(groupId, join){
   } catch (err) { toast("⚠ " + (err.message || "Could not update the group")); }
 }
 
-function newGroupSheet(churchId){
-  const fld = (id, ph, max) => `<input id="${id}" placeholder="${ph}" maxlength="${max}"
+/* One sheet creates a group or, given the group, edits its name, meeting
+   details and description. Leaders only: RLS "leaders manage groups". */
+function newGroupSheet(churchId, g){
+  const fld = (id, ph, max, val) => `<input id="${id}" placeholder="${ph}" maxlength="${max}" value="${esc(val || "")}"
     style="width:100%;padding:11px;margin-top:8px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:15px">`;
-  sheet(`<div class="eyebrow">New group</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 4px">Start a small group</h3>
-    ${fld("grp-name", "Group name (e.g. Tuesday Men's Study)", 80)}
-    ${fld("grp-when", "When and where it meets", 120)}
+  sheet(`<div class="eyebrow">${g ? "Edit group" : "New group"}</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 4px">${g ? "Update " + esc(g.name) : "Start a small group"}</h3>
+    ${fld("grp-name", "Group name (e.g. Tuesday Men's Study)", 80, g && g.name)}
+    ${fld("grp-when", "When and where it meets", 120, g && g.meeting_info)}
     <textarea id="grp-desc" placeholder="What is this group for?" maxlength="600"
-      style="width:100%;padding:11px;margin-top:8px;min-height:80px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:15px"></textarea>
-    <button class="btn gold block lg" style="margin-top:12px" data-act="submit-group" data-id="${esc(churchId)}">Create group</button>
-    <p class="faint" style="font-size:12px;margin-top:8px">Every group comes with its own group chat.
-      Members join it under Groups on My Church, and the chat appears in their Chats.</p>`);
+      style="width:100%;padding:11px;margin-top:8px;min-height:80px;border-radius:11px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-size:15px">${esc((g && g.description) || "")}</textarea>
+    <button class="btn gold block lg" style="margin-top:12px" data-act="submit-group" data-id="${esc(churchId)}"${g ? ` data-group="${esc(g.id)}"` : ""}>${g ? "Save changes" : "Create group"}</button>
+    ${g ? `<p class="faint" style="font-size:12px;margin-top:8px">Renaming the group renames its group chat too.</p>`
+      : `<p class="faint" style="font-size:12px;margin-top:8px">Every group comes with its own group chat.
+      Members join it under Groups on My Church, and the chat appears in their Chats.</p>`}`);
+}
+async function groupEdit(id){
+  try {
+    const rows = await sbRest("/groups?select=id,church_id,name,description,meeting_info&id=eq." + encodeURIComponent(id) + "&limit=1");
+    const g = (rows || [])[0];
+    if (!g) { toast("That group could not be found"); return; }
+    newGroupSheet(g.church_id, g);
+  } catch (x) { toast("⚠ " + (x.message || "Couldn't open the group")); }
 }
 
-async function submitGroup(churchId){
+async function submitGroup(churchId, groupId){
   const v = id => ((document.getElementById(id) || {}).value || "").trim();
   const name = v("grp-name");
   if (!name) { toast("Give the group a name"); return; }
+  if (groupId) {
+    try {
+      // An RLS-filtered PATCH answers 200 with no rows, so an empty answer is a refusal.
+      const rows = await sbRest("/groups?id=eq." + encodeURIComponent(groupId), { method: "PATCH", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ name: name.slice(0, 80), description: v("grp-desc").slice(0, 600) || null, meeting_info: v("grp-when").slice(0, 120) || null }) });
+      if (!(Array.isArray(rows) ? rows.length : rows)) throw new Error("Only your church's leaders can change this group.");
+      closeSheet(); toast("Group updated");
+      fillView("my-church", myChurchBody);
+    } catch (err) { toast("⚠ " + (err.message || "Could not save the group")); }
+    return;
+  }
   try {
     await sbRpc("create_group", { p_church_id: churchId, p_name: name, p_description: v("grp-desc"),
       p_emoji: "", p_meeting_info: v("grp-when") });
@@ -1415,23 +1438,46 @@ function eventDirections(url){ openExternal(url); }
 
 function openEventDetail(id){ S.page = "church"; S.route = { sub: "church-event", id }; save(); syncHash(); render(); window.scrollTo(0,0); }
 
-function noticeSheet(churchId){
-  sheet(`<div class="eyebrow">New announcement</div>
-    <h3 class="serif" style="font-size:20px;margin:6px 0 12px">Tell your church</h3>
-    <label class="fl" for="an-title">Title</label><input id="an-title">
-    <label class="fl" for="an-body">Message</label><textarea id="an-body" rows="4"></textarea>
-    <label class="row" style="gap:10px;margin:10px 0"><input type="checkbox" id="an-pinned" style="width:18px"> <span>Pin to the top</span></label>
-    <label class="fl" for="an-expire">Take it down on (optional)</label><input id="an-expire" type="date">
+/* One sheet posts an announcement or, given one, edits it. An edit doesn't
+   notify members again: they were told when it was posted. */
+function noticeSheet(churchId, a){
+  const day = iso => { if (!iso) return ""; const d = new Date(iso); if (isNaN(d)) return "";
+    const p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); };
+  sheet(`<div class="eyebrow">${a ? "Edit announcement" : "New announcement"}</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 12px">${a ? "Update your announcement" : "Tell your church"}</h3>
+    <label class="fl" for="an-title">Title</label><input id="an-title" maxlength="120" value="${esc((a && a.title) || "")}">
+    <label class="fl" for="an-body">Message</label><textarea id="an-body" rows="4" maxlength="2000">${esc((a && a.body) || "")}</textarea>
+    <label class="row" style="gap:10px;margin:10px 0"><input type="checkbox" id="an-pinned" style="width:18px"${a && a.pinned ? " checked" : ""}> <span>Pin to the top</span></label>
+    <label class="fl" for="an-expire">Take it down on (optional)</label><input id="an-expire" type="date" value="${day(a && a.expire_at)}">
     <p class="muted" id="an-err" role="alert" style="color:var(--rose,#e77);font-size:13px;min-height:1em;margin:10px 0 0"></p>
-    <button class="btn gold block lg" style="margin-top:8px" data-act="notice-save" data-id="${esc(churchId)}">Post announcement</button>`);
+    <button class="btn gold block lg" style="margin-top:8px" data-act="notice-save" data-id="${esc(churchId)}"${a ? ` data-notice="${esc(a.id)}"` : ""}>${a ? "Save changes" : "Post announcement"}</button>`);
 }
-async function noticeSave(churchId){
+async function noticeEdit(id){
+  try {
+    const rows = await sbRest("/announcements?select=id,church_id,title,body,pinned,expire_at&id=eq." + encodeURIComponent(id) + "&limit=1");
+    const a = (rows || [])[0];
+    if (!a) { toast("That announcement could not be found"); return; }
+    noticeSheet(a.church_id, a);
+  } catch (x) { toast("⚠ " + (x.message || "Couldn't open the announcement")); }
+}
+async function noticeSave(churchId, noticeId){
   const g = k => { const el = document.getElementById("an-" + k); return el ? String(el.value || "").trim() : ""; };
   const err = t => { const x = document.getElementById("an-err"); if (x) x.textContent = t; };
   const title = g("title"); if (title.length < 2) { err("Give it a title."); return; }
   const exp = g("expire"); const uid = typeof authUserId === "function" ? authUserId() : null;
   const body = Object.assign({ church_id: churchId, title: title.slice(0, 120), body: g("body").slice(0, 2000) || null,
     pinned: !!(document.getElementById("an-pinned") || {}).checked, expire_at: exp ? new Date(exp + "T23:59:59").toISOString() : null }, uid ? { created_by: uid } : {});
+  if (noticeId) {
+    try {
+      // An RLS-filtered PATCH answers 200 with no rows, so an empty answer is a refusal.
+      const rows = await sbRest("/announcements?id=eq." + encodeURIComponent(noticeId), { method: "PATCH", headers: { Prefer: "return=representation" },
+        body: JSON.stringify({ title: body.title, body: body.body, pinned: body.pinned, expire_at: body.expire_at }) });
+      if (!(Array.isArray(rows) ? rows.length : rows)) { err("Only your church's leaders can change this announcement."); return; }
+      closeSheet(); toast("Announcement updated ✓");
+      if (typeof render === "function") render();
+    } catch (x) { err(x.message || "Couldn't save. Try again."); }
+    return;
+  }
   try {
     const rows = await sbRest("/announcements", { method: "POST", headers: { Prefer: "return=representation" }, body: JSON.stringify(body) });
     const made = Array.isArray(rows) ? rows[0] : rows;
