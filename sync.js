@@ -44,7 +44,15 @@ async function syncJournal(){
   let changed = 0;
   for (const [k, e] of Object.entries(remote)) {
     const l = S.journal[k];
-    if (e && typeof e.at === "number" && (!l || e.at > (l.at || 0))) { S.journal[k] = e; changed++; }
+    if (!e || typeof e.at !== "number") continue;
+    // A commitment's check-ins are facts: united, like completed days, never overwritten.
+    if (k[0] === "c" && l && !l.del && !e.del && l.checks && e.checks) {
+      const checks = Object.assign({}, l.checks, e.checks);
+      const base = e.at > (l.at || 0) ? e : l;
+      if (e.at > (l.at || 0) || Object.keys(checks).length !== Object.keys(l.checks).length) { S.journal[k] = Object.assign({}, base, { checks }); changed++; }
+      continue;
+    }
+    if (!l || e.at > (l.at || 0)) { S.journal[k] = e; changed++; }
   }
   if (changed) {
     save();

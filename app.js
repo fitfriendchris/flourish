@@ -464,7 +464,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="5d995cf355";
+const APP_VERSION="c1e4ab5d58";
 const PILLAR_ICON={health:"heart-pulse",wealth:"coins",relationships:"handshake",integration:"compass"};
 const pillarIcon=(p,c="")=>ico(PILLAR_ICON[String(p||"").toLowerCase()]||"handshake",c);
 /* Phase 2 art: one stained-glass look across the app (Nov 2026), in src/art.
@@ -837,6 +837,10 @@ function handle(act,id,el){
     case"journal-open-sheet":journalSheet();break;
     case"journal-open":closeSheet();route("lesson",String(+el.dataset.day));break;
     case"journal-copy":journalCopy();break;
+    case"commit-open":commitSheet(+el.dataset.day);break;
+    case"commit-save":commitSave(+el.dataset.day);break;
+    case"commit-check":commitCheck(el.dataset.id);break;
+    case"commit-stop":commitStop(el.dataset.id);break;
     case"complete-lesson":completeLesson(id);break;
     case"open-quiz":openQuiz(id);break;
     case"open-course":route("course",id);break;
@@ -1066,6 +1070,7 @@ function renderToday(){
     <div class="v">“${esc(o.x)}”</div>
     ${savePassageBtn(o, d)}
   </div>
+  ${commitCard()}
 
   <div class="card glow" style="margin-top:14px">
     <div class="row between"><span class="pill ${pillarCls(o.p)}">${pillarIcon(o.p)} ${esc(o.p)} · ${esc(o.s)}</span>
@@ -1075,7 +1080,8 @@ function renderToday(){
     ${te.understanding?`<p style="color:var(--text-dim);margin-top:8px">${esc(te.understanding)}</p>`:""}
 
     ${appl.length?`<div class="block app"><div class="bh">${ico("target")} Apply It Today</div>
-      <div class="checklist">${appl.map(a=>`<label><input type="checkbox" ${doneToday?"checked":""}><span>${esc(a)}</span></label>`).join("")}</div></div>`:""}
+      <div class="checklist">${appl.map(a=>`<label><input type="checkbox" ${doneToday?"checked":""}><span>${esc(a)}</span></label>`).join("")}</div>
+      <button class="btn sm ghost cm-open" data-act="commit-open" data-day="${d}" style="margin-top:8px">${ico("target")} Commit to one for a week or more</button></div>`:""}
 
     <div class="block wis"><div class="bh">${ico("library")} Daily Wisdom — beyond the Word</div>
       <div class="wisquote"><div class="q">“${esc(w.quote)}”</div><div class="src">— ${esc(w.source)} · on ${esc(w.theme)}</div></div>
@@ -2189,17 +2195,83 @@ function journalToggleSaved(d){
   document.querySelectorAll('.save-pass[data-day="' + d + '"]').forEach(b => { b.outerHTML = savePassageBtn(o, d); });
   toast(on ? "Removed from your journal" : "Saved to your journal");
 }
+/* ── Commitments (24 Nov) ─────────────────────────────────────────────
+   "Apply It Today" was a list nobody could act on over time (gap audit #13). A
+   member now commits to one of the day's actions for 7, 14 or 30 days and checks
+   in each day it's kept. A commitment lives in the journal as c<id> =
+   { at, text, pillar, start, days, checks: { "YYYY-MM-DD": 1 } } and syncs with
+   it; checks from two phones are united, never overwritten. Stopping one writes a
+   tombstone like any other journal entry. */
+const COMMIT_DAYS = [7, 14, 30];
+function commitList(){
+  return Object.entries(S.journal || {}).filter(([k, e]) => e && !e.del && /^c[a-z0-9]{6,16}$/.test(k))
+    .map(([k, e]) => Object.assign({ id: k }, e)).sort((a, b) => String(b.start).localeCompare(String(a.start)) || b.at - a.at);
+}
+function commitDayIndex(c, key){   // 1-based day of the commitment that `key` (YYYY-MM-DD) falls on
+  const a = new Date(c.start + "T12:00:00"), b = new Date((key || dayKey()) + "T12:00:00");
+  return Math.round((b - a) / 864e5) + 1;
+}
+function commitKept(c){ return Object.keys(c.checks || {}).filter(k => { const i = commitDayIndex(c, k); return i >= 1 && i <= c.days; }).length; }
+function commitActive(c){ const i = commitDayIndex(c); return i >= 1 && i <= c.days; }
+function commitCard(){
+  const act = commitList().filter(commitActive); if (!act.length) return "";
+  const today = dayKey();
+  return `<div class="card cm-card"><div class="bh">${ico("target")} Your commitments</div>
+    ${act.map(c => { const on = !!(c.checks && c.checks[today]);
+      return `<div class="cm-row"><div class="cm-tx"><b>${esc(c.text)}</b>
+        <span class="faint">Day ${commitDayIndex(c)} of ${c.days} · kept ${commitKept(c)} day${commitKept(c) === 1 ? "" : "s"}</span></div>
+        <button class="btn sm ${on ? "" : "primary"} cm-check" data-act="commit-check" data-id="${esc(c.id)}" aria-pressed="${on}">${on ? ico("check") + " Kept today" : "Kept it today"}</button></div>`; }).join("")}
+  </div>`;
+}
+function commitSheet(d){
+  const o = CURR()[d - 1] || {}; const te = typeof teach === "function" ? teach(o, S.track) : {};
+  const appl = (te.application && te.application.length ? te.application : (o.ma || [])).slice(0, 6);
+  if (!appl.length) { toast("This day has nothing to commit to"); return; }
+  sheet(`<div class="eyebrow">Commit</div>
+    <h3 class="serif" style="font-size:20px;margin:6px 0 4px">Choose one to live out</h3>
+    <p class="faint" style="font-size:12.5px;margin:0 0 10px">Check in each day you keep it. Only you can see your commitments.</p>
+    <div class="cm-pick">${appl.map((a, i) => `<label class="cm-opt"><input type="radio" name="cm-what" value="${i}"${i ? "" : " checked"}> <span>${esc(a)}</span></label>`).join("")}</div>
+    <div class="fl" style="margin-top:12px">For</div>
+    <div class="row" style="gap:8px">${COMMIT_DAYS.map((n, i) => `<label class="chip cm-days"><input type="radio" name="cm-days" value="${n}"${i ? "" : " checked"}> ${n} days</label>`).join("")}</div>
+    <button class="btn gold block lg" style="margin-top:14px" data-act="commit-save" data-day="${d}">${ico("target")} Commit</button>`);
+}
+function commitSave(d){
+  const o = CURR()[d - 1] || {}; const te = typeof teach === "function" ? teach(o, S.track) : {};
+  const appl = (te.application && te.application.length ? te.application : (o.ma || []));
+  const pick = document.querySelector('input[name="cm-what"]:checked'), len = document.querySelector('input[name="cm-days"]:checked');
+  const text = String(appl[pick ? +pick.value : 0] || "").slice(0, 200);
+  const days = COMMIT_DAYS.includes(+(len && len.value)) ? +len.value : 7;
+  if (!text) return;
+  const id = "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  journalSet(id, { text, pillar: String(o.p || "").slice(0, 40), start: dayKey(), days, checks: {} });
+  closeSheet(); toast(`Committed for ${days} days`);
+  if (typeof render === "function") render();
+}
+function commitCheck(id){
+  const c = journalEntry(id); if (!c) return;
+  const today = dayKey(), checks = Object.assign({}, c.checks || {});
+  if (checks[today]) delete checks[today]; else checks[today] = 1;
+  journalSet(id, { text: c.text, pillar: c.pillar, start: c.start, days: c.days, checks });
+  const btn = document.querySelector('.cm-check[data-id="' + id + '"]');
+  if (btn) { const card = btn.closest(".cm-card"); if (card) card.outerHTML = commitCard(); }
+  if (!c.checks || !c.checks[today]) toast("Kept today");
+}
+function commitStop(id){
+  if (!journalEntry(id)) return;
+  journalSet(id, { del: 1 }); toast("Commitment stopped");
+  if (document.querySelector("#scrim .sheet")) journalSheet();
+}
 function journalRows(){
   return Object.entries(S.journal || {}).filter(([k, e]) => e && !e.del && /^[rs]\d{1,4}$/.test(k))
     .sort((a, b) => b[1].at - a[1].at);
 }
 function journalCard(){
-  let r = 0, s = 0;
+  let r = 0, s = 0; const cm = commitList().length;
   journalRows().forEach(([k]) => { if (k[0] === "r") r++; else s++; });
   return `<button class="card jn-card" data-act="journal-open-sheet">
     <span class="jn-ic">${ico("notebook-pen")}</span>
-    <span class="jn-tx"><b>My journal</b><span class="faint">${r || s
-      ? `${r} reflection${r === 1 ? "" : "s"} · ${s} saved passage${s === 1 ? "" : "s"}`
+    <span class="jn-tx"><b>My journal</b><span class="faint">${r || s || cm
+      ? `${r} reflection${r === 1 ? "" : "s"} · ${s} saved passage${s === 1 ? "" : "s"}${cm ? ` · ${cm} commitment${cm === 1 ? "" : "s"}` : ""}`
       : "Answer a day's reflection questions and they're kept here."}</span></span>
     ${ico("chevron-right")}</button>`;
 }
@@ -2214,10 +2286,16 @@ function journalSheet(){
       : `<button class="card jn-item" data-act="journal-open" data-day="${d}"><span class="row between"><span class="with-ico">${ico("bookmark-check")} <b>${esc(e.ref || o.r || "Day " + d)}</b></span><span class="faint">${when(e.at)}</span></span>
          ${o.x ? `<span class="muted jn-text">“${esc(cut(o.x, 160))}”</span>` : ""}</button>`; };
   const answers = rows.filter(r => r[0][0] === "r"), saved = rows.filter(r => r[0][0] === "s");
+  const cms = commitList();
+  const cmItem = c => { const live = commitActive(c), kept = commitKept(c);
+    return `<div class="card jn-item cm-item"><span class="row between"><span class="with-ico">${ico("target")} <b>${esc(c.text)}</b></span></span>
+      <span class="muted jn-text">${live ? `Day ${commitDayIndex(c)} of ${c.days} · kept ${kept} so far` : `Kept ${kept} of ${c.days} days`}</span>
+      ${live ? `<button class="btn sm ghost" data-act="commit-stop" data-id="${esc(c.id)}" style="margin-top:8px">Stop this commitment</button>` : ""}</div>`; };
   sheet(`<div class="eyebrow">My journal</div>
     <h3 class="serif" style="font-size:20px;margin:6px 0 4px">Your reflections and saved passages</h3>
     <p class="faint" style="font-size:12.5px;margin:0 0 10px">Only you can see your journal. It's kept with your account, so it follows you to a new phone.</p>
-    ${rows.length ? "" : viewEmpty("notebook-pen", "Nothing here yet", "Answer a day's reflection questions, or tap Save on a passage, and it's kept here.")}
+    ${rows.length || cms.length ? "" : viewEmpty("notebook-pen", "Nothing here yet", "Answer a day's reflection questions, or tap Save on a passage, and it's kept here.")}
+    ${cms.length ? `<div class="shead"><h2 class="serif" style="font-size:17px">Commitments</h2><span class="faint">${cms.length}</span></div>${cms.map(cmItem).join("")}` : ""}
     ${answers.length ? `<div class="shead"><h2 class="serif" style="font-size:17px">Reflections</h2><span class="faint">${answers.length}</span></div>${answers.map(item).join("")}` : ""}
     ${saved.length ? `<div class="shead"><h2 class="serif" style="font-size:17px">Saved passages</h2><span class="faint">${saved.length}</span></div>${saved.map(item).join("")}` : ""}
     ${rows.length ? `<button class="btn block" data-act="journal-copy" style="margin-top:12px">${ico("clipboard")} Copy my journal</button>` : ""}`);
