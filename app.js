@@ -464,7 +464,7 @@ function graceReadyOn(graceDay){
   return g ? shiftKey(g, GRACE_WINDOW) : "";
 }
 
-const APP_VERSION="5f73c87c09";
+const APP_VERSION="1eb660eb43";
 const PILLAR_ICON={health:"heart-pulse",wealth:"coins",relationships:"handshake",integration:"compass"};
 const pillarIcon=(p,c="")=>ico(PILLAR_ICON[String(p||"").toLowerCase()]||"handshake",c);
 /* Phase 2 art: one stained-glass look across the app (Nov 2026), in src/art.
@@ -905,6 +905,7 @@ function handle(act,id,el){
     case"notice-new":if(typeof noticeSheet==="function")noticeSheet(id);break;
     case"notice-save":if(typeof noticeSave==="function")noticeSave(id,el.dataset.notice||null);break;
     case"notice-edit":if(typeof noticeEdit==="function")noticeEdit(id);break;
+    case"church-photo-clear":if(typeof churchPhotoClear==="function")churchPhotoClear(el.dataset.kind);break;
     case"notice-delete":if(typeof noticeDelete==="function")noticeDelete(id);break;
     case"give-flourish-web":openExternal(PUBLIC_SITE+"#/give");break;
     case"open-orders":if(typeof openOrders==="function")openOrders();break;

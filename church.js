@@ -301,10 +301,12 @@ async function discoveryBody(){
         `<button class="btn primary" data-act="near-me">${ico("locate")} Near me</button>`);
     }
     const mine = myChurchId();
-    // The stained-glass chapel stands in for a photo on every card: logo_url
-    // is off-origin, which the CSP (img-src 'self') would refuse anyway.
+    // A church's own logo when a leader has added one (churchPhoto), else the
+    // stained-glass chapel. The CSP allows images from the church-media bucket only.
     const chArt = typeof artImg === "function" ? artImg("church", "row-art ch-art", 52, 52) : "";
-    return invitesHtml + list.map(c => `<button class="card${chArt ? " art-row" : ""}" data-act="open-church" data-id="${esc(c.id)}">${chArt}<div class="art-row-body">
+    const cardArt = c => { const l = churchPhoto(c.logo_url);
+      return l ? `<img class="art row-art ch-art ch-logo" src="${esc(l)}" width="52" height="52" alt="" loading="lazy" decoding="async">` : chArt; };
+    return invitesHtml + list.map(c => `<button class="card${chArt || churchPhoto(c.logo_url) ? " art-row" : ""}" data-act="open-church" data-id="${esc(c.id)}">${cardArt(c)}<div class="art-row-body">
       <div class="row between">
         <b class="serif" style="font-size:17px">${esc(c.name)}${c.is_verified ? ' <span class="pill" style="font-size:10px">verified</span>' : ""}</b>
         ${c.id === mine ? '<span class="pill">your church</span>' : ico("chevron-right", "chev")}
@@ -342,7 +344,10 @@ async function churchDetailBody(id){
     const joined = (CH.membership || []).some(m => m.church_id === c.id);
     const times = Array.isArray(c.service_times) ? c.service_times
                 : (c.service_times && typeof c.service_times === "object" ? Object.values(c.service_times) : []);
-    return `<div class="hero">${typeof artImg === "function" ? artImg("church", "ch-hero-art", 84, 84) : ""}
+    const logo = churchPhoto(c.logo_url), cover = churchPhoto(c.cover_url);
+    return `${cover ? `<img class="ch-cover" src="${esc(cover)}" alt="" decoding="async">` : ""}<div class="hero">${logo
+        ? `<img class="ch-hero-logo" src="${esc(logo)}" width="84" height="84" alt="" decoding="async">`
+        : typeof artImg === "function" ? artImg("church", "ch-hero-art", 84, 84) : ""}
         <div class="v" style="font-size:24px">${esc(c.name)}</div>
         <div class="ref">${esc([c.denomination, [c.city, c.state].filter(Boolean).join(", ")].filter(Boolean).join(" · "))}</div>
       </div>
@@ -479,10 +484,12 @@ async function myChurchBody(){
       { weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); }
       catch (e) { return ""; } };
 
+    const logo = churchPhoto(c.logo_url), cover = churchPhoto(c.cover_url);
     return `
+    ${cover ? `<img class="ch-cover" src="${esc(cover)}" alt="" decoding="async">` : ""}
     <div class="row between" style="margin:4px 4px 12px">
-      <div><div class="eyebrow">My Church</div>
-        <div class="serif" style="font-size:22px;font-weight:700">${esc(c.name)}</div></div>
+      <div class="row" style="gap:12px">${logo ? `<img class="ch-logo" src="${esc(logo)}" width="48" height="48" alt="" decoding="async">` : ""}<div><div class="eyebrow">My Church</div>
+        <div class="serif" style="font-size:22px;font-weight:700">${esc(c.name)}</div></div></div>
     </div>
 
     <div class="grid g3" style="margin-top:4px">
@@ -1066,6 +1073,92 @@ async function submitGroup(churchId, groupId){
    "leaders update church", "leaders manage events", "leaders manage
    announcements". The screens are a convenience, not the control.
    ══════════════════════════════════════════════════════════════════ */
+/* ── church photos (23 Nov) ───────────────────────────────────────────
+   A logo and a cover photo per church, in the public "church-media" bucket at
+   <church_id>/<kind>-<time>.<ext>. Leaders add them from the page editor:
+   storage policies let only that church's leaders write under its id (migration
+   church_media_bucket), and anyone may view them, since they're on the church's
+   public page. The phone resizes first: a logo is a 512 px square PNG (keeps
+   transparency), a cover a 1600×900 JPEG. A new upload gets a new name, so a
+   replaced photo never shows stale from a cache. Only URLs in that bucket are
+   ever drawn or saved: the CSP allows images from there and nowhere else. */
+const CHURCH_MEDIA_RE = /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\/church-media\/[0-9a-f-]{36}\/(logo|cover)-\d+\.(png|jpg)$/i;
+function churchPhoto(url){ return CHURCH_MEDIA_RE.test(String(url || "")) ? String(url) : ""; }
+const CHURCH_PHOTO = { logo: { w: 512, h: 512, type: "image/png", ext: "png" },
+                       cover: { w: 1600, h: 900, type: "image/jpeg", ext: "jpg", q: 0.86 } };
+async function churchPhotoBlob(file, kind){
+  const spec = CHURCH_PHOTO[kind];
+  if (!spec) throw new Error("Unknown photo");
+  if (!file || !/^image\//.test(file.type || "")) throw new Error("Choose a photo (JPEG or PNG).");
+  const src = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, no) => { const i = new Image();
+      i.onload = () => ok(i); i.onerror = () => no(new Error("That photo couldn't be opened. Try a JPEG or PNG.")); i.src = src; });
+    const sw = img.naturalWidth, sh = img.naturalHeight;
+    if (!sw || !sh) throw new Error("That photo couldn't be opened. Try a JPEG or PNG.");
+    // Centre-crop to the target shape, then scale down (never up).
+    const want = spec.w / spec.h, have = sw / sh;
+    const cw = have > want ? Math.round(sh * want) : sw, chh = have > want ? sh : Math.round(sw / want);
+    const scale = Math.min(1, spec.w / cw);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(cw * scale)); canvas.height = Math.max(1, Math.round(chh * scale));
+    canvas.getContext("2d").drawImage(img, (sw - cw) / 2, (sh - chh) / 2, cw, chh, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(ok => canvas.toBlob(ok, spec.type, spec.q));
+    if (!blob) throw new Error("That photo couldn't be prepared. Try another.");
+    if (blob.size > 2 * 1024 * 1024) throw new Error("That photo is still over 2 MB after resizing. Try another.");
+    return blob;
+  } finally { URL.revokeObjectURL(src); }
+}
+async function churchPhotoUpload(churchId, kind, blob){
+  const cfg = await flourishConfig();
+  if (!cfg || !cfg.supabase_url) throw new Error("Uploads are unavailable right now");
+  const token = (typeof authToken === "function") ? await authToken() : "";
+  if (!token) throw new Error("Please sign in again to upload.");
+  const spec = CHURCH_PHOTO[kind];
+  const path = encodeURIComponent(churchId) + "/" + kind + "-" + Date.now() + "." + spec.ext;
+  const r = await fetchWithTimeout(cfg.supabase_url + "/storage/v1/object/church-media/" + path, { method: "POST",
+    headers: { apikey: cfg.supabase_anon_key, Authorization: "Bearer " + token, "Content-Type": spec.type, "cache-control": "max-age=31536000" },
+    body: blob }, 30000);
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    throw new Error(r.status === 403 || /security|unauthori[sz]ed/i.test(t)
+      ? "Only your church's leaders can change its photos."
+      : "The upload didn't finish (" + r.status + "). Try again.");
+  }
+  return cfg.supabase_url + "/storage/v1/object/public/church-media/" + path;
+}
+async function churchPhotoPick(churchId, kind, input){
+  const file = input && input.files && input.files[0]; if (!file) return;
+  const msg = document.getElementById("ce-photo-msg"); const say = t => { if (msg) msg.textContent = t; };
+  try {
+    say(kind === "logo" ? "Preparing your logo…" : "Preparing your cover photo…");
+    const blob = await churchPhotoBlob(file, kind);
+    say("Uploading…");
+    const url = await churchPhotoUpload(churchId, kind, blob);
+    churchPhotoShow(kind, url);
+    say((kind === "logo" ? "Logo" : "Cover photo") + " uploaded. Save the page to use it.");
+  } catch (e) { say(e.message || "The upload didn't finish. Try again."); }
+  finally { try { input.value = ""; } catch (x) {} }
+}
+function churchPhotoShow(kind, url){
+  const hid = document.getElementById("ce-" + kind + "_url"); if (hid) hid.value = url || "";
+  const prev = document.getElementById("ce-" + kind + "-prev");
+  if (prev) prev.innerHTML = url ? `<img src="${esc(url)}" alt="">` : (kind === "logo" ? ico("church") : "");
+  const lbl = document.getElementById("ce-" + kind + "-label");
+  if (lbl) lbl.innerHTML = ico("camera") + " " + (kind === "logo" ? (url ? "Change logo" : "Add a logo") : (url ? "Change cover photo" : "Add a cover photo"));
+  const rm = document.getElementById("ce-" + kind + "-rm"); if (rm) rm.hidden = !url;
+}
+function churchPhotoClear(kind){
+  if (kind !== "logo" && kind !== "cover") return;
+  churchPhotoShow(kind, "");
+  const msg = document.getElementById("ce-photo-msg");
+  if (msg) msg.textContent = (kind === "logo" ? "Logo" : "Cover photo") + " removed. Save the page to keep it that way.";
+}
+document.addEventListener("change", ev => {
+  const el = ev.target;
+  if (el && el.matches && el.matches('input[type="file"][data-photo]')) churchPhotoPick(el.dataset.church, el.dataset.photo, el);
+});
+
 const CH_SECTIONS = [
   ["times", "clock", "Service times"], ["events", "calendar", "Events"], ["announcements", "megaphone", "Announcements"],
   ["groups", "users", "Groups"], ["prayer", "hand-heart", "Prayer wall"], ["giving", "gift", "Giving"], ["sermons", "headphones", "Sermons"]
@@ -1086,10 +1179,31 @@ async function churchEditSheet(id){
   if (!c) { box.innerHTML = viewError("Couldn't load your church", () => churchEditSheet(id)); return; }
   const v = k => esc(c[k] == null ? "" : String(c[k]));
   const times = Array.isArray(c.service_times) ? c.service_times : [];
+  const logo = churchPhoto(c.logo_url), cover = churchPhoto(c.cover_url);
   const f = (k, label, type) => `<label class="fl" for="ce-${k}">${label}</label><input id="ce-${k}" type="${type || "text"}" value="${v(k)}">`;
   box.innerHTML = `
     ${f("name", "Church name")}
     <label class="fl" for="ce-description">About</label><textarea id="ce-description" rows="4">${v("description")}</textarea>
+    <div class="card" style="margin-top:10px" id="ce-photos">
+      <b class="with-ico">${ico("camera")} Photos</b>
+      <p class="muted" style="font-size:13px;margin:6px 0 10px">Your logo shows on your church's card and page, and the cover photo across the top of your page.</p>
+      <div class="row" style="gap:12px;align-items:center">
+        <span class="ce-logo-prev" id="ce-logo-prev">${logo ? `<img src="${esc(logo)}" alt="">` : ico("church")}</span>
+        <div style="flex:1;min-width:0">
+          <label class="btn sm" id="ce-logo-label" for="ce-logo-file">${ico("camera")} ${logo ? "Change logo" : "Add a logo"}</label>
+          <button class="btn sm ghost" id="ce-logo-rm" data-act="church-photo-clear" data-kind="logo"${logo ? "" : " hidden"}>Remove</button>
+        </div>
+        <input type="file" id="ce-logo-file" class="sr-only" accept="image/*" data-photo="logo" data-church="${esc(id)}">
+      </div>
+      <div class="ce-cover-prev" id="ce-cover-prev" style="margin-top:12px">${cover ? `<img src="${esc(cover)}" alt="">` : ""}</div>
+      <div class="row" style="gap:8px;margin-top:8px">
+        <label class="btn sm" id="ce-cover-label" for="ce-cover-file">${ico("camera")} ${cover ? "Change cover photo" : "Add a cover photo"}</label>
+        <button class="btn sm ghost" id="ce-cover-rm" data-act="church-photo-clear" data-kind="cover"${cover ? "" : " hidden"}>Remove</button>
+      </div>
+      <input type="file" id="ce-cover-file" class="sr-only" accept="image/*" data-photo="cover" data-church="${esc(id)}">
+      <input type="hidden" id="ce-logo_url" value="${esc(logo)}"><input type="hidden" id="ce-cover_url" value="${esc(cover)}">
+      <p class="muted" id="ce-photo-msg" role="status" style="font-size:12.5px;margin:8px 0 0"></p>
+    </div>
     ${f("denomination", "Denomination")}${f("pastor_name", "Pastor")}
     <label class="fl" for="ce-times">Service times (one per line)</label><textarea id="ce-times" rows="3">${esc(times.join("\n"))}</textarea>
     ${f("address", "Street address")}${f("city", "City")}${f("state", "State")}${f("postal_code", "ZIP code")}
@@ -1111,6 +1225,7 @@ async function churchEditSheet(id){
     <p class="muted" id="ce-err" role="alert" style="color:var(--rose,#e77);font-size:13px;min-height:1em;margin:10px 0 0"></p>
     <button class="btn gold block lg" style="margin-top:8px" data-act="church-save" data-id="${esc(id)}">Save page</button>`;
   box.dataset.settings = JSON.stringify(c.settings && typeof c.settings === "object" ? c.settings : {});
+  box.dataset.photos = JSON.stringify({ logo_url: logo, cover_url: cover });
 }
 function churchLocate(){
   const msg = document.getElementById("ce-loc");
@@ -1138,6 +1253,13 @@ async function churchSave(id){
   const box = document.getElementById("ce-form");
   let settings = {}; try { settings = JSON.parse((box && box.dataset.settings) || "{}") || {}; } catch (e) { settings = {}; }
   settings.sections_hidden = Array.from(document.querySelectorAll(".ce-sec")).filter(x => !x.checked).map(x => x.value);
+  let was = {}; try { was = JSON.parse((box && box.dataset.photos) || "{}") || {}; } catch (e) { was = {}; }
+  const photos = {};
+  for (const k of ["logo_url", "cover_url"]) {
+    if (!document.getElementById("ce-" + k)) continue;
+    const now = churchPhoto(g(k));
+    if (now !== (was[k] || "")) photos[k] = now || null;
+  }
   const body = Object.assign({
     name: name.slice(0, 120), description: g("description").slice(0, 2000) || null,
     denomination: g("denomination").slice(0, 80) || null, pastor_name: g("pastor_name").slice(0, 80) || null,
@@ -1147,7 +1269,7 @@ async function churchSave(id){
     giving_note: g("giving_note").slice(0, 160) || null,
     lat: lat === "" ? null : Number(lat), lng: lng === "" ? null : Number(lng),
     settings
-  }, urls);
+  }, urls, photos);
   err("");
   try {
     await sbRest("/churches?id=eq." + encodeURIComponent(id), { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify(body) });

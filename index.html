@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' https://rdnlorxsmyufaboftzus.supabase.co https://api.stripe.com; frame-src https://checkout.stripe.com https://js.stripe.com; form-action 'self' https://checkout.stripe.com; base-uri 'self'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://rdnlorxsmyufaboftzus.supabase.co/storage/v1/object/public/church-media/; connect-src 'self' https://rdnlorxsmyufaboftzus.supabase.co https://api.stripe.com; frame-src https://checkout.stripe.com https://js.stripe.com; form-action 'self' https://checkout.stripe.com; base-uri 'self'; object-src 'none'">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -377,6 +377,13 @@ html[data-theme="light"] .garden{background:linear-gradient(180deg,#bfe2ec 0%,#d
 .cm-opt input[type="radio"],.cm-days input[type="radio"]{width:18px;height:18px;min-height:0;flex:none;margin:2px 0 0;padding:0;accent-color:var(--gold)}
 .cm-days{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:8px 14px}
 .jn-item .jn-text{display:block;margin-top:6px;white-space:pre-wrap;font-size:14px}
+.ch-logo{border-radius:12px;object-fit:cover;background:var(--surface3);flex:none}
+.ch-cover{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:var(--radius);margin:0 0 12px}
+.ch-hero-logo{display:block;margin:0 auto 10px;border-radius:20px;object-fit:cover;background:var(--surface3)}
+.ce-logo-prev{width:64px;height:64px;border-radius:14px;overflow:hidden;display:grid;place-items:center;flex:none;
+  color:var(--gold);font-size:28px;background:color-mix(in srgb,var(--gold-500) 12%,var(--surface2));border:1px solid var(--line)}
+.ce-logo-prev img{width:100%;height:100%;object-fit:cover}
+.ce-cover-prev img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 :root{--sp-1:4px;--sp-2:8px;--sp-3:12px;--sp-4:16px;--sp-5:24px;--sp-6:32px;--sp-7:48px;--sp-8:64px}
 
@@ -576,10 +583,10 @@ html[data-theme="light"] .garden .m{background:radial-gradient(circle,#d9a921,rg
 <script async src="book.js?v=f3a5e4ca"></script>
 <script defer src="rebuild.js?v=f9a78c01"></script>
 <script async src="seasons.js?v=61c1a170"></script>
-<script defer src="app.js?v=94fadfc8"></script>
+<script defer src="app.js?v=faafbd61"></script>
 <script defer src="entitlement.js?v=01f45f42"></script>
 <script defer src="sync.js?v=8c71a87c"></script>
-<script defer src="church.js?v=1ddc28ea"></script>
+<script defer src="church.js?v=8d119b3e"></script>
 <script defer src="commerce.js?v=4b0327ac"></script>
 <script defer src="boot.js?v=875f8247"></script>
 </head>
